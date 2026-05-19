@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('electron', {
   downloadUpdate:       (p)   => ipcRenderer.invoke('download-update', p),
   onDownloadProgress:   (cb)  => ipcRenderer.on('download-progress', (_, d) => cb(d)),
   offDownloadProgress:  ()    => ipcRenderer.removeAllListeners('download-progress'),
+  launchUpdate:         (p)   => ipcRenderer.invoke('launch-update', p),
   winMinimize: ()       => ipcRenderer.send('win-minimize'),
   winMaximize: ()       => ipcRenderer.send('win-maximize'),
   winClose:    ()       => ipcRenderer.send('win-close'),

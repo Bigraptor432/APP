@@ -107,12 +107,17 @@ ipcMain.handle('download-update', async (_, { url }) => {
     await downloadFile(url, dest, (pct) => {
       win?.webContents.send('download-progress', { percent: pct });
     });
-    win?.webContents.send('download-progress', { percent: 100, done: true });
-    shell.showItemInFolder(dest);
+    win?.webContents.send('download-progress', { percent: 100, done: true, dest });
     return { success: true };
   } catch (e) {
     return { error: e.message };
   }
+});
+
+ipcMain.handle('launch-update', async (_, { dest }) => {
+  await shell.openPath(dest);
+  setTimeout(() => app.quit(), 1500);
+  return { ok: true };
 });
 
 app.whenReady().then(() => {

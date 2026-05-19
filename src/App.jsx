@@ -1677,6 +1677,7 @@ export default function App() {
   const [updateInfo,      setUpdateInfo]      = useState(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [dlProgress,      setDlProgress]      = useState(null);
+  const [dlDest,          setDlDest]          = useState(null);
   const logs     = targetLogs[activeTarget]   || [];
   const plan     = targetPlans[activeTarget]  || [];
   const messages = convMessages[activeConv]   || [];
@@ -1709,8 +1710,9 @@ export default function App() {
 
   useEffect(() => {
     if (!window.electron?.onDownloadProgress) return;
-    window.electron.onDownloadProgress(({ percent, done }) => {
+    window.electron.onDownloadProgress(({ percent, done, dest }) => {
       setDlProgress(done ? 100 : percent);
+      if (done && dest) setDlDest(dest);
     });
     return () => window.electron.offDownloadProgress?.();
   }, []);
@@ -2017,7 +2019,7 @@ export default function App() {
             {dlProgress !== null ? (
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between font-mono text-[9px]" style={{ color: '#555' }}>
-                  <span>{dlProgress < 100 ? 'A descarregar...' : 'Guardado na mesma pasta — a abrir...'}</span>
+                  <span>{dlProgress < 100 ? 'A descarregar...' : 'Pronto!'}</span>
                   <span>{dlProgress}%</span>
                 </div>
                 <div className="w-full rounded-full overflow-hidden" style={{ height: 6, background: '#1a1a1a' }}>
@@ -2026,6 +2028,15 @@ export default function App() {
                     style={{ width: `${dlProgress}%`, background: dlProgress === 100 ? C.green : C.red }}
                   />
                 </div>
+                {dlProgress === 100 && dlDest && (
+                  <button
+                    onClick={() => window.electron?.launchUpdate({ dest: dlDest })}
+                    className="w-full py-2 rounded-lg font-mono text-[10px] font-bold uppercase tracking-widest mt-1"
+                    style={{ background: C.green ? 'rgba(34,197,94,0.15)' : C.redDim, border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e' }}
+                  >
+                    ▶ Instalar e fechar
+                  </button>
+                )}
               </div>
             ) : (
               <div className="flex gap-2">
