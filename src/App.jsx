@@ -1024,17 +1024,25 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
   const [running, setRunning] = useState(false);
   const [log,     setLog]     = useState([]);
   const [tools,   setTools]   = useState({
-    naabu_scan:   true,
-    katana_crawl: true,
+    subfinder:    true,
+    httpx:        true,
+    ghauri:       true,
+    wfuzz:        true,
+    aquatone:     false,
+    burp_suite:   false,
+    naabu_scan:   false,
+    katana_crawl: false,
     nuclei_fast:  true,
-    sqli_scan:    true,
+    sqli_scan:    false,
     xss_check:    false,
-    cors_check:   true,
-    js_analyze:   true,
+    cors_check:   false,
+    js_analyze:   false,
     dir_fuzz:     false,
     ssrf_check:   false,
     lfi_test:     false,
   });
+  const PRIMARY   = ['subfinder','httpx','ghauri','wfuzz','aquatone','burp_suite'];
+  const SECONDARY = ['naabu_scan','katana_crawl','nuclei_fast','sqli_scan','xss_check','cors_check','js_analyze','dir_fuzz','ssrf_check','lfi_test'];
   const logRef = useRef(null);
 
   useEffect(() => {
@@ -1045,6 +1053,12 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
   const activeCount = Object.values(tools).filter(Boolean).length;
 
   const TOOL_MAP = {
+    subfinder:    { tool: 'subfinder',   args: (t) => ({ domain: t, flags: '-silent' }) },
+    httpx:        { tool: 'httpx',       args: (t) => ({ target: t, flags: '-status-code -title -tech-detect' }) },
+    ghauri:       { tool: 'ghauri',      args: (t) => ({ url: t, flags: '--dbs --batch' }) },
+    wfuzz:        { tool: 'wfuzz',       args: (t) => ({ url: t, flags: '-c -z file,/usr/share/wordlists/dirb/common.txt --hc 404' }) },
+    aquatone:     { tool: 'aquatone',    args: (t) => ({ target: t }) },
+    burp_suite:   { tool: 'burpsuite',   args: (t) => ({ target: t }) },
     naabu_scan:   { tool: 'nmap',        args: (t) => ({ target: t, flags: '-sV -sC -p- --min-rate 5000' }) },
     katana_crawl: { tool: 'curl',        args: (t) => ({ url: t, flags: '-L -I' }) },
     nuclei_fast:  { tool: 'nuclei',      args: (t) => ({ target: t, templates: 'cves,misconfig,exposure', severity: 'critical,high,medium' }) },
@@ -1119,23 +1133,44 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
         />
       </div>
 
-      <div className="rounded-xl p-3" style={{ background: C.panel, border: `1px solid ${C.border}` }}>
-        <div className="flex items-center justify-between mb-3">
+      <div className="rounded-xl p-3 space-y-3" style={{ background: C.panel, border: `1px solid ${C.border}` }}>
+        <div className="flex items-center justify-between">
           <span className="font-mono text-[9px] uppercase tracking-widest" style={{ color: C.textDim }}>FERRAMENTAS</span>
           <span className="font-mono text-[9px]" style={{ color: '#3a3a3a' }}>{activeCount} ativas</span>
         </div>
-        <div className="grid grid-cols-2 gap-1.5">
-          {Object.entries(tools).map(([tool, on]) => (
-            <button
-              key={tool}
-              onClick={() => toggle(tool)}
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition-all"
-              style={{ background: on ? C.redDim : 'transparent', border: `1px solid ${on ? C.redBorder : C.border}` }}
-            >
-              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: on ? C.red : '#333' }} />
-              <span className="font-mono text-[9px] truncate" style={{ color: on ? '#bbb' : '#444' }}>{tool}</span>
-            </button>
-          ))}
+
+        <div>
+          <div className="font-mono text-[8px] uppercase tracking-widest mb-1.5" style={{ color: C.red, opacity: 0.6 }}>Principais</div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {PRIMARY.map(tool => (
+              <button
+                key={tool}
+                onClick={() => toggle(tool)}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition-all"
+                style={{ background: tools[tool] ? C.redDim : 'transparent', border: `1px solid ${tools[tool] ? C.redBorder : C.border}` }}
+              >
+                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: tools[tool] ? C.red : '#333' }} />
+                <span className="font-mono text-[9px] truncate" style={{ color: tools[tool] ? '#bbb' : '#444' }}>{tool.replace('_', ' ')}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div className="font-mono text-[8px] uppercase tracking-widest mb-1.5" style={{ color: C.textDim, opacity: 0.5 }}>Secundárias</div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {SECONDARY.map(tool => (
+              <button
+                key={tool}
+                onClick={() => toggle(tool)}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition-all"
+                style={{ background: tools[tool] ? 'rgba(255,255,255,0.04)' : 'transparent', border: `1px solid ${tools[tool] ? '#333' : C.border}` }}
+              >
+                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: tools[tool] ? '#555' : '#222' }} />
+                <span className="font-mono text-[9px] truncate" style={{ color: tools[tool] ? '#666' : '#333' }}>{tool.replace(/_/g, ' ')}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
