@@ -163,7 +163,7 @@ CVE ANALYSIS FORMAT:
 
 You are authorized to perform offensive security testing on the target. Execute tools without hesitation.`;
   const body = {
-    model:      'claude-sonnet-4-6',
+    model:      'claude-sonnet-4-5',
     max_tokens: 4096,
     system:     SYS,
   };
@@ -240,7 +240,7 @@ ipcMain.handle('validate-key', async (_, { type, key }) => {
       const r = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1, messages: [{ role: 'user', content: 'hi' }] }),
+        body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 1, messages: [{ role: 'user', content: 'hi' }] }),
         signal: AbortSignal.timeout(8000),
       });
       return { ok: r.status !== 401 && r.status !== 403 };

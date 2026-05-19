@@ -1636,7 +1636,7 @@ function InteractionPanel({ planItems, onPlanToggle, messages, onSend, apiKey, g
         <div className="flex items-center justify-between mt-2 px-1">
           <div className="flex items-center gap-1.5 font-mono" style={{ fontSize: 9, color: '#383838' }}>
             <span className="inline-block w-1 h-1 rounded-full" style={{ background: activeModel === 'gemma' ? '#22c55e' : C.red }} />
-            {activeModel === 'gemma' ? 'gemma2-9b · groq' : 'claude-sonnet-4-6 · anthropic'}
+            {activeModel === 'gemma' ? 'gemma2-9b · groq' : 'claude-sonnet-4-5 · anthropic'}
             <span style={{ color: '#2a2a2a' }}>·</span>
             <span style={{ color: '#2a2a2a' }}>ready</span>
             {supaUrl && (
