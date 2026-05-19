@@ -1600,13 +1600,19 @@ export default function App() {
 
   // ── MCP: listen for tool-use progress events ───────────────────────────────────
   useEffect(() => {
-    if (!window.electron?.onUpdateAvailable) return;
-    window.electron.onUpdateAvailable((data) => { setUpdateInfo(data); setShowUpdateModal(true); });
-    const poll = setInterval(() => {
-      window.electron.checkUpdate?.().then(d => { if (d) { setUpdateInfo(d); setShowUpdateModal(true); clearInterval(poll); } });
-    }, 1000);
-    setTimeout(() => clearInterval(poll), 15000);
-    return () => clearInterval(poll);
+    const check = async () => {
+      try {
+        const res  = await fetch('https://api.github.com/repos/Bigraptor432/APP/releases/latest');
+        const data = await res.json();
+        const latest = (data.tag_name || '').replace(/^v/, '');
+        const current = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0';
+        if (latest && latest !== current) {
+          setUpdateInfo({ version: latest, url: data.html_url });
+          setShowUpdateModal(true);
+        }
+      } catch (_) {}
+    };
+    setTimeout(check, 3000);
   }, []);
 
   useEffect(() => {
