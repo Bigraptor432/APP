@@ -22,14 +22,14 @@ jobs:
       - run: npm run build:portable
       - uses: actions/upload-artifact@v4
         with:
-          name: manucaspt-windows
-          path: release/manucaspt-portable.exe
+          name: kgbtools-windows
+          path: release/kgbtools-portable.exe
       - name: Publicar Release (só em tags)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: release/manucaspt-portable.exe
-          name: manucaspt ${{ github.ref_name }}
+          files: release/kgbtools-portable.exe
+          name: KGBtools ${{ github.ref_name }}
           draft: false
           prerelease: false
         env:

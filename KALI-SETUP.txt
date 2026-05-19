@@ -305,7 +305,7 @@ PASSO 8 - COPIAR E INICIAR O SERVIDOR MCP
 
 PASSO 9 - CONFIGURAR NA APP (nos 3 PCs)
 -----------------------------------------
-  1. Abre a app manucaspt
+  1. Abre a app kgbtools
   2. Clica no icone de engrenagem (Definicoes)
   3. Campo "Kali MCP Server":
        http://100.x.x.x:3000   <- IP Tailscale da EC2 do Passo 6

@@ -22,7 +22,7 @@ function createWindow() {
     height:    900,
     minWidth:  1100,
     minHeight: 700,
-    title:     'manucaspt',
+    title:     'KGBtools',
     frame:     isMac,
     titleBarStyle:        isMac ? 'hiddenInset' : undefined,
     trafficLightPosition: isMac ? { x: 12, y: 10 } : undefined,
@@ -52,7 +52,7 @@ function checkForUpdates() {
   const options = {
     hostname: 'api.github.com',
     path:     '/repos/Bigraptor432/APP/releases/latest',
-    headers:  { 'User-Agent': 'manucaspt' },
+    headers:  { 'User-Agent': 'kgbtools' },
   };
   https.get(options, (res) => {
     let data = '';
@@ -78,7 +78,7 @@ ipcMain.handle('check-update', () => pendingUpdate);
 function downloadFile(url, dest, onProgress) {
   return new Promise((resolve, reject) => {
     const follow = (u) => {
-      https.get(u, { headers: { 'User-Agent': 'manucaspt' } }, (res) => {
+      https.get(u, { headers: { 'User-Agent': 'kgbtools' } }, (res) => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
           return follow(res.headers.location);
         }
@@ -103,10 +103,10 @@ function downloadFile(url, dest, onProgress) {
 ipcMain.handle('download-update', async (_, { url }) => {
   const exeDir = process.env.PORTABLE_EXECUTABLE_DIR || app.getPath('downloads');
   const version = url.match(/download\/v?([\d.]+)\//)?.[1] || 'new';
-  const dest = path.join(exeDir, `manucaspt-v${version}.exe`);
+  const dest = path.join(exeDir, `kgbtools-v${version}.exe`);
   try {
     fs.readdirSync(exeDir)
-      .filter(f => /^manucaspt-v[\d.]+\.exe$/i.test(f))
+      .filter(f => /^kgbtools-v[\d.]+\.exe$/i.test(f))
       .forEach(f => { try { fs.unlinkSync(path.join(exeDir, f)); } catch (_) {} });
   } catch (_) {}
   try {
@@ -326,7 +326,7 @@ ipcMain.handle('call-opus-plan', async (_, { messages, apiKey, tools, mcpUrl }) 
 ipcMain.handle('lookup-cves', async (_, { query }) => {
   try {
     const url = `https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch=${encodeURIComponent(query)}&resultsPerPage=10`;
-    const res  = await fetch(url, { headers: { 'User-Agent': 'manucaspt/3.0' }, signal: AbortSignal.timeout(12000) });
+    const res  = await fetch(url, { headers: { 'User-Agent': 'kgbtools/3.0' }, signal: AbortSignal.timeout(12000) });
     const data = await res.json();
     const cves = (data.vulnerabilities || []).map(v => ({
       id:          v.cve.id,

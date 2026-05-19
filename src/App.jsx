@@ -20,7 +20,7 @@ function TitleBar() {
     >
       <div className="flex items-center gap-2 px-3">
         <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: '#ff3333' }} />
-        <span className="font-mono text-[10px] tracking-widest" style={{ color: '#666' }}>MANUCASPT · PENTEST PLATFORM</span>
+        <span className="font-mono text-[10px] tracking-widest" style={{ color: '#666' }}>KGBTOOLS · PENTEST PLATFORM</span>
       </div>
       {!isMac && (
       <div className="flex items-center h-full" style={{ WebkitAppRegion: 'no-drag' }}>
@@ -579,7 +579,7 @@ function Sidebar({ onSettings, activeNav, onNavChange, targets, activeTarget, on
         style={{ borderBottom: `1px solid ${C.border}` }}
       >
         <span className="font-mono font-bold text-sm tracking-[.18em]" style={{ color: C.red }}>
-          ManucasPT
+          KGBtools
         </span>
         <div className="flex items-center gap-1.5">
           {updateInfo && (
@@ -1366,7 +1366,7 @@ for i in $(seq 1 10); do curl -si -X POST "${t}" -d 'amount=1000&action=transfer
 // ─── TERMINALS VIEW ─────────────────────────────────────────────────────────────
 
 const TERM_INIT = [
-  { type: 'out', text: 'manucaspt terminal v1.0.0 — pentest automation shell\n─────────────────────────────────────────────────' },
+  { type: 'out', text: 'kgbtools terminal v1.0.0 — pentest automation shell\n─────────────────────────────────────────────────' },
 ];
 
 function TerminalsView({ mcpUrl }) {
@@ -2177,7 +2177,7 @@ export default function App() {
               </div>
             </div>
             <p className="font-mono text-[10px] leading-relaxed" style={{ color: '#666' }}>
-              Uma nova versão da ManucasPT está disponível. O ficheiro será descarregado automaticamente.
+              Uma nova versão da KGBtools está disponível. O ficheiro será descarregado automaticamente.
             </p>
 
             {dlProgress !== null ? (

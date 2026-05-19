@@ -1,100 +1,125 @@
 ================================================================
-  MANUCASPT — KALI TOOLS INSTALL GUIDE
-  Todas as tools profissionais para pentest avancado
+  KGBTOOLS — TOOLS EM FALTA (nao estao no KALI-SETUP.txt)
+  Ja tens: nmap, gobuster, nikto, whatweb, ffuf, hydra,
+           sqlmap, exploitdb, wpscan, amass, subfinder,
+           crackmapexec, enum4linux, smbclient, metasploit,
+           nuclei, netcat, tcpdump, snmp-utils, wfuzz
 ================================================================
 
-INSTALA TUDO DE UMA VEZ (copia e cola no Kali):
+INSTALA O QUE FALTA (copia e cola no Kali):
 
 ----------------------------------------------------------------
 
-# 1. RECONHECIMENTO & DESCOBERTA
+# APT — tools novas
 sudo apt install -y \
-  subfinder \
   httpx-toolkit \
-  nmap \
-  amass \
   assetfinder \
   aquatone \
-  whatweb \
-  gobuster \
-  ffuf \
   feroxbuster \
-  katana
+  katana \
+  commix \
+  medusa \
+  testssl.sh \
+  sslscan \
+  sslyze \
+  joomscan \
+  xsser \
+  beef-xss \
+  sqlninja \
+  hakrawler \
+  masscan \
+  enum4linux-ng \
+  hashcat \
+  seclists \
+  wordlists \
+  arjun
 
-# 2. SCANNING DE VULNERABILIDADES
-sudo apt install -y nuclei
-nuclei -update-templates        # IMPORTANTE: atualiza todos os templates
+# PIP3 — tools novas (fix: externally-managed-environment)
+# OPCAO 1 (recomendada): pipx
+sudo apt install -y pipx
+pipx install ghauri
+pipx install flask-unsign
+pipx install jwt_tool
+pipx install dalfox
+pipx install droopescan
+pipx install waymore
+pipx ensurepath
 
-# 3. INJECAO (SQL, NoSQL, Command)
-sudo apt install -y sqlmap
-pip3 install ghauri              # SQLi avancado
-sudo apt install -y commix       # Command injection
+# OPCAO 2 (alternativa rapida): ignorar restricao
+# pip3 install --break-system-packages ghauri flask-unsign jwt_tool dalfox droopescan waymore
 
-# 4. BRUTE FORCE & AUTENTICACAO
-sudo apt install -y hydra medusa
-pip3 install flask-unsign        # Flask session forging
-pip3 install jwt_tool            # JWT attacks (alg:none, brute, etc)
-sudo apt install -y hashcat john # Password cracking
+# NPM — tools novas
+npm install -g retire
 
-# 5. SSL/TLS & CRIPTOGRAFIA
-sudo apt install -y testssl.sh sslscan sslyze
+# WORDLIST — descompactar
+gunzip /usr/share/wordlists/rockyou.txt.gz 2>/dev/null || true
 
-# 6. WORDPRESS & CMS
-sudo apt install -y wpscan
-sudo apt install -y joomscan
-pip3 install droopescan
-
-# 7. XSS & WEB ATTACKS
-pip3 install dalfox              # XSS scanner avancado
-sudo apt install -y xsser
-sudo apt install -y beef-xss     # XSS framework com callback
-
-# 8. EXPLORACAO & POST-EXPLOITATION
-sudo apt install -y metasploit-framework
-sudo apt install -y exploitdb    # searchsploit
-sudo apt install -y sqlninja
-
-# 9. RECON AVANCADO
-sudo apt install -y gau          # URL discovery (Wayback + AlienVault)
-sudo apt install -y hakrawler
-sudo apt install -y arjun        # Parameter discovery
-pip3 install waymore             # URL mining
-
-# 10. ANALISE DE DEPENDENCIAS (Supply Chain)
-npm install -g retire            # JS library vulnerability scanner
-sudo apt install -y nikto        # Web server scanner
-
-# 11. REDE & SERVICOS
-sudo apt install -y masscan      # Port scanner (mais rapido que nmap)
-sudo apt install -y smbclient    # SMB enumeration
-sudo apt install -y enum4linux-ng
-
-# 12. WORDLISTS (ESSENCIAL)
-sudo apt install -y seclists
-sudo apt install -y wordlists
-gunzip /usr/share/wordlists/rockyou.txt.gz   # Password list
+# NUCLEI — atualizar templates (IMPORTANTE)
+nuclei -update-templates
 
 ----------------------------------------------------------------
 
-VERIFICAR INSTALACAO (copia no terminal Kali):
+VERIFICAR SE INSTALOU TUDO (copia no terminal Kali):
 
-for tool in subfinder httpx nmap nuclei sqlmap ghauri hydra wpscan \
-  testssl.sh ffuf gobuster whatweb dalfox commix hashcat \
-  feroxbuster msfconsole searchsploit; do
+for tool in httpx aquatone feroxbuster commix medusa testssl.sh \
+  sslscan hashcat ghauri jwt_tool dalfox masscan; do
   which $tool &>/dev/null && echo "[OK] $tool" || echo "[MISS] $tool"
 done
 
 ----------------------------------------------------------------
 
-CONFIGURAR NUCLEI CORRETAMENTE:
-nuclei -update
-nuclei -update-templates
-nuclei -list-templates | wc -l   # deve mostrar +10.000 templates
+================================================================
+  KGBTOOLS v3.6.0 — O QUE O APP FAZ AGORA
+================================================================
 
-----------------------------------------------------------------
+MODOS DE OPERACAO:
+  Manual     - escolhes as tools, clicas start, Claude analisa
+  Auto (*)   - seleciona todas as tools automaticamente,
+               corre 5 rounds sem input humano nenhum
+  Opus Plan  - Claude Opus planeia, Sonnet executa
+
+FASE 1 — RECONHECIMENTO (todas em paralelo):
+  subfinder, httpx, nmap, whatweb, ffuf, nuclei, sqlmap,
+  testssl, ssti_check, jwt_check, admin_takeover, session_test
+
+FASE 2 — CVE LOOKUP AUTOMATICO:
+  Consulta NVD em tempo real com o host do alvo.
+  Lista CVEs com CVSS score.
+
+FASE 3 — APEX ANALISA (Claude como pentester elite):
+  - Deteta tech stack e adapta o ataque:
+      WordPress  -> wpscan, xmlrpc, wp-login brute
+      PHP        -> LFI, RFI, deserialization
+      JWT        -> alg:none, weak secret, kid injection
+      Admin panel-> hydra brute, default creds, SQLi no login
+      Upload form-> shell upload, MIME bypass
+  - Cobre OWASP Top 10 2025 completo
+  - Testa cookies, sessions, IDOR, race conditions,
+    business logic
+  - Decide em JSON quais tools correr a seguir
+
+FASE 4 — EXPLORACAO AUTONOMA:
+  shell_upload, cred_dump, xss_inject, cookie_tamper,
+  hydra, wpscan, race_cond, nuclei_exploit, ghauri
+
+FASE 5 — RELATORIO FINAL:
+  Markdown profissional com: vulnerabilidades, severidade,
+  CVE IDs, CVSS, comando exato para explorar, remediacao
+
+TOOLS INSTALADAS NO KALI:
+  subfinder  httpx      nmap       nuclei     sqlmap     ffuf
+  gobuster   hydra      ghauri     wpscan     nikto      whatweb
+  testssl    sslscan    hashcat    commix     medusa     feroxbuster
+  aquatone   masscan    dalfox     katana     metasploit exploitdb
+
+O QUE O APP AINDA NAO FAZ SOZINHO:
+  - Logica de negocio complexa (manipulacao de saldo)
+    -> Claude sugere, precisas testar manualmente
+  - Post-exploitation (reverse shell, pivot)
+    -> Claude indica o caminho mas nao executa
 
 ================================================================
-  MAPEAMENTO TOOL → OWASP TOP 10 2025
+  MAPEAMENTO TOOL -> OWASP TOP 10 2025
 ================================================================
 
 A01 Broken Access Control:
