@@ -1022,7 +1022,7 @@ function DashboardView({ logs, findings, targets }) {
 const TOOL_BINS = {
   subfinder: 'subfinder', httpx: 'httpx',    ghauri: 'ghauri',    ffuf: 'ffuf',
   aquatone: 'aquatone',  burp_suite: 'bash', naabu_scan: 'nmap',  katana_crawl: 'curl',
-  nuclei_fast: 'nuclei', sqli_scan: 'sqlmap',xss_check: 'nuclei', cors_check: 'nuclei',
+  nuclei_fast: 'nuclei', nuclei_exploit: 'nuclei', sqli_scan: 'sqlmap',xss_check: 'nuclei', cors_check: 'nuclei',
   js_analyze: 'whatweb', dir_fuzz: 'gobuster',ssrf_check: 'nuclei',lfi_test: 'nuclei',
   shell_upload: 'curl',  cred_dump: 'sqlmap', xss_inject: 'curl',
 };
@@ -1035,7 +1035,7 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
   const [tools,      setTools]      = useState({
     subfinder: true,  httpx: true,   ghauri: true,  ffuf: true,
     aquatone: false,  burp_suite: false,
-    naabu_scan: false, katana_crawl: false, nuclei_fast: true,
+    naabu_scan: false, katana_crawl: false, nuclei_fast: true, nuclei_exploit: false,
     sqli_scan: false,  xss_check: false,   cors_check: false,
     js_analyze: false, dir_fuzz: false,    ssrf_check: false,  lfi_test: false,
     shell_upload: false, cred_dump: false,  xss_inject: false,
@@ -1043,8 +1043,9 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
   const [autoMode,   setAutoMode]   = useState(false);
   const [xssCallback,setXssCallback]= useState('');
   const PRIMARY   = ['subfinder','httpx','ghauri','ffuf','aquatone','burp_suite'];
-  const SECONDARY = ['naabu_scan','katana_crawl','nuclei_fast','sqli_scan','xss_check','cors_check','js_analyze','dir_fuzz','ssrf_check','lfi_test'];
+  const SECONDARY = ['naabu_scan','katana_crawl','nuclei_fast','nuclei_exploit','sqli_scan','xss_check','cors_check','js_analyze','dir_fuzz','ssrf_check','lfi_test'];
   const EXPLOIT   = ['shell_upload','cred_dump','xss_inject'];
+  const AUTO_TOOLS = ['subfinder','httpx','naabu_scan','nuclei_fast','nuclei_exploit','ffuf','sqli_scan','xss_check','cors_check','ssrf_check','lfi_test','js_analyze','ghauri'];
   const logRef = useRef(null);
 
   useEffect(() => {
@@ -1078,7 +1079,8 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
     burp_suite:   { tool: 'shell',     args: ()  => ({ command: 'nohup burpsuite &>/dev/null &' }) },
     naabu_scan:   { tool: 'nmap',      args: (t) => ({ target: t.replace(/https?:\/\//, ''), flags: '-sV -sC --top-ports 1000 --min-rate 5000' }) },
     katana_crawl: { tool: 'curl',      args: (t) => ({ url: t, flags: '-L -I -s' }) },
-    nuclei_fast:  { tool: 'nuclei',    args: (t) => ({ target: t, templates: 'cves,misconfig,exposure', severity: 'critical,high,medium' }) },
+    nuclei_fast:  { tool: 'nuclei',    args: (t) => ({ target: t, templates: 'cves,misconfig,exposure,vulnerabilities,default-logins,takeovers,technologies', severity: 'critical,high,medium' }) },
+    nuclei_exploit:{ tool: 'nuclei',    args: (t) => ({ target: t, templates: 'exploits,cves', severity: 'critical,high' }) },
     sqli_scan:    { tool: 'sqlmap',    args: (t) => ({ url: t, flags: '--batch --dbs --level=2 --risk=2' }) },
     xss_check:    { tool: 'nuclei',    args: (t) => ({ target: t, templates: 'xss', severity: 'high,medium' }) },
     cors_check:   { tool: 'nuclei',    args: (t) => ({ target: t, templates: 'misconfig', severity: 'high,medium,low' }) },
@@ -1115,9 +1117,13 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
     if (!apiKey) { setLog([{ t: 'err', m: 'API Key Anthropic não configurada.' }]); return; }
     if (!mcpUrl)  { setLog([{ t: 'err', m: 'Kali MCP Server não configurado.' }]); return; }
     setRunning(true);
-    setLog([{ t: 'info', m: `▶ PENTEST PARALELO — ${target}` }]);
 
-    const selected = Object.entries(tools).filter(([,on]) => on).map(([k]) => k);
+    // Modo autónomo: usa todas as tools sem input humano
+    const selected = autoMode
+      ? AUTO_TOOLS
+      : Object.entries(tools).filter(([,on]) => on).map(([k]) => k);
+
+    setLog([{ t: 'info', m: autoMode ? `🤖 MODO AUTÓNOMO — ${target}` : `▶ PENTEST PARALELO — ${target}` }]);
     setLog(prev => [...prev, { t: 'info', m: `⚡ ${selected.length} tools em paralelo...` }]);
 
     let allResults = await runToolParallel(selected, target);
@@ -1137,21 +1143,22 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
     }
 
     // Claude analysis
-    const buildPrompt = (results) =>
-      `Analisa este pentest ao alvo ${target}.\n\nRESULTADOS:\n${results.map(r => `## ${r.key}\n${r.out}`).join('\n\n')}\n\n`
+    const ALL_EXPLOIT_TOOLS = 'shell_upload,cred_dump,xss_inject,nuclei_exploit,sqli_scan,lfi_test,ssrf_check,ghauri';
+    const buildPrompt = (results, rnd) =>
+      `TARGET: ${target}\nROUND: ${rnd}\n\nRESULTADOS:\n${results.map(r => `## ${r.key}\n${r.out}`).join('\n\n')}\n\n`
       + (autoMode
-        ? `Responde em JSON válido: {"findings":[{"severity":"critical|high|medium|low","title":"...","desc":"...","cve":"..."}],"next_tools":[lista de tools para correr a seguir, de: shell_upload,cred_dump,xss_inject,nuclei_fast,sqli_scan,lfi_test - apenas se existirem vulnerabilidades confirmar exploráveis],"status":"continue|done","report":"markdown"}`
+        ? `Analisa como pentester ofensivo elite. Responde APENAS em JSON:\n{"findings":[{"severity":"critical|high|medium|low","title":"...","desc":"...","cve":"CVE-XXXX-XXXX ou null","exploitable":true|false}],"next_tools":[tools a executar agora de: ${ALL_EXPLOIT_TOOLS}],"status":"continue ou done se não houver mais a explorar","report":"relatório markdown completo com todas as vulns, CVEs e recomendações"}`
         : `Cria relatório com: vulnerabilidades, severidade, CVEs relevantes, recomendações.`);
 
     let round = 0;
-    const maxRounds = autoMode ? 3 : 1;
+    const maxRounds = autoMode ? 5 : 1;
 
     while (round < maxRounds) {
       round++;
       setLog(prev => [...prev, { t: 'info', m: autoMode ? `🤖 Modo Autónomo — Round ${round}/${maxRounds}` : '🤖 Claude a analisar...' }]);
       try {
         const res = await window.electron.callClaude({
-          messages: [{ role: 'user', content: buildPrompt(allResults) }],
+          messages: [{ role: 'user', content: buildPrompt(allResults, round) }],
           apiKey,
         });
         const txt = res.content?.find(b => b.type === 'text')?.text || '';

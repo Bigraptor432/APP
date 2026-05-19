@@ -1,62 +1,28 @@
-================================================================
-  MANUCASPT — COMPARAÇÃO & ROADMAP
-  gerado em: 19/05/2026
-================================================================
+Para pentesting real, a abordagem mais eficaz nao e treinar um modelo proprio. Eis a comparacao honesta:
 
-─── O QUE O APP DO TWEET FAZ ───────────────────────────────────
+O QUE FUNCIONA MELHOR NA PRATICA:
 
-  • Rede neural própria treinada com +30.000 CVEs
-  • Decide em tempo real qual ataque usar
-  • Corre dezenas de tools em PARALELO
-  • Jailbreak automático em modelos Claude
-  • Upload de shell automático
-  • Acessa DB e manipula credenciais
-  • XSS automático recebido via VPS
-  • Totalmente autónomo (sem intervenção humana)
+  Abordagem                        Eficacia  Dificuldade  Para que
+  -----------------------------------------------------------------------
+  Nuclei templates (ja temos)      5/5       Baixa        Vulns auto
+  Claude + resultados (ja temos)   5/5       Baixa        Analise IA
+  NVD API lookup (ja temos)        4/5       Baixa        CVEs live
+  NVD local offline                4/5       Media        CVEs offline
+  Modelo ML treinado em CVEs       3/5       ALTISSIMA    Inferencia
 
-─── O QUE O MANUCASPT FAZ HOJE ─────────────────────────────────
+A VERDADE E:
 
-  • Claude Sonnet 4.5 / Opus Plan / LLaMA (Groq) via API
-  • Tools do Kali via MCP Server (subfinder, httpx, ffuf,
-    ghauri, nuclei, sqlmap, aquatone, whatweb, gobuster...)
-  • Claude analisa resultados e decide próximos passos
-  • Execução SEQUENCIAL das tools
-  • Interface com gestão de alvos e sessões
-  • Check automático de tools instaladas no Kali (✓/✗)
-  • Auto-update com download direto na app
-  • Modo Opus Plan: Opus planeia → Sonnet executa
+  - O Nuclei ja tem +10k templates de CVEs e deteta automaticamente
+    e isso que a comunidade usa.
+  - O Claude com os resultados das tools e mais inteligente que qualquer
+    modelo treinado em CVEs, porque e um LLM geral com contexto.
+  - Treinar um modelo proprio em CVEs NAO MELHORA a detecao em pentest
+    o Nuclei ja faz isso melhor.
 
-─── DIFERENÇAS PRINCIPAIS ──────────────────────────────────────
+O QUE REALMENTE FALTA NO APP PARA CHEGAR AO NIVEL DO TWEET:
 
-  [NÃO TEMOS]  Rede neural custom com CVEs
-  [NÃO TEMOS]  Execução paralela de tools
-  [NÃO TEMOS]  Jailbreak automático
-  [NÃO TEMOS]  Upload de shell automático
-  [NÃO TEMOS]  Manipulação de credenciais em DB
-  [NÃO TEMOS]  XSS via VPS automático
-  [NÃO TEMOS]  Modo totalmente autónomo
-
-─── PRÓXIMAS MELHORIAS POSSÍVEIS ───────────────────────────────
-
-  PRIORIDADE ALTA
-  ├─ Execução paralela de tools (Promise.all no MCP)
-  ├─ Integração NVD/CVE API (buscar CVEs do alvo em tempo real)
-  └─ Modo autónomo: Claude decide e executa sem interação
-
-  PRIORIDADE MÉDIA
-  ├─ Relatório PDF automático após pentest
-  ├─ Timeline visual do ataque
-  └─ Notificações de findings críticos
-
-  PRIORIDADE BAIXA
-  ├─ Dashboard de múltiplos alvos simultâneos
-  └─ Integração com Metasploit via MCP
-
-─── NOTA LEGAL ─────────────────────────────────────────────────
-
-  O ManucasPT é uma ferramenta para uso em ambientes
-  autorizados (pentest com permissão, CTFs, labs próprios).
-  Usar em alvos sem autorização é crime em Portugal (Lei 109/91)
-  e na maioria dos países.
-
-================================================================
+  [feito]  Tools paralelas
+  [feito]  Analise automatica com Claude
+  [feito]  CVE lookup
+  [falta]  Nuclei com mais templates (exploit-db, CVEs recentes)
+  [falta]  Modo completamente autonomo sem input humano nenhum
