@@ -1404,7 +1404,9 @@ function InteractionPanel({ planItems, onPlanToggle, messages, onSend, apiKey, g
   if (activeNav === 'terminals') return <TerminalsView mcpUrl={mcpUrl} />;
 
   const modelInfo = activeModel === 'gemma'
-    ? { label: 'Gemma 9B · Groq', dot: '#22c55e' }
+    ? { label: 'LLaMA · Groq',          dot: '#22c55e' }
+    : activeModel === 'opusplan'
+    ? { label: 'Opus Plan · Anthropic',  dot: '#a78bfa' }
     : { label: 'Sonnet 4.5 · Anthropic', dot: '#ff3333' };
   const headerTitle = { dashboard: 'Dashboard', pentest: 'Pentest Config' };
 
@@ -1424,7 +1426,7 @@ function InteractionPanel({ planItems, onPlanToggle, messages, onSend, apiKey, g
         <div className="flex items-center gap-3">
           {activeNav === 'chat' ? (
             <button
-              onClick={() => onModelChange(activeModel === 'gemma' ? 'claude' : 'gemma')}
+              onClick={() => onModelChange(activeModel === 'claude' ? 'gemma' : activeModel === 'gemma' ? 'opusplan' : 'claude')}
               className="flex items-center gap-1.5 font-mono text-[10px] tracking-wider px-2 py-1 rounded transition-colors"
               style={{ color: '#888', background: '#141414', border: '1px solid #222' }}
               title="Alternar modelo"
@@ -1635,8 +1637,8 @@ function InteractionPanel({ planItems, onPlanToggle, messages, onSend, apiKey, g
 
         <div className="flex items-center justify-between mt-2 px-1">
           <div className="flex items-center gap-1.5 font-mono" style={{ fontSize: 9, color: '#383838' }}>
-            <span className="inline-block w-1 h-1 rounded-full" style={{ background: activeModel === 'gemma' ? '#22c55e' : C.red }} />
-            {activeModel === 'gemma' ? 'gemma2-9b · groq' : 'claude-sonnet-4-5 · anthropic'}
+            <span className="inline-block w-1 h-1 rounded-full" style={{ background: activeModel === 'gemma' ? '#22c55e' : activeModel === 'opusplan' ? '#a78bfa' : C.red }} />
+            {activeModel === 'gemma' ? 'llama-3.1-8b · groq' : activeModel === 'opusplan' ? 'opus-plan + sonnet · anthropic' : 'claude-sonnet-4-5 · anthropic'}
             <span style={{ color: '#2a2a2a' }}>·</span>
             <span style={{ color: '#2a2a2a' }}>ready</span>
             {supaUrl && (
@@ -1880,8 +1882,9 @@ export default function App() {
       return;
     }
 
-    const useGemma = activeModel === 'gemma';
-    const key      = useGemma ? groqKey : apiKey;
+    const useGemma    = activeModel === 'gemma';
+    const useOpusPlan = activeModel === 'opusplan';
+    const key         = useGemma ? groqKey : apiKey;
     if (!key) {
       setConvMessages(prev => {
         const msgs = [...(prev[convId] || [])];
@@ -1895,6 +1898,8 @@ export default function App() {
       const hasTools = !useGemma && mcpTools.length > 0;
       const res = useGemma
         ? await window.electron.callGemma({ messages: history, apiKey: key })
+        : useOpusPlan
+        ? await window.electron.callOpusPlan({ messages: history, apiKey: key, tools: hasTools ? mcpTools : undefined, mcpUrl: hasTools ? mcpUrl : undefined })
         : await window.electron.callClaude({ messages: history, apiKey: key, tools: hasTools ? mcpTools : undefined, mcpUrl: hasTools ? mcpUrl : undefined });
 
       const replyText = useGemma

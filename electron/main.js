@@ -232,6 +232,47 @@ ipcMain.handle('mcp-get-tools', async (_, url) => {
   }
 });
 
+// ─── IPC: Opus Plan + Sonnet Execute ─────────────────────────────────────────
+
+ipcMain.handle('call-opus-plan', async (_, { messages, apiKey, tools, mcpUrl }) => {
+  const headers = { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' };
+  try {
+    // Step 1: Opus plans
+    win?.webContents.send('tool-progress', { step: 1, msg: 'Opus: a planear...' });
+    const planRes  = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST', headers,
+      body: JSON.stringify({
+        model: 'claude-opus-4-5', max_tokens: 1024,
+        system: 'You are a strategic penetration testing planner. Analyze the request and return a concise numbered action plan (max 8 steps). Do NOT execute anything — only plan. Reply in the same language as the user.',
+        messages,
+      }),
+    });
+    const planData = await planRes.json();
+    if (planData.error) return { error: planData.error.message };
+    const plan = planData.content?.find(b => b.type === 'text')?.text || '';
+
+    // Step 2: Sonnet executes with plan as context
+    win?.webContents.send('tool-progress', { step: 2, msg: 'Sonnet: a executar plano...' });
+    const execMessages = [
+      ...messages,
+      { role: 'assistant', content: `[Opus Plan]\n${plan}` },
+      { role: 'user',      content: 'Execute the plan above step by step.' },
+    ];
+    const body = { model: 'claude-sonnet-4-5', max_tokens: 4096, system: `You are an elite penetration tester. Execute the given plan precisely. Always respond in the same language as the user.` };
+    if (tools && tools.length > 0) body.tools = tools;
+    body.messages = execMessages;
+
+    const execRes  = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers, body: JSON.stringify(body) });
+    const execData = await execRes.json();
+    if (execData.error) return { error: execData.error.message };
+
+    const replyText = execData.content?.find(b => b.type === 'text')?.text || '';
+    return { plan, content: [{ type: 'text', text: `**[Opus Plan]**\n${plan}\n\n---\n\n**[Sonnet Execution]**\n${replyText}` }] };
+  } catch (e) {
+    return { error: e.message };
+  }
+});
+
 // ─── IPC: Validate API key ────────────────────────────────────────────────────
 
 ipcMain.handle('validate-key', async (_, { type, key }) => {
