@@ -512,7 +512,7 @@ function ConvItem({ c, isCurrent, onClick, onDelete, onRename }) {
 
 // ─── SIDEBAR ───────────────────────────────────────────────────────────────────
 
-function Sidebar({ onSettings, activeNav, onNavChange, targets, activeTarget, onTargetChange, onAddTarget, onDeleteTarget, onRenameTarget, convs, activeConv, onConvChange, onAddConv, onDeleteConv, onRenameConv }) {
+function Sidebar({ onSettings, activeNav, onNavChange, targets, activeTarget, onTargetChange, onAddTarget, onDeleteTarget, onRenameTarget, convs, activeConv, onConvChange, onAddConv, onDeleteConv, onRenameConv, updateInfo, onUpdateClick }) {
   return (
     <aside
       className="flex flex-col flex-shrink-0 h-full select-none"
@@ -526,14 +526,26 @@ function Sidebar({ onSettings, activeNav, onNavChange, targets, activeTarget, on
         <span className="font-mono font-bold text-sm tracking-[.18em]" style={{ color: C.red }}>
           ManucasPT
         </span>
-        <button
-          onClick={onSettings}
-          className="transition-opacity hover:opacity-60"
-          style={{ color: C.textDim }}
-          title="Configurações"
-        >
-          <Settings size={13} />
-        </button>
+        <div className="flex items-center gap-1.5">
+          {updateInfo && (
+            <button
+              onClick={onUpdateClick}
+              title={`Atualização disponível: v${updateInfo.version}`}
+              className="relative flex items-center justify-center w-5 h-5 rounded-full animate-pulse"
+              style={{ background: 'rgba(249,115,22,0.15)', border: '1px solid #f97316' }}
+            >
+              <span style={{ color: '#f97316', fontSize: 9, fontWeight: 700 }}>↑</span>
+            </button>
+          )}
+          <button
+            onClick={onSettings}
+            className="transition-opacity hover:opacity-60"
+            style={{ color: C.textDim }}
+            title="Configurações"
+          >
+            <Settings size={13} />
+          </button>
+        </div>
       </div>
 
       {/* Nav */}
@@ -1572,7 +1584,8 @@ export default function App() {
   const [mcpUrl,       setMcpUrl]       = useState(() => localStorage.getItem('manucas_mcp_url') || '');
   const [mcpTools,     setMcpTools]     = useState([]);
   const [toolProgress, setToolProgress] = useState(null);
-  const [updateInfo,   setUpdateInfo]   = useState(null);
+  const [updateInfo,      setUpdateInfo]      = useState(null);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
   const logs     = targetLogs[activeTarget]   || [];
   const plan     = targetPlans[activeTarget]  || [];
   const messages = convMessages[activeConv]   || [];
@@ -1588,9 +1601,9 @@ export default function App() {
   // ── MCP: listen for tool-use progress events ───────────────────────────────────
   useEffect(() => {
     if (!window.electron?.onUpdateAvailable) return;
-    window.electron.onUpdateAvailable((data) => setUpdateInfo(data));
+    window.electron.onUpdateAvailable((data) => { setUpdateInfo(data); setShowUpdateModal(true); });
     const poll = setInterval(() => {
-      window.electron.checkUpdate?.().then(d => { if (d) { setUpdateInfo(d); clearInterval(poll); } });
+      window.electron.checkUpdate?.().then(d => { if (d) { setUpdateInfo(d); setShowUpdateModal(true); clearInterval(poll); } });
     }, 1000);
     setTimeout(() => clearInterval(poll), 15000);
     return () => clearInterval(poll);
@@ -1871,30 +1884,45 @@ export default function App() {
       className="flex flex-col h-screen w-screen overflow-hidden select-none"
       style={{ background: C.bg, color: C.text, fontFamily: 'Inter, system-ui, sans-serif' }}
     >
-      {updateInfo && (
+      {showUpdateModal && updateInfo && (
         <div
-          className="flex items-center justify-between px-4 py-2 flex-shrink-0"
-          style={{ background: '#1a0a00', borderBottom: '1px solid #7c2d0e', zIndex: 9999 }}
+          className="fixed inset-0 flex items-center justify-center"
+          style={{ zIndex: 9999, background: 'rgba(0,0,0,0.7)' }}
+          onClick={() => setShowUpdateModal(false)}
         >
-          <div className="flex items-center gap-2 font-mono text-[10px]" style={{ color: '#f97316' }}>
-            <span>⬆</span>
-            <span>Nova versão disponível: <strong>v{updateInfo.version}</strong> — atualize para ter as últimas funcionalidades.</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => window.electron?.openExternal(updateInfo.url)}
-              className="font-mono text-[9px] px-3 py-1 rounded"
-              style={{ background: '#f97316', color: '#000', fontWeight: 700 }}
-            >
-              Baixar atualização
-            </button>
-            <button
-              onClick={() => setUpdateInfo(null)}
-              className="font-mono text-[9px] px-2 py-1 rounded"
-              style={{ background: '#2a1a0a', color: '#777', border: '1px solid #3a2a1a' }}
-            >
-              Ignorar
-            </button>
+          <div
+            className="rounded-2xl p-6 flex flex-col gap-4"
+            style={{ background: '#111', border: '1px solid #f97316', width: 380, boxShadow: '0 0 40px rgba(249,115,22,0.2)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(249,115,22,0.15)', border: '1px solid #f97316' }}>
+                <span style={{ color: '#f97316', fontSize: 16 }}>↑</span>
+              </div>
+              <div>
+                <div className="font-mono font-bold text-sm" style={{ color: '#f97316' }}>Atualização disponível</div>
+                <div className="font-mono text-[10px]" style={{ color: '#555' }}>versão v{updateInfo.version}</div>
+              </div>
+            </div>
+            <p className="font-mono text-[10px] leading-relaxed" style={{ color: '#777' }}>
+              Uma nova versão da ManucasPT está disponível. Descarrega o novo executável e substitui o atual.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { window.electron?.openExternal(updateInfo.url); setShowUpdateModal(false); }}
+                className="flex-1 py-2 rounded-lg font-mono text-[10px] font-bold uppercase tracking-widest"
+                style={{ background: '#f97316', color: '#000' }}
+              >
+                Baixar v{updateInfo.version}
+              </button>
+              <button
+                onClick={() => setShowUpdateModal(false)}
+                className="px-4 py-2 rounded-lg font-mono text-[10px]"
+                style={{ background: '#1a1a1a', color: '#555', border: '1px solid #222' }}
+              >
+                Depois
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1928,6 +1956,8 @@ export default function App() {
         onAddConv={addConv}
         onDeleteConv={deleteConv}
         onRenameConv={renameConv}
+        updateInfo={updateInfo}
+        onUpdateClick={() => setShowUpdateModal(true)}
       />
       <ActivityLog logs={logs} activeTarget={activeTarget} />
       <InteractionPanel
