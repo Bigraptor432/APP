@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('electron', {
   onToolProgress:    (cb)   => ipcRenderer.on('tool-progress', (_, data) => cb(data)),
   offToolProgress:   ()    => ipcRenderer.removeAllListeners('tool-progress'),
   onUpdateAvailable: (cb)  => ipcRenderer.on('update-available', (_, data) => cb(data)),
+  checkUpdate:       ()    => ipcRenderer.invoke('check-update'),
   winMinimize: ()       => ipcRenderer.send('win-minimize'),
   winMaximize: ()       => ipcRenderer.send('win-maximize'),
   winClose:    ()       => ipcRenderer.send('win-close'),

@@ -40,6 +40,8 @@ function createWindow() {
   }
 }
 
+let pendingUpdate = null;
+
 function checkForUpdates() {
   const options = {
     hostname: 'api.github.com',
@@ -55,17 +57,20 @@ function checkForUpdates() {
         const latest  = (release.tag_name || '').replace(/^v/, '');
         const current = app.getVersion();
         if (latest && latest !== current) {
-          win?.webContents.send('update-available', { version: latest, url: release.html_url });
+          pendingUpdate = { version: latest, url: release.html_url };
+          win?.webContents.send('update-available', pendingUpdate);
         }
       } catch (_) {}
     });
   }).on('error', () => {});
 }
 
+ipcMain.handle('check-update', () => pendingUpdate);
+
 app.whenReady().then(() => {
   createWindow();
   win.webContents.on('did-finish-load', () => {
-    setTimeout(checkForUpdates, 2000);
+    setTimeout(checkForUpdates, 1500);
   });
 });
 

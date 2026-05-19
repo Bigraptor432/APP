@@ -1589,6 +1589,11 @@ export default function App() {
   useEffect(() => {
     if (!window.electron?.onUpdateAvailable) return;
     window.electron.onUpdateAvailable((data) => setUpdateInfo(data));
+    const poll = setInterval(() => {
+      window.electron.checkUpdate?.().then(d => { if (d) { setUpdateInfo(d); clearInterval(poll); } });
+    }, 1000);
+    setTimeout(() => clearInterval(poll), 15000);
+    return () => clearInterval(poll);
   }, []);
 
   useEffect(() => {
