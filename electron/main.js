@@ -192,8 +192,22 @@ CHAINED ATTACK WORKFLOW (professional standard):
 Phase 1 - RECON:     subfinder → httpx (tech detect) → nmap (-sV -sC) → whatweb
 Phase 2 - SCAN:      nuclei (all templates) → ffuf (dirs+params) → testssl
 Phase 3 - EXPLOIT:   Based on findings → sqlmap/ghauri/hydra/jwt_tool/wpscan
+Phase 3b- HASH CHAIN: SQLi found → cred_dump → hash_crack → cred_test → admin login
 Phase 4 - POST:      If RCE → try shell upload → reverse shell → linpeas → pivot
 Phase 5 - REPORT:    CVEs with CVSS, exploitability, PoC, remediation
+
+HASH CRACKING WORKFLOW (MANDATORY when creds/hashes found):
+When cred_dump or sqlmap finds password hashes, ALWAYS chain:
+1. Identify hash type by pattern:
+   32 hex chars     = MD5      → hashcat -m 0
+   40 hex chars     = SHA1     → hashcat -m 100
+   64 hex chars     = SHA256   → hashcat -m 1400
+   $2y$/$$2b$/$$2a$ = bcrypt   → hashcat -m 3200
+   $1$              = MD5crypt → hashcat -m 500
+   $6$              = SHA512   → hashcat -m 1800
+2. Run hash_crack tool (tries all modes automatically)
+3. Run cred_test tool (tests cracked creds on admin panels)
+4. Report: username:password pairs + which panels are accessible
 
 CVE EXPLOITATION FORMAT:
 - CVE-XXXX-XXXX | CVSS: X.X | SEVERITY | Affected: version X.X

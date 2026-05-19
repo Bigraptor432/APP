@@ -119,6 +119,79 @@ O QUE O APP AINDA NAO FAZ SOZINHO:
     -> Claude indica o caminho mas nao executa
 
 ================================================================
+  KGBTOOLS vs APP DO TWEET — COMPARACAO HONESTA
+================================================================
+
+FUNCIONALIDADE                    KGBTOOLS    TWEET APP
+---------------------------------------------------------
+Tools em paralelo                   SIM         SIM
+Modo autonomo (sem input)           SIM         SIM
+CVE lookup em tempo real            SIM         SIM
+OWASP Top 10 coverage               SIM       parcial
+SQLi (sqlmap + ghauri)              SIM         SIM
+XSS automatico + callback           SIM         SIM
+Cookie/session manipulation         SIM          ?
+SSL/TLS testing                     SIM          ?
+Brute force (hydra)                 SIM         SIM
+Admin panel takeover                SIM         SIM
+Shell upload                        SIM         SIM
+SSTI / LFI / SSRF                   SIM          ?
+Race conditions                     SIM          ?
+WPScan integrado                    SIM          ?
+JWT attacks                         SIM          ?
+Relatorio markdown profissional     SIM          ?
+---------------------------------------------------------
+Rede neural com CVEs                NAO         SIM (*)
+Jailbreak automatico de Claude      NAO         SIM
+Post-exploit / reverse shell        NAO         SIM
+Pivot / lateral movement            NAO         SIM
+
+(*) Rede neural = marketing. O Nuclei com 10k templates
+    faz o mesmo resultado na pratica.
+
+CONCLUSAO:
+  O KGBtools esta IGUAL OU MELHOR na descoberta e exploracao
+  de vulnerabilidades web.
+
+  O tweet app ganha em POST-EXPLOITATION:
+    - Reverse shell automatico
+    - Pivot / lateral movement
+    - Persistencia no sistema
+
+  Isso e a proxima fase a implementar para igualar a 100%.
+
+================================================================
+  BURP SUITE — INTEGRACAO
+================================================================
+
+O QUE O APP FAZ COM BURP AGORA:
+  - Apenas lanca o Burp Suite em background
+  - NAO intercepta nem manipula requests automaticamente
+
+PARA INTEGRAR MELHOR (3 opcoes):
+
+  OPCAO 1 — BURP PRO REST API (pago ~$450/ano)
+    Burp Pro tem API em http://localhost:1337/v0.1/
+    Permite: disparar scans, ver issues, controlar intercept
+    O app poderia chamar essa API via MCP server
+
+  OPCAO 2 — PROXY TOOLS PELO BURP (gratis, ja possivel)
+    Correr tools com --proxy http://127.0.0.1:8080
+    Burp ve todo o trafego das tools automaticamente
+    Ex: curl --proxy http://127.0.0.1:8080 https://target.com
+
+  OPCAO 3 — O QUE JA TEMOS SUBSTITUI O BURP REPEATER:
+    cookie_tamper  -> manipula cookies e headers via curl
+    xss_inject     -> envia payloads customizados
+    race_cond      -> multiplos requests simultaneos
+    shell tool     -> qualquer curl customizado
+
+CONCLUSAO:
+  Para 90% do pentest automatizado, o que ja temos substitui
+  o Burp. O Burp e mais util para analise manual e visual de
+  requests — isso nao e automatizavel sem a versao Pro.
+
+================================================================
   MAPEAMENTO TOOL -> OWASP TOP 10 2025
 ================================================================
 
