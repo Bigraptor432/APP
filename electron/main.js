@@ -96,7 +96,8 @@ function downloadFile(url, dest, onProgress) {
 
 ipcMain.handle('download-update', async (_, { url }) => {
   const exeDir = path.dirname(app.getPath('exe'));
-  const dest = path.join(exeDir, 'manucaspt-portable-new.exe');
+  const version = url.match(/download\/v?([\d.]+)\//)?.[1] || 'new';
+  const dest = path.join(exeDir, `manucaspt-v${version}.exe`);
   try {
     await downloadFile(url, dest, (pct) => {
       win?.webContents.send('download-progress', { percent: pct });
