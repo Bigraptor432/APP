@@ -240,13 +240,11 @@ ipcMain.handle('validate-key', async (_, { type, key }) => {
       });
       return { ok: r.status !== 401 && r.status !== 403 };
     } else if (type === 'groq') {
-      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'gemma2-9b-it', max_tokens: 1, messages: [{ role: 'user', content: 'hi' }] }),
+      const r = await fetch('https://api.groq.com/openai/v1/models', {
+        headers: { 'Authorization': `Bearer ${key}` },
         signal: AbortSignal.timeout(8000),
       });
-      return { ok: r.status !== 401 && r.status !== 403 };
+      return { ok: r.status === 200 };
     }
     return { ok: false };
   } catch (e) {
@@ -265,7 +263,7 @@ ipcMain.handle('call-gemma', async (_, { messages, apiKey, system }) => {
         'content-type':  'application/json',
       },
       body: JSON.stringify({
-        model:    'gemma2-9b-it',
+        model:    'llama-3.1-8b-instant',
         messages: [
           { role: 'system', content: system || 'You are a fast auxiliary assistant for a penetration tester. Be very concise.' },
           ...messages,

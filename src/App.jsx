@@ -1294,7 +1294,7 @@ function TerminalsView({ mcpUrl }) {
 
 // ─── MAIN INTERACTION PANEL ────────────────────────────────────────────────────
 
-function InteractionPanel({ planItems, onPlanToggle, messages, onSend, apiKey, activeNav, activeTarget, activeConv, convs, targets, logs, activeModel, onModelChange, onSplit, isSplit, onCloseSplit, supaUrl, syncStatus, mcpTools, toolProgress, mcpUrl }) {
+function InteractionPanel({ planItems, onPlanToggle, messages, onSend, apiKey, groqKey, activeNav, activeTarget, activeConv, convs, targets, logs, activeModel, onModelChange, onSplit, isSplit, onCloseSplit, supaUrl, syncStatus, mcpTools, toolProgress, mcpUrl }) {
   const [input, setInput]         = useState('');
   const [tab, setTab]             = useState('findings');
   const [attachment, setAttachment] = useState(null);
@@ -1503,7 +1503,7 @@ function InteractionPanel({ planItems, onPlanToggle, messages, onSend, apiKey, a
 
       {/* Chat input */}
       {activeNav === 'chat' && <div className="flex-shrink-0 p-3" style={{ borderTop: `1px solid ${C.border}` }}>
-        {!apiKey && (
+        {!(activeModel === 'gemma' ? groqKey : apiKey) && (
           <div
             className="flex items-center gap-1.5 font-mono mb-2"
             style={{ fontSize: 9, color: 'rgba(255,51,51,0.45)' }}
@@ -2059,6 +2059,7 @@ export default function App() {
         messages={messages}
         onSend={sendMessage}
         apiKey={apiKey}
+        groqKey={groqKey}
         activeNav={activeNav}
         activeTarget={activeTarget}
         activeConv={activeConv}
@@ -2084,6 +2085,7 @@ export default function App() {
             messages={convMessages[splitConv] || []}
             onSend={(text) => sendMessage(text, splitConv)}
             apiKey={apiKey}
+            groqKey={groqKey}
             activeNav="chat"
             activeTarget={activeTarget}
             activeConv={splitConv}
