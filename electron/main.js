@@ -64,7 +64,9 @@ function checkForUpdates() {
 
 app.whenReady().then(() => {
   createWindow();
-  setTimeout(checkForUpdates, 3000);
+  win.webContents.on('did-finish-load', () => {
+    setTimeout(checkForUpdates, 2000);
+  });
 });
 
 app.on('window-all-closed', () => {
