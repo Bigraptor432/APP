@@ -197,17 +197,6 @@ function SettingsModal({ open, onClose, anthropicKey, groqKey, supaUrl, supaKey,
     }
   };
 
-  useEffect(() => {
-    if (open) {
-      setAVal(anthropicKey); setGVal(groqKey); setSUrl(supaUrl); setSKey(supaKey); setMUrl(mcpUrl);
-      setAStatus(anthropicKey ? 'unknown' : 'idle');
-      setGStatus(groqKey     ? 'unknown' : 'idle');
-      setMStatus(mcpUrl      ? 'unknown' : 'idle');
-      setMTools(0);
-    }
-  }, [open, anthropicKey, groqKey, supaUrl, supaKey, mcpUrl]);
-  if (!open) return null;
-
   const checkKey = async (type, key, setStatus) => {
     if (!key.trim() || !window.electron) { setStatus('idle'); return; }
     setStatus('checking');
@@ -226,6 +215,17 @@ function SettingsModal({ open, onClose, anthropicKey, groqKey, supaUrl, supaKey,
       else { setMStatus('error'); setMTools(0); }
     } catch { setMStatus('error'); setMTools(0); }
   };
+
+  useEffect(() => {
+    if (open) {
+      setAVal(anthropicKey); setGVal(groqKey); setSUrl(supaUrl); setSKey(supaKey); setMUrl(mcpUrl);
+      setAStatus('idle'); setGStatus('idle'); setMStatus('idle'); setMTools(0);
+      if (anthropicKey) checkKey('anthropic', anthropicKey, setAStatus);
+      if (groqKey)      checkKey('groq',      groqKey,      setGStatus);
+      if (mcpUrl)       checkMcp(mcpUrl);
+    }
+  }, [open]);
+  if (!open) return null;
 
   const dotColor = (status, val) => {
     if (!val.trim()) return C.red;
