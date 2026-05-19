@@ -11,6 +11,10 @@ const __dirname  = path.dirname(__filename);
 
 let win;
 
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught:', err.message);
+});
+
 function createWindow() {
   const isMac = process.platform === 'darwin';
   win = new BrowserWindow({
@@ -80,7 +84,9 @@ function downloadFile(url, dest, onProgress) {
         }
         const total = parseInt(res.headers['content-length'] || '0', 10);
         let received = 0;
-        const file = fs.createWriteStream(dest);
+        let file;
+        try { file = fs.createWriteStream(dest); } catch (e) { reject(e); return; }
+        file.on('error', err => { file.destroy(); reject(err); });
         res.on('data', chunk => {
           received += chunk.length;
           if (total > 0) onProgress(Math.round(received / total * 100));
