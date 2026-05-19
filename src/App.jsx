@@ -1021,7 +1021,7 @@ function DashboardView({ logs, findings, targets }) {
 
 const TOOL_BINS = {
   subfinder: 'subfinder', httpx: 'httpx', ghauri: 'ghauri', ffuf: 'ffuf',
-  aquatone: 'aquatone',  burp_suite: 'burpsuite', naabu_scan: 'nmap',
+  aquatone: 'aquatone',  burp_suite: 'bash', naabu_scan: 'nmap',
   katana_crawl: 'curl',  nuclei_fast: 'nuclei',   sqli_scan: 'sqlmap',
   xss_check: 'nuclei',   cors_check: 'nuclei',    js_analyze: 'whatweb',
   dir_fuzz: 'gobuster',  ssrf_check: 'nuclei',    lfi_test: 'nuclei',
@@ -1082,7 +1082,7 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
     ghauri:       { tool: 'ghauri',      args: (t) => ({ url: t, flags: '--dbs --batch' }) },
     ffuf:         { tool: 'ffuf',        args: (t) => ({ url: `${t}/FUZZ`, wordlist: '/usr/share/seclists/Discovery/Web-Content/common.txt', flags: '-mc 200,301,302,403' }) },
     aquatone:     { tool: 'aquatone',    args: (t) => ({ target: t }) },
-    burp_suite:   { tool: 'burpsuite',   args: (t) => ({ target: t }) },
+    burp_suite:   { tool: 'shell',       args: (_t) => ({ command: 'nohup burpsuite &>/dev/null &' }) },
     naabu_scan:   { tool: 'nmap',        args: (t) => ({ target: t, flags: '-sV -sC -p- --min-rate 5000' }) },
     katana_crawl: { tool: 'curl',        args: (t) => ({ url: t, flags: '-L -I' }) },
     nuclei_fast:  { tool: 'nuclei',      args: (t) => ({ target: t, templates: 'cves,misconfig,exposure', severity: 'critical,high,medium' }) },
