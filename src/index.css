@@ -8,6 +8,10 @@
   padding: 0;
 }
 
+*:focus {
+  outline: none !important;
+}
+
 html, body, #root {
   height: 100%;
   width: 100%;

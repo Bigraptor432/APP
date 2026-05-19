@@ -175,6 +175,26 @@ function SettingsModal({ open, onClose, anthropicKey, groqKey, supaUrl, supaKey,
   const [mStatus, setMStatus] = useState('idle');
   const [mTools,  setMTools]  = useState(0);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [updStatus,   setUpdStatus]   = useState('idle');  // idle | checking | uptodate | available
+  const [updInfo,     setUpdInfo]     = useState(null);
+  const CURRENT_VER = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '?';
+
+  const checkUpdates = async () => {
+    setUpdStatus('checking');
+    try {
+      const res  = await fetch('https://api.github.com/repos/Bigraptor432/APP/releases/latest');
+      const data = await res.json();
+      const latest = (data.tag_name || '').replace(/^v/, '');
+      if (latest && latest !== CURRENT_VER) {
+        setUpdStatus('available');
+        setUpdInfo({ version: latest, url: data.html_url });
+      } else {
+        setUpdStatus('uptodate');
+      }
+    } catch (_) {
+      setUpdStatus('idle');
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -374,6 +394,37 @@ function SettingsModal({ open, onClose, anthropicKey, groqKey, supaUrl, supaKey,
             <p className="font-mono text-[9px] mt-1.5" style={{ color: C.textFaint }}>
               IP do Kali → python3 kali-mcp-server.py
             </p>
+          </div>
+
+          {/* Versão / Atualização */}
+          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14 }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: C.textDim }}>Versão</span>
+                <span className="font-mono text-[10px] ml-2" style={{ color: '#444' }}>v{CURRENT_VER}</span>
+                {updStatus === 'uptodate'  && <span className="font-mono text-[10px] ml-2" style={{ color: C.green }}>· atualizado ✓</span>}
+                {updStatus === 'checking'  && <span className="font-mono text-[10px] ml-2" style={{ color: C.orange }}>· a verificar...</span>}
+                {updStatus === 'available' && updInfo && <span className="font-mono text-[10px] ml-2" style={{ color: '#f97316' }}>· v{updInfo.version} disponível</span>}
+              </div>
+              {updStatus === 'available' && updInfo ? (
+                <button
+                  onClick={() => window.electron?.openExternal(updInfo.url)}
+                  className="font-mono text-[9px] px-3 py-1 rounded-lg font-bold uppercase tracking-widest"
+                  style={{ background: '#f97316', color: '#000' }}
+                >
+                  Baixar v{updInfo.version}
+                </button>
+              ) : (
+                <button
+                  onClick={checkUpdates}
+                  disabled={updStatus === 'checking'}
+                  className="font-mono text-[9px] px-3 py-1 rounded-lg transition-all"
+                  style={{ background: '#1a1a1a', color: C.textDim, border: `1px solid ${C.border}`, opacity: updStatus === 'checking' ? 0.5 : 1 }}
+                >
+                  Verificar atualização
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="flex gap-2 pt-1">
