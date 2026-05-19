@@ -1019,15 +1019,24 @@ function DashboardView({ logs, findings, targets }) {
 
 // ─── PENTEST VIEW ───────────────────────────────────────────────────────────────
 
+const TOOL_BINS = {
+  subfinder: 'subfinder', httpx: 'httpx', ghauri: 'ghauri', ffuf: 'ffuf',
+  aquatone: 'aquatone',  burp_suite: 'burpsuite', naabu_scan: 'nmap',
+  katana_crawl: 'curl',  nuclei_fast: 'nuclei',   sqli_scan: 'sqlmap',
+  xss_check: 'nuclei',   cors_check: 'nuclei',    js_analyze: 'whatweb',
+  dir_fuzz: 'gobuster',  ssrf_check: 'nuclei',    lfi_test: 'nuclei',
+};
+
 function PentestView({ apiKey, mcpUrl, mcpTools }) {
-  const [target,  setTarget]  = useState('https://target-01.com');
-  const [running, setRunning] = useState(false);
-  const [log,     setLog]     = useState([]);
+  const [target,     setTarget]     = useState('https://target-01.com');
+  const [running,    setRunning]    = useState(false);
+  const [log,        setLog]        = useState([]);
+  const [toolStatus, setToolStatus] = useState({});
   const [tools,   setTools]   = useState({
     subfinder:    true,
     httpx:        true,
     ghauri:       true,
-    wfuzz:        true,
+    ffuf:         true,
     aquatone:     false,
     burp_suite:   false,
     naabu_scan:   false,
@@ -1041,7 +1050,7 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
     ssrf_check:   false,
     lfi_test:     false,
   });
-  const PRIMARY   = ['subfinder','httpx','ghauri','wfuzz','aquatone','burp_suite'];
+  const PRIMARY   = ['subfinder','httpx','ghauri','ffuf','aquatone','burp_suite'];
   const SECONDARY = ['naabu_scan','katana_crawl','nuclei_fast','sqli_scan','xss_check','cors_check','js_analyze','dir_fuzz','ssrf_check','lfi_test'];
   const logRef = useRef(null);
 
@@ -1052,11 +1061,26 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
   const toggle      = (t) => setTools(prev => ({ ...prev, [t]: !prev[t] }));
   const activeCount = Object.values(tools).filter(Boolean).length;
 
+  useEffect(() => {
+    if (!mcpUrl) return;
+    const checked = {};
+    const pairs = Object.entries(TOOL_BINS);
+    const unique = [...new Set(pairs.map(([,b]) => b))];
+    Promise.all(unique.map(async bin => {
+      try {
+        const r  = await fetch(`${mcpUrl}/call/shell`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: `which ${bin} 2>/dev/null && echo __OK__ || echo __MISS__` }) });
+        const d  = await r.json();
+        const ok = (d.output || '').includes('__OK__');
+        pairs.filter(([,b]) => b === bin).forEach(([k]) => { checked[k] = ok; });
+      } catch { pairs.filter(([,b]) => b === bin).forEach(([k]) => { checked[k] = false; }); }
+    })).then(() => setToolStatus({ ...checked }));
+  }, [mcpUrl]);
+
   const TOOL_MAP = {
     subfinder:    { tool: 'subfinder',   args: (t) => ({ domain: t, flags: '-silent' }) },
     httpx:        { tool: 'httpx',       args: (t) => ({ target: t, flags: '-status-code -title -tech-detect' }) },
     ghauri:       { tool: 'ghauri',      args: (t) => ({ url: t, flags: '--dbs --batch' }) },
-    wfuzz:        { tool: 'wfuzz',       args: (t) => ({ url: t, flags: '-c -z file,/usr/share/wordlists/dirb/common.txt --hc 404' }) },
+    ffuf:         { tool: 'ffuf',        args: (t) => ({ url: `${t}/FUZZ`, wordlist: '/usr/share/seclists/Discovery/Web-Content/common.txt', flags: '-mc 200,301,302,403' }) },
     aquatone:     { tool: 'aquatone',    args: (t) => ({ target: t }) },
     burp_suite:   { tool: 'burpsuite',   args: (t) => ({ target: t }) },
     naabu_scan:   { tool: 'nmap',        args: (t) => ({ target: t, flags: '-sV -sC -p- --min-rate 5000' }) },
@@ -1150,7 +1174,9 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
                 style={{ background: tools[tool] ? C.redDim : 'transparent', border: `1px solid ${tools[tool] ? C.redBorder : C.border}` }}
               >
                 <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: tools[tool] ? C.red : '#333' }} />
-                <span className="font-mono text-[9px] truncate" style={{ color: tools[tool] ? '#bbb' : '#444' }}>{tool.replace('_', ' ')}</span>
+                <span className="font-mono text-[9px] truncate flex-1" style={{ color: tools[tool] ? '#bbb' : '#444' }}>{tool.replace(/_/g, ' ')}</span>
+                {toolStatus[tool] === true  && <span style={{ color: '#22c55e', fontSize: 9 }}>✓</span>}
+                {toolStatus[tool] === false && <span style={{ color: '#ef4444', fontSize: 9 }}>✗</span>}
               </button>
             ))}
           </div>
@@ -1167,7 +1193,9 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
                 style={{ background: tools[tool] ? 'rgba(255,255,255,0.04)' : 'transparent', border: `1px solid ${tools[tool] ? '#333' : C.border}` }}
               >
                 <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: tools[tool] ? '#555' : '#222' }} />
-                <span className="font-mono text-[9px] truncate" style={{ color: tools[tool] ? '#666' : '#333' }}>{tool.replace(/_/g, ' ')}</span>
+                <span className="font-mono text-[9px] truncate flex-1" style={{ color: tools[tool] ? '#666' : '#333' }}>{tool.replace(/_/g, ' ')}</span>
+                {toolStatus[tool] === true  && <span style={{ color: '#22c55e', fontSize: 9 }}>✓</span>}
+                {toolStatus[tool] === false && <span style={{ color: '#ef4444', fontSize: 9 }}>✗</span>}
               </button>
             ))}
           </div>
