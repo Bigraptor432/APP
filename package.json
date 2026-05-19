@@ -46,7 +46,7 @@
       "package.json"
     ],
     "win": {
-      "target": "portable",
+      "target": [{ "target": "portable", "arch": ["x64"] }],
       "icon": "electron/icon.ico",
       "artifactName": "kgbtools-portable.exe"
     },
