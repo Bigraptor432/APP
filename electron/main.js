@@ -99,6 +99,11 @@ ipcMain.handle('download-update', async (_, { url }) => {
   const version = url.match(/download\/v?([\d.]+)\//)?.[1] || 'new';
   const dest = path.join(exeDir, `manucaspt-v${version}.exe`);
   try {
+    fs.readdirSync(exeDir)
+      .filter(f => /^manucaspt-v[\d.]+\.exe$/i.test(f))
+      .forEach(f => { try { fs.unlinkSync(path.join(exeDir, f)); } catch (_) {} });
+  } catch (_) {}
+  try {
     await downloadFile(url, dest, (pct) => {
       win?.webContents.send('download-progress', { percent: pct });
     });
