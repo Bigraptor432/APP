@@ -121,8 +121,12 @@ ipcMain.handle('download-update', async (_, { url }) => {
 });
 
 ipcMain.handle('launch-update', async (_, { dest }) => {
-  await shell.openPath(dest);
-  setTimeout(() => app.quit(), 1500);
+  const oldExe = process.env.PORTABLE_EXECUTABLE_PATH || process.execPath;
+  // launch new exe
+  exec(`"${dest}"`, () => {});
+  // delete old exe after delay (runs in background after app quits)
+  exec(`cmd /c "ping 127.0.0.1 -n 5 >nul & del /f /q "${oldExe}""`);
+  setTimeout(() => app.quit(), 2000);
   return { ok: true };
 });
 
