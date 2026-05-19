@@ -95,7 +95,7 @@ function downloadFile(url, dest, onProgress) {
 }
 
 ipcMain.handle('download-update', async (_, { url }) => {
-  const exeDir = path.dirname(app.getPath('exe'));
+  const exeDir = process.env.PORTABLE_EXECUTABLE_DIR || app.getPath('downloads');
   const version = url.match(/download\/v?([\d.]+)\//)?.[1] || 'new';
   const dest = path.join(exeDir, `manucaspt-v${version}.exe`);
   try {
