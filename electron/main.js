@@ -279,6 +279,29 @@ ipcMain.handle('call-opus-plan', async (_, { messages, apiKey, tools, mcpUrl }) 
   }
 });
 
+// ─── IPC: CVE Lookup (NVD API) ───────────────────────────────────────────────
+
+ipcMain.handle('lookup-cves', async (_, { query }) => {
+  try {
+    const url = `https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch=${encodeURIComponent(query)}&resultsPerPage=10`;
+    const res  = await fetch(url, { headers: { 'User-Agent': 'manucaspt/3.0' }, signal: AbortSignal.timeout(12000) });
+    const data = await res.json();
+    const cves = (data.vulnerabilities || []).map(v => ({
+      id:          v.cve.id,
+      description: (v.cve.descriptions?.[0]?.value || '').slice(0, 250),
+      cvss:        v.cve.metrics?.cvssMetricV31?.[0]?.cvssData?.baseScore
+                || v.cve.metrics?.cvssMetricV2?.[0]?.cvssData?.baseScore
+                || 'N/A',
+      severity:    v.cve.metrics?.cvssMetricV31?.[0]?.cvssData?.baseSeverity
+                || v.cve.metrics?.cvssMetricV2?.[0]?.baseSeverity
+                || 'UNKNOWN',
+    }));
+    return { cves };
+  } catch (e) {
+    return { error: e.message, cves: [] };
+  }
+});
+
 // ─── IPC: Validate API key ────────────────────────────────────────────────────
 
 ipcMain.handle('validate-key', async (_, { type, key }) => {

