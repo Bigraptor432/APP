@@ -1,0 +1,480 @@
+========================================
+  MANUCASPT - KALI MCP SERVER SETUP
+========================================
+
+1. COPIAR FICHEIRO PARA O KALI
+-------------------------------
+No Windows, abre o PowerShell e corre:
+
+  scp kali-mcp-server.py user@IP_DO_KALI:/home/user/
+
+(substitui "user" pelo teu utilizador e "IP_DO_KALI" pelo IP do Kali)
+
+
+2. INSTALAR DEPENDENCIAS (so na primeira vez)
+----------------------------------------------
+No terminal do Kali:
+
+  sudo apt update
+  sudo apt install -y python3 nmap gobuster nikto whatweb ffuf hydra netcat-openbsd sqlmap exploitdb
+
+
+3. CORRER O SERVIDOR
+---------------------
+  python3 kali-mcp-server.py
+
+Output esperado:
+
+  ╔══════════════════════════════════════╗
+  ║   MCP Kali Server   port 3000        ║
+  ╚══════════════════════════════════════╝
+
+  Tools (15): nmap, gobuster, nikto, ...
+  Ctrl+C to stop
+
+Porta diferente (ex: 8080):
+  python3 kali-mcp-server.py 8080
+
+
+4. CONFIGURAR NA APP
+---------------------
+  - Abre a app -> icone ⚙ (Settings)
+  - Campo "Kali MCP Server" -> http://IP_DO_KALI:3000
+  - Guardar
+  - O ponto fica verde: "15 tools ativas"
+
+
+5. CORRER AUTOMATICAMENTE AO LIGAR O KALI (opcional)
+------------------------------------------------------
+  sudo nano /etc/systemd/system/mcp.service
+
+Colar isto (substitui "user" pelo teu utilizador):
+
+  [Unit]
+  Description=Kali MCP Server
+  After=network.target
+
+  [Service]
+  ExecStart=/usr/bin/python3 /home/user/kali-mcp-server.py
+  Restart=always
+  User=user
+
+  [Install]
+  WantedBy=multi-user.target
+
+Depois:
+  sudo systemctl enable mcp
+  sudo systemctl start mcp
+
+Ver status:
+  sudo systemctl status mcp
+
+Parar:
+  sudo systemctl stop mcp
+
+
+6. TOOLS DISPONIVEIS
+---------------------
+  nmap        - port scan e detecao de servicos
+  gobuster    - brute force de diretorios/subdominios
+  nikto       - scanner de vulnerabilidades web
+  whatweb     - identificacao de tecnologias web
+  dig         - consultas DNS
+  whois       - informacao de dominio/IP
+  curl        - requests HTTP
+  sqlmap      - injecao SQL automatica
+  ffuf        - fuzzing web
+  hydra       - brute force de credenciais
+  netcat      - port checking / banner grabbing
+  shell       - qualquer comando shell no Kali
+  cve_search  - pesquisa na NVD (260.000+ CVEs)
+  cve_lookup  - detalhes de um CVE especifico
+  searchsploit- exploits publicos no Exploit-DB
+
+
+7. REDE - KALI EM REDE DIFERENTE (SEM VPN / SEM VM)
+----------------------------------------------------
+
+O Kali esta numa rede diferente (maquina fisica remota, VPS, etc.).
+Opcoes para ligar a app ao Kali remotamente:
+
+
+  OPCAO A - TAILSCALE (recomendado, gratis)
+  ------------------------------------------
+  Instalar no Kali:
+    curl -fsSL https://tailscale.com/install.sh | sh
+    sudo tailscale up
+
+  Instalar no Windows/Mac:
+    https://tailscale.com/download
+
+  Fazer login com a mesma conta em ambos.
+  O Kali fica acessivel em:
+    http://100.x.x.x:3000   (IP Tailscale do Kali)
+
+  Ver IP Tailscale do Kali:
+    tailscale ip -4
+
+
+  OPCAO B - NGROK (sem instalar nada, gratis)
+  --------------------------------------------
+  No Kali, com o servidor MCP ja a correr:
+    curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc
+    sudo apt install ngrok -y
+    ngrok http 3000
+
+  Vai aparecer um URL tipo:
+    https://abc123.ngrok-free.app
+
+  Usa esse URL na app em vez de http://IP:3000
+  (muda cada vez que reiniciar o ngrok)
+
+
+  OPCAO C - PORTA ABERTA NO ROUTER/FIREWALL (nao recomendado)
+  ------------------------------------------------------------
+  So usar se nao tiveres outra opcao.
+  Risco: qualquer pessoa na internet pode aceder ao servidor.
+
+  No Kali, proteger com password basica:
+    (por implementar no servidor)
+
+  Abrir porta 3000 no firewall:
+    sudo ufw allow 3000/tcp
+
+  Usar IP publico do Kali na app:
+    http://IP_PUBLICO:3000
+
+
+  RECOMENDADO: Tailscale
+  Ligacao encriptada, sem abrir portas, gratis ate 3 maquinas.
+  Perfeito para 3 utilizadores.
+
+
+========================================
+
+
+AWS EC2 + TAILSCALE - TUTORIAL COMPLETO DO ZERO (3 UTILIZADORES)
+=================================================================
+
+PASSO 1 - CRIAR CONTA TAILSCALE (so uma vez)
+---------------------------------------------
+  1. Acede a https://tailscale.com
+  2. Clica "Get started"
+  3. Faz login com Google ou GitHub (mais facil)
+  4. Guarda o email e password - vais precisar em todos os dispositivos
+
+
+PASSO 2 - INSTALAR TAILSCALE NOS 3 PCS
+-----------------------------------------
+  Em cada PC (Windows ou Mac):
+
+  Windows:
+    1. Vai a https://tailscale.com/download/windows
+    2. Descarrega e instala
+    3. Abre o Tailscale no tabuleiro do sistema (canto inferior direito)
+    4. Clica "Log in"
+    5. Faz login com a MESMA conta do Passo 1
+
+  Mac:
+    1. Vai a https://tailscale.com/download/mac
+    2. Descarrega e instala
+    3. Abre o Tailscale na barra de menu (topo direito)
+    4. Clica "Log in"
+    5. Faz login com a MESMA conta do Passo 1
+
+  Faz isto nos 3 PCs antes de continuar.
+
+
+PASSO 3 - CRIAR CONTA AWS
+--------------------------
+  1. Acede a https://aws.amazon.com
+  2. Clica "Criar uma conta da AWS"
+  3. Preenche email, palavra-passe e nome da conta
+  4. Precisas de cartao de credito (~$0.04/h para t3.medium)
+  5. Verifica o numero de telefone
+  6. Escolhe o plano "Suporte basico - Gratuito"
+
+
+PASSO 4 - CRIAR A INSTANCIA EC2 (SERVIDOR KALI)
+-------------------------------------------------
+  1. Acede a https://console.aws.amazon.com/ec2
+  2. Clica "Executar instancia"
+  3. Preenche:
+
+     Nome: kali-mcp-server
+
+     Imagens de aplicacao e SO:
+       - Clica "Procurar mais AMIs"
+       - Pesquisa: "Kali Linux"
+       - Vai ao separador "AMIs do AWS Marketplace"
+       - Seleciona "Kali Linux" (da Offensive Security, 3.9 estrelas)
+       - Clica "Continuar"
+
+     Tipo de instancia:
+       - t3.medium  (2 vCPU, 4GB RAM) - recomendado
+       - t2.micro   (gratis 1 ano, mas lento para scan)
+
+     Par de chaves (login):
+       - Clica "Criar novo par de chaves"
+       - Nome: kali-key
+       - Tipo: RSA
+       - Formato: .pem
+       - Clica "Criar par de chaves"
+       - Guarda o ficheiro kali-key.pem num lugar seguro
+       - NUNCA APAGUES ESTE FICHEIRO
+
+     Configuracoes de rede:
+       - "Atribuir IP publico automaticamente" -> Habilitar
+       - Firewall: "Criar grupo de seguranca"
+       - Adiciona apenas esta regra:
+           Tipo: SSH
+           Porta: 22
+           Tipo de origem: Meu IP
+       (NAO precisas de abrir a porta 3000 - o Tailscale trata disso)
+
+     Armazenamento: 20 GB gp3
+
+  4. Clica "Executar instancia"
+  5. Aguarda 2-3 minutos ate o estado ser "Em execucao"
+  6. Clica na instancia -> copia o "Endereco IPv4 publico"
+
+
+PASSO 5 - LIGAR A EC2 VIA SSH
+-------------------------------
+  No Windows (PowerShell) - substitui IP_DA_EC2 pelo IP copiado:
+
+    icacls C:\Users\User\Downloads\kali-key.pem /inheritance:r /grant:r "%USERNAME%:R"
+    ssh -i C:\Users\User\Downloads\kali-key.pem kali@IP_DA_EC2
+
+  No Mac (Terminal):
+    chmod 400 ~/Downloads/kali-key.pem
+    ssh -i ~/Downloads/kali-key.pem kali@IP_DA_EC2
+
+  Se aparecer "Are you sure you want to continue connecting?" -> escreve: yes
+
+
+PASSO 6 - INSTALAR TAILSCALE NA EC2
+--------------------------------------
+  (ja dentro da EC2 via SSH)
+
+    curl -fsSL https://tailscale.com/install.sh | sh
+    sudo tailscale up
+
+  Vai aparecer um link no terminal, tipo:
+    https://login.tailscale.com/a/xxxxxxxxxxx
+
+  Copia esse link e abre no browser -> faz login com a MESMA conta Tailscale.
+  Clica "Connect" para autorizar a maquina.
+
+  De volta no terminal, ve o IP Tailscale da EC2:
+    tailscale ip -4
+
+  Guarda este IP (comeca com 100.x.x.x) - vais usar na app.
+
+
+PASSO 7 - INSTALAR FERRAMENTAS NO KALI
+----------------------------------------
+  (ainda dentro da EC2 via SSH)
+
+    sudo apt update && sudo apt upgrade -y
+
+    sudo apt install -y python3 nmap gobuster nikto whatweb ffuf \
+      hydra netcat-openbsd sqlmap exploitdb wpscan amass subfinder \
+      crackmapexec enum4linux smbclient snmp-utils tcpdump wfuzz \
+      metasploit-framework nuclei
+
+    nuclei -update-templates
+
+
+PASSO 8 - COPIAR E INICIAR O SERVIDOR MCP
+-------------------------------------------
+  No Windows (PowerShell) - abre um NOVO terminal (nao feches o SSH):
+    scp -i C:\Users\User\Downloads\kali-key.pem kali-mcp-server.py kali@IP_DA_EC2:/home/kali/
+
+  No Mac - abre um NOVO terminal:
+    scp -i ~/Downloads/kali-key.pem kali-mcp-server.py kali@IP_DA_EC2:/home/kali/
+
+  De volta no SSH da EC2, inicia o servidor em background:
+    nohup python3 /home/kali/kali-mcp-server.py > /home/kali/mcp.log 2>&1 &
+
+  Verifica se esta a correr:
+    curl http://localhost:3000/tools
+
+  Deves ver uma lista de tools em JSON.
+
+
+PASSO 9 - CONFIGURAR NA APP (nos 3 PCs)
+-----------------------------------------
+  1. Abre a app manucaspt
+  2. Clica no icone de engrenagem (Definicoes)
+  3. Campo "Kali MCP Server":
+       http://100.x.x.x:3000   <- IP Tailscale da EC2 do Passo 6
+  4. Clica "Guardar"
+  5. O ponto fica verde: "32 tools ativas"
+
+  Os 3 utilizadores usam o MESMO IP Tailscale na app.
+  Todos ligam ao mesmo servidor Kali na AWS.
+
+
+PASSO 10 - POUPAR DINHEIRO
+----------------------------
+  Quando nao estiveres a usar:
+    EC2 -> Instancias -> seleciona -> Estado da instancia -> Parar instancia
+
+  NOTA: O IP publico da EC2 muda ao reiniciar, mas o IP Tailscale NAO muda.
+  Por isso na app usa sempre o IP Tailscale (100.x.x.x).
+
+  Ao reiniciar a instancia, volta a iniciar o servidor:
+    ssh -i kali-key.pem kali@NOVO_IP_EC2
+    nohup python3 /home/kali/kali-mcp-server.py > /home/kali/mcp.log 2>&1 &
+
+
+CUSTOS APROXIMADOS
+-------------------
+  t2.micro  : GRATIS 750h/mes (primeiro ano do Free Tier)
+  t3.medium : ~$0.04/h = ~$1/dia = ~$30/mes sempre ligada
+  Tailscale : GRATIS ate 3 dispositivos
+  Armazenamento 20GB: ~$2/mes
+
+
+AWS EC2 - CRIAR SERVIDOR KALI DO ZERO
+========================================
+
+PASSO 1 - CRIAR CONTA AWS
+--------------------------
+  1. Acede a https://aws.amazon.com
+  2. Clica em "Criar uma conta da AWS"
+  3. Preenche email, palavra-passe e nome da conta
+  4. Precisas de cartao de credito (~$0.04/h para t3.medium)
+  5. Verifica o numero de telefone
+  6. Escolhe o plano "Suporte basico - Gratuito"
+
+
+PASSO 2 - CRIAR A INSTANCIA EC2
+---------------------------------
+  1. Acede a https://console.aws.amazon.com/ec2
+  2. Clica em "Executar instancia"
+  3. Preenche:
+
+     Nome: kali-mcp-server
+
+     Imagens de aplicacao e SO:
+       - Clica "Procurar mais AMIs"
+       - Pesquisa: "Kali Linux"
+       - Vai ao separador "AMIs do AWS Marketplace"
+       - Seleciona "Kali Linux" (da Offensive Security)
+       - Clica "Continuar"
+
+     Tipo de instancia:
+       - t3.medium  (2 vCPU, 4GB RAM) - recomendado
+       - t2.micro   (gratis 1 ano, mas lento para scan)
+
+     Par de chaves (login):
+       - Clica "Criar novo par de chaves"
+       - Nome: kali-key
+       - Tipo: RSA
+       - Formato: .pem
+       - Clica "Criar par de chaves" -> descarrega kali-key.pem
+       - GUARDA ESTE FICHEIRO - nao e possivel recuperar
+
+     Configuracoes de rede:
+       - Clica "Editar"
+       - Nome do grupo de seguranca: kali-mcp-sg
+       - Ja tem SSH (porta 22) por omissao
+       - Clica "Adicionar regra do grupo de seguranca":
+           Tipo: TCP personalizado
+           Intervalo de portas: 3000
+           Origem: Meu IP   (so o teu IP acede - mais seguro)
+
+     Armazenamento: 20 GB gp3
+
+  4. Clica "Executar instancia"
+  5. Aguarda 2-3 minutos ate o estado ser "Em execucao"
+
+
+PASSO 3 - LIGAR A INSTANCIA
+-----------------------------
+  EC2 -> Instancias -> clica na instancia -> copia "Endereco IPv4 publico"
+
+  No Windows (PowerShell):
+    icacls C:\kali-key.pem /inheritance:r /grant:r "%USERNAME%:R"
+    ssh -i C:\kali-key.pem kali@IP_DA_INSTANCIA
+
+  No Mac (Terminal):
+    chmod 400 ~/Downloads/kali-key.pem
+    ssh -i ~/Downloads/kali-key.pem kali@IP_DA_INSTANCIA
+
+
+PASSO 4 - INSTALAR FERRAMENTAS
+--------------------------------
+  (ja dentro da instancia via SSH)
+
+  sudo apt update && sudo apt upgrade -y
+
+  sudo apt install -y python3 nmap gobuster nikto whatweb ffuf \
+    hydra netcat-openbsd sqlmap exploitdb wpscan amass subfinder \
+    crackmapexec enum4linux smbclient snmp-utils tcpdump wfuzz \
+    metasploit-framework nuclei
+
+  nuclei -update-templates
+
+
+PASSO 5 - COPIAR E INICIAR O SERVIDOR MCP
+-------------------------------------------
+  No Windows (PowerShell):
+    scp -i C:\kali-key.pem kali-mcp-server.py kali@IP_DA_INSTANCIA:/home/kali/
+
+  No Mac (Terminal):
+    scp -i ~/Downloads/kali-key.pem kali-mcp-server.py kali@IP_DA_INSTANCIA:/home/kali/
+
+  De volta no SSH da instancia:
+    python3 kali-mcp-server.py
+
+  Output esperado:
+    Tools (32): nmap, gobuster, nikto, ...
+
+
+PASSO 6 - CONFIGURAR NA APP
+-----------------------------
+  Abre a app -> Definicoes (engrenagem)
+  Campo "Kali MCP Server":
+    http://IP_DA_INSTANCIA:3000
+  O ponto fica verde: "32 tools ativas"
+
+
+PASSO 7 - MANTER ATIVO SEM SSH ABERTO
+---------------------------------------
+  nohup python3 /home/kali/kali-mcp-server.py > /home/kali/mcp.log 2>&1 &
+
+  Verificar se esta a correr:
+    ps aux | grep kali-mcp
+    curl http://localhost:3000/tools
+
+
+PASSO 8 - POUPAR DINHEIRO
+---------------------------
+  Quando nao estiveres a usar:
+    EC2 -> Instancias -> seleciona -> Estado da instancia -> Parar instancia
+
+  NOTA: O IP publico muda cada vez que reinicias.
+  Para IP fixo: associa um "IP elastico" (gratis enquanto a instancia estiver ativa).
+
+
+CUSTOS APROXIMADOS
+-------------------
+  t2.micro  : GRATIS 750h/mes (primeiro ano do Free Tier)
+  t3.medium : ~$0.04/h = ~$30/mes se estiver sempre ligada
+  t3.medium : ~$0.50/dia se usares so 12h/dia
+  Armazenamento 20GB: ~$2/mes
+
+
+SEGURANCA
+----------
+  Em "Origem" do grupo de seguranca usa sempre "Meu IP" (nao 0.0.0.0/0)
+  Se mudares de rede (ex: cafe -> casa) atualiza a regra no grupo de seguranca
+  Alternativa mais segura - tunel SSH sem abrir a porta 3000:
+    ssh -i kali-key.pem -L 3000:localhost:3000 kali@IP_EC2 -N
+    (na app usa http://localhost:3000)
+
+
+========================================
