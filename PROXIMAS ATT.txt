@@ -1,0 +1,7 @@
+# 1. Edita os ficheiros...
+# 2. Bumpa versão no package.json (ex: 1.0.0 → 1.1.0)
+# 3. Commit e tag:
+git add .
+git commit -m "feat: nova funcionalidade"
+git tag v1.1.0
+git push origin master --tags
