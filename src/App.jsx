@@ -1982,7 +1982,7 @@ export default function App() {
             {dlProgress !== null ? (
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between font-mono text-[9px]" style={{ color: '#555' }}>
-                  <span>{dlProgress < 100 ? 'A descarregar...' : 'Concluído — a abrir instalador...'}</span>
+                  <span>{dlProgress < 100 ? 'A descarregar...' : 'Guardado na mesma pasta — a abrir...'}</span>
                   <span>{dlProgress}%</span>
                 </div>
                 <div className="w-full rounded-full overflow-hidden" style={{ height: 6, background: '#1a1a1a' }}>

@@ -95,13 +95,14 @@ function downloadFile(url, dest, onProgress) {
 }
 
 ipcMain.handle('download-update', async (_, { url }) => {
-  const dest = path.join(os.tmpdir(), 'manucaspt-update.exe');
+  const exeDir = path.dirname(app.getPath('exe'));
+  const dest = path.join(exeDir, 'manucaspt-portable-new.exe');
   try {
     await downloadFile(url, dest, (pct) => {
       win?.webContents.send('download-progress', { percent: pct });
     });
     win?.webContents.send('download-progress', { percent: 100, done: true });
-    await shell.openPath(dest);
+    shell.showItemInFolder(dest);
     return { success: true };
   } catch (e) {
     return { error: e.message };
