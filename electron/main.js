@@ -3,6 +3,8 @@ import { fileURLToPath } from 'url';
 import { exec } from 'child_process';
 import https from 'https';
 import path from 'path';
+import fs from 'fs';
+import os from 'os';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -66,6 +68,45 @@ function checkForUpdates() {
 }
 
 ipcMain.handle('check-update', () => pendingUpdate);
+
+// ─── IPC: Download update ─────────────────────────────────────────────────────
+
+function downloadFile(url, dest, onProgress) {
+  return new Promise((resolve, reject) => {
+    const follow = (u) => {
+      https.get(u, { headers: { 'User-Agent': 'manucaspt' } }, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          return follow(res.headers.location);
+        }
+        const total = parseInt(res.headers['content-length'] || '0', 10);
+        let received = 0;
+        const file = fs.createWriteStream(dest);
+        res.on('data', chunk => {
+          received += chunk.length;
+          if (total > 0) onProgress(Math.round(received / total * 100));
+          file.write(chunk);
+        });
+        res.on('end', () => { file.end(); resolve(dest); });
+        res.on('error', err => { file.destroy(); reject(err); });
+      }).on('error', reject);
+    };
+    follow(url);
+  });
+}
+
+ipcMain.handle('download-update', async (_, { url }) => {
+  const dest = path.join(os.tmpdir(), 'manucaspt-update.exe');
+  try {
+    await downloadFile(url, dest, (pct) => {
+      win?.webContents.send('download-progress', { percent: pct });
+    });
+    win?.webContents.send('download-progress', { percent: 100, done: true });
+    await shell.openPath(dest);
+    return { success: true };
+  } catch (e) {
+    return { error: e.message };
+  }
+});
 
 app.whenReady().then(() => {
   createWindow();

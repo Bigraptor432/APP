@@ -186,8 +186,9 @@ function SettingsModal({ open, onClose, anthropicKey, groqKey, supaUrl, supaKey,
       const data = await res.json();
       const latest = (data.tag_name || '').replace(/^v/, '');
       if (latest && latest !== CURRENT_VER) {
+        const dlUrl = data.assets?.find(a => a.name.endsWith('.exe'))?.browser_download_url || null;
         setUpdStatus('available');
-        setUpdInfo({ version: latest, url: data.html_url });
+        setUpdInfo({ version: latest, url: data.html_url, downloadUrl: dlUrl });
       } else {
         setUpdStatus('uptodate');
       }
@@ -404,15 +405,18 @@ function SettingsModal({ open, onClose, anthropicKey, groqKey, supaUrl, supaKey,
                 <span className="font-mono text-[10px] ml-2" style={{ color: '#444' }}>v{CURRENT_VER}</span>
                 {updStatus === 'uptodate'  && <span className="font-mono text-[10px] ml-2" style={{ color: C.green }}>· atualizado ✓</span>}
                 {updStatus === 'checking'  && <span className="font-mono text-[10px] ml-2" style={{ color: C.orange }}>· a verificar...</span>}
-                {updStatus === 'available' && updInfo && <span className="font-mono text-[10px] ml-2" style={{ color: '#f97316' }}>· v{updInfo.version} disponível</span>}
+                {updStatus === 'available' && updInfo && <span className="font-mono text-[10px] ml-2" style={{ color: C.red }}>· v{updInfo.version} disponível</span>}
               </div>
               {updStatus === 'available' && updInfo ? (
                 <button
-                  onClick={() => window.electron?.openExternal(updInfo.url)}
+                  onClick={() => {
+                    if (updInfo.downloadUrl) window.electron?.downloadUpdate({ url: updInfo.downloadUrl });
+                    else window.electron?.openExternal(updInfo.url);
+                  }}
                   className="font-mono text-[9px] px-3 py-1 rounded-lg font-bold uppercase tracking-widest"
-                  style={{ background: '#f97316', color: '#000' }}
+                  style={{ background: C.redDim, border: `1px solid ${C.redBorder}`, color: C.red }}
                 >
-                  Baixar v{updInfo.version}
+                  ↓ Baixar v{updInfo.version}
                 </button>
               ) : (
                 <button
@@ -1637,6 +1641,7 @@ export default function App() {
   const [toolProgress, setToolProgress] = useState(null);
   const [updateInfo,      setUpdateInfo]      = useState(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [dlProgress,      setDlProgress]      = useState(null);
   const logs     = targetLogs[activeTarget]   || [];
   const plan     = targetPlans[activeTarget]  || [];
   const messages = convMessages[activeConv]   || [];
@@ -1658,12 +1663,21 @@ export default function App() {
         const latest = (data.tag_name || '').replace(/^v/, '');
         const current = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0';
         if (latest && latest !== current) {
-          setUpdateInfo({ version: latest, url: data.html_url });
+          const dlUrl = data.assets?.find(a => a.name.endsWith('.exe'))?.browser_download_url || null;
+          setUpdateInfo({ version: latest, url: data.html_url, downloadUrl: dlUrl });
           setShowUpdateModal(true);
         }
       } catch (_) {}
     };
     setTimeout(check, 3000);
+  }, []);
+
+  useEffect(() => {
+    if (!window.electron?.onDownloadProgress) return;
+    window.electron.onDownloadProgress(({ percent, done }) => {
+      setDlProgress(done ? 100 : percent);
+    });
+    return () => window.electron.offDownloadProgress?.();
   }, []);
 
   useEffect(() => {
@@ -1944,42 +1958,64 @@ export default function App() {
       {showUpdateModal && updateInfo && (
         <div
           className="fixed inset-0 flex items-center justify-center"
-          style={{ zIndex: 9999, background: 'rgba(0,0,0,0.7)' }}
-          onClick={() => setShowUpdateModal(false)}
+          style={{ zIndex: 9999, background: 'rgba(0,0,0,0.75)' }}
+          onClick={() => dlProgress === null && setShowUpdateModal(false)}
         >
           <div
             className="rounded-2xl p-6 flex flex-col gap-4"
-            style={{ background: '#111', border: '1px solid #f97316', width: 380, boxShadow: '0 0 40px rgba(249,115,22,0.2)' }}
+            style={{ background: '#111', border: `1px solid ${C.redBorder}`, width: 400, boxShadow: `0 0 40px rgba(255,51,51,0.15)` }}
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(249,115,22,0.15)', border: '1px solid #f97316' }}>
-                <span style={{ color: '#f97316', fontSize: 16 }}>↑</span>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: C.redDim, border: `1px solid ${C.redBorder}` }}>
+                <span style={{ color: C.red, fontSize: 16 }}>↑</span>
               </div>
               <div>
-                <div className="font-mono font-bold text-sm" style={{ color: '#f97316' }}>Atualização disponível</div>
+                <div className="font-mono font-bold text-sm" style={{ color: C.red }}>Atualização disponível</div>
                 <div className="font-mono text-[10px]" style={{ color: '#555' }}>versão v{updateInfo.version}</div>
               </div>
             </div>
-            <p className="font-mono text-[10px] leading-relaxed" style={{ color: '#777' }}>
-              Uma nova versão da ManucasPT está disponível. Descarrega o novo executável e substitui o atual.
+            <p className="font-mono text-[10px] leading-relaxed" style={{ color: '#666' }}>
+              Uma nova versão da ManucasPT está disponível. O ficheiro será descarregado automaticamente.
             </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => { window.electron?.openExternal(updateInfo.url); setShowUpdateModal(false); }}
-                className="flex-1 py-2 rounded-lg font-mono text-[10px] font-bold uppercase tracking-widest"
-                style={{ background: '#f97316', color: '#000' }}
-              >
-                Baixar v{updateInfo.version}
-              </button>
-              <button
-                onClick={() => setShowUpdateModal(false)}
-                className="px-4 py-2 rounded-lg font-mono text-[10px]"
-                style={{ background: '#1a1a1a', color: '#555', border: '1px solid #222' }}
-              >
-                Depois
-              </button>
-            </div>
+
+            {dlProgress !== null ? (
+              <div className="flex flex-col gap-2">
+                <div className="flex justify-between font-mono text-[9px]" style={{ color: '#555' }}>
+                  <span>{dlProgress < 100 ? 'A descarregar...' : 'Concluído — a abrir instalador...'}</span>
+                  <span>{dlProgress}%</span>
+                </div>
+                <div className="w-full rounded-full overflow-hidden" style={{ height: 6, background: '#1a1a1a' }}>
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${dlProgress}%`, background: dlProgress === 100 ? C.green : C.red }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    if (!updateInfo.downloadUrl) { window.electron?.openExternal(updateInfo.url); return; }
+                    setDlProgress(0);
+                    await window.electron?.downloadUpdate({ url: updateInfo.downloadUrl });
+                  }}
+                  className="flex-1 py-2 rounded-lg font-mono text-[10px] font-bold uppercase tracking-widest transition-all"
+                  style={{ background: C.redDim, border: `1px solid ${C.redBorder}`, color: C.red }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,51,51,0.2)'}
+                  onMouseLeave={e => e.currentTarget.style.background = C.redDim}
+                >
+                  ↓ Baixar v{updateInfo.version}
+                </button>
+                <button
+                  onClick={() => setShowUpdateModal(false)}
+                  className="px-4 py-2 rounded-lg font-mono text-[10px]"
+                  style={{ background: '#1a1a1a', color: '#555', border: '1px solid #222' }}
+                >
+                  Depois
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
