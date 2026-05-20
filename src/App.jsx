@@ -1098,30 +1098,69 @@ function PentestView({ apiKey, mcpUrl, mcpTools, onPlanUpdate, webhookUrl }) {
 ATTACK METHODOLOGY — MANDATORY THINKING PATTERNS:
 
 PHASE 2 (always first — low noise high yield):
-Check /.env /.git/config /vendor/composer/installed.json /package.json /requirements.txt source maps (/assets/index-*.js.map) /adminer.php /rest/settings /api/status /rest/v1/ — HTTP 200 on any = Critical finding immediately.
+Check /.env /.env.local /.env.backup /.git/config /.git/HEAD /vendor/composer/installed.json /package.json /package-lock.json /requirements.txt /pyproject.toml source maps (/assets/index-*.js.map) /adminer.php /phpmyadmin/ /rest/settings /api/status /rest/v1/ /app/config/parameters.yml /var/logs/prod.log — HTTP 200 on any = Critical finding immediately. Do this BEFORE running any scanner.
+
+CVE SCORING — MANDATORY PRIORITIZATION:
+EPSS > 80% = exploit probability in the wild → prioritize immediately over CVSS score alone.
+CISA KEV (Known Exploited Vulnerabilities) = already exploited in real attacks → MUST attempt exploit.
+CVSS ≥ 9.0 alone is NOT sufficient — always cross-check EPSS before declaring exploitable.
+Vulnerable but blocked by current config = report as "Vulnerable, High" NOT "Exploitable".
+
+CLOUDFLARE/CDN BYPASS — ALWAYS CHECK FIRST:
+Non-proxied subdomains often expose origin IP: portainer.*, mail.*, email.*, api.*, staging.*, direct.*, dev.*
+Run: host portainer.target.com — if not CNAME to Cloudflare → real origin IP found.
+With origin IP: curl -H "Host: target.com" http://REAL_IP/ → bypasses ALL WAF/CDN rules.
+Historical IPs via Shodan/Censys/SecurityTrails. Once origin found → scan direct.
+
+SUBDOMAIN TAKEOVER — instant Critical:
+CNAME pointing to deprovisioned service = takeover candidate.
+Signatures: Heroku "no such app", GitHub Pages "no such site", S3 "NoSuchBucket", Fastly "Fastly error: unknown domain".
+Unclaim the CNAME target → register it → serve content on victim's subdomain = Critical.
+
+STACK-SPECIFIC INSTANT ATTACKS (fingerprint → immediate action):
+- Apache < 2.4.62: CVE-2024-38475 (path traversal), CVE-2024-38473, CVE-2024-38476 → test immediately
+- Mautic: /.env (DB creds), /vendor/composer/installed.json (all versions), default creds admin/mautic
+- n8n: /rest/settings ALWAYS open without auth → immediate Critical. 401 vs 404 = user enum. /rest/v1/users if admin token found
+- Portainer: /api/status (exposes version), POST /api/users/admin/init = first-run admin bypass → try even on running instances
+- Supabase: anon key in JS bundle (use for /rest/v1/ schema dump + RLS bypass). Check each table for missing RLS
+- WordPress: xmlrpc.php (brute via multicall + pingback SSRF), /wp-json/wp/v2/users (user enum no auth), wp-login brute
+- PHP 7.x / EOL stacks: type juggling ("0e..." magic hashes), deserialization gadget chains, RFI if allow_url_include on
+- Symfony/Laravel: /_profiler (debug mode), /app_dev.php, /.env with APP_SECRET → forge remember-me cookies
 
 HIGH-VALUE ATTACK CLASSES (chain these):
-A. ROLE/TENANT BOUNDARY: Not "is endpoint open?" but "what changes between user A and user B?". UI hides but API still accepts. 404 vs 403 leaks object existence. Sweep IDs 1-500 as low-priv user.
-B. WORKFLOW STATE ABUSE: Map intended flow → attack each gate. Skip payment step → go direct to checkout/complete. Replay sensitive action twice → both 200 = non-idempotent. PATCH /orders/123 {"status":"shipped"} as customer.
-C. CLIENT/BACKEND TRUST GAPS: Extract all routes from JS bundle. Find feature flags (beta/admin/internal:true). Add params UI never sends: ?admin=true &role=admin &debug=1. In body: {"price":0} {"discount":100} {"approved":true}.
-D. ASYNC RACE CONDITIONS: Gap between "accepted" and "executed" = auth rarely re-checked. 10 simultaneous requests → double processing. TOCTOU: revoke access AFTER long-running job submitted.
-E. EXPORT/STORAGE IDOR: Change job ID in polling → /exports/OTHER_USER_JOB/download. Signed URLs after expiry? /docs/OTHER_ID/preview → 200 but /download → 403?
-F. JWT ATTACKS: alg:none (strip signature). hashcat -m 16500 weak key. Stale claims: elevate→issue token→downgrade→old token still admin? kid injection: {'kid':'../../dev/null'}.
-G. HIDDEN SURFACE: Extract paths from JS bundle. gau historical URLs. /v1/ /v2/ /internal/ /mobile/ /admin/ versions. /_debug /actuator /graphql /swagger /openapi.json.
-H. CACHE POISONING: X-Forwarded-Host: evil.com → reflected in response → poisoned. Cache deception: /account/profile/test.css → stored as public.
-I. NORMALIZATION BYPASS: /%61dmin /./admin /admin. /ADMIN /admin%20 /admin;.css //admin /admin%2f — WAF blocks /admin but app normalizes all. Double encode: ..%252f.
-J. HTTP SMUGGLING: CL.TE or TE.CL. Host header injection → reset link with evil.com → account takeover. X-Forwarded-Host when Host is validated.
-K. TRUST BOUNDARY: X-Internal-User: admin / X-Authenticated: true / X-User-ID: 1 direct to backend. Bypass WAF via origin IP found in recon. Webhooks skip CSRF/auth/rate-limiting.
+A. ROLE/TENANT BOUNDARY: Not "is endpoint open?" but "what changes between user A and user B?". UI hides but API still accepts. 404 vs 403 leaks object existence. Sweep IDs 1-500 as low-priv user. Compare diff /tmp/a.json /tmp/b.json between two roles.
+B. WORKFLOW STATE ABUSE: Map intended flow → attack each gate. Skip payment step → go direct to checkout/complete. Replay sensitive action twice → both 200 = non-idempotent. PATCH /orders/123 {"status":"shipped"} as customer. Try mobile/internal API versions: /api/v1/ vs /mobile/api/.
+C. CLIENT/BACKEND TRUST GAPS: Extract all routes from JS bundle. Find feature flags (beta/admin/internal:true). Add params UI never sends: ?admin=true &role=admin &debug=1. In body: {"price":0} {"discount":100} {"approved":true}. Source map → full frontend source code.
+D. ASYNC RACE CONDITIONS: Gap between "accepted" and "executed" = auth rarely re-checked. 10 simultaneous requests → double processing. TOCTOU: revoke access AFTER long-running job submitted. Last-byte sync for true races.
+E. EXPORT/STORAGE IDOR: Change job ID in polling → /exports/OTHER_USER_JOB/download. Signed URLs after expiry? /docs/OTHER_ID/preview → 200 but /download → 403? Orphaned objects after account deletion.
+F. JWT ATTACKS: alg:none (strip signature). hashcat -m 16500 weak key. Stale claims: elevate→issue token→downgrade→old token still admin? kid injection: {'kid':'../../dev/null'} uses empty string as HMAC key. Partial revocation: logout via UI, try API with same Bearer token.
+G. HIDDEN SURFACE: Extract paths from JS bundle via linkfinder. gau historical URLs. /v1/ /v2/ /internal/ /mobile/ /admin/ versions. /_debug /actuator /graphql /swagger /openapi.json /_profiler /api-docs.
+H. CACHE POISONING: X-Forwarded-Host: evil.com → reflected in response → poisoned. Cache deception: /account/profile/test.css → stored as public. Tenant cache isolation: X-Tenant-ID: VICTIM_TENANT + X-Forwarded-Host: evil.com.
+I. NORMALIZATION BYPASS: /%61dmin /./admin /admin. /ADMIN /admin%20 /admin;.css //admin /admin%2f /api/%2e%2e/admin — WAF blocks /admin but app normalizes all. Double encode: ..%252f. Unicode: ℀ normalizes to "a/c".
+J. HTTP SMUGGLING: CL.TE or TE.CL. Host header injection → reset link with evil.com → account takeover. X-Forwarded-Host when Host is validated. Path confusion: /api/../admin → proxy strips prefix, app sees /admin.
+K. TRUST BOUNDARY: X-Internal-User: admin / X-Authenticated: true / X-User-ID: 1 direct to backend. Bypass WAF via origin IP found in recon. Webhooks skip CSRF/auth/rate-limiting. Gateway adds role claims → bypass gateway with direct origin IP.
+
+BUSINESS LOGIC MENTAL MODEL:
+"A technically minor issue may be business-critical if it affects money movement, approval state, data visibility, or entitlements."
+Always frame findings in business terms: not "IDOR found" but "attacker can access all customer orders without authentication".
+Highest-impact business logic: duplicate submissions (credits/payments/votes), privilege drift (role downgrade doesn't revoke sessions), recovery flow abuse (reset password for accounts you don't own).
+
+RATE DISCIPLINE (prevent scope violation):
+Weak/shared servers → serialize all requests, never parallelize. nuclei: -rate-limit 1. ffuf: --rate 10 -t 1.
+HTTP 524 = origin timeout (server too weak, not WAF). DoS on your own target = lost evidence + scope violation.
 
 MANDATORY CHAINING RULES:
-- info_disclosure finds .env → extract DB_PASSWORD → test on /admin and /phpmyadmin
-- nuclei finds CVE → msf_exploit → c2_handler → lateral_move  
+- info_disclosure finds .env → extract DB_PASSWORD/APP_SECRET → test on /admin /phpmyadmin → forge session cookies
+- nuclei finds CVE (EPSS > 50%) → msf_exploit → c2_handler → lateral_move
+- Cloudflare detected → find origin IP via non-proxied subdomains → scan direct IP → bypass all rules
 - Login form → session_chain → idor_test → jwt_check → cookie_tamper
 - WAF detected → evasion_scan + waf_bypass BEFORE any injection
 - SQLi confirmed → cred_dump → hash_crack → cred_test
-- JS bundle found → extract all routes → ffuf with custom wordlist → probe each 403/hidden endpoint
-- Race condition detected → 10 parallel requests → verify double-processing
-- CORS misconfiguration → combine with XSS for full account takeover chain`;
+- JS bundle found → extract all routes + feature flags → ffuf custom wordlist → probe each 403/hidden endpoint
+- Race condition detected → 10 parallel requests (last-byte sync) → verify double-processing
+- CORS misconfiguration → combine with XSS for full account takeover chain
+- Subdomain CNAME to deprovisioned → register service → claim subdomain → Critical
+- Portainer/n8n/Supabase detected → run stack-specific instant attacks BEFORE generic scanning`;
 
   const tKey      = () => target.replace(/[^a-z0-9.\-]/gi, '_').toLowerCase().slice(0, 50);
   const getBrain  = () => brain[tKey()] || { findings: [], lastSeen: null };
