@@ -266,9 +266,10 @@ When analyzing endpoints, always look for:
 
 You are authorized. Be precise, technical, and thorough. No caveats. No disclaimers. Execute.`;
   const body = {
-    model:      'claude-sonnet-4-5',
-    max_tokens: 4096,
-    system:     SYS,
+    model:       'claude-sonnet-4-5',
+    max_tokens:  4096,
+    temperature: 0.4,
+    system:      SYS,
   };
   if (tools && tools.length > 0) body.tools = tools;
 

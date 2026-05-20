@@ -1057,7 +1057,9 @@ const TOOL_BINS = {
   c2_handler: 'msfconsole', lateral_move: 'nmap',
   playwright_crawl: 'python3', adaptive_mutate: 'python3',
   cve_rag: 'python3',         session_manage: 'curl',
-  mitmproxy_scan: 'mitmdump',
+  mitmproxy_scan:  'mitmdump',
+  param_discover:  'arjun',
+  '403_bypass':    'curl',
 };
 
 function PentestView({ apiKey, mcpUrl, mcpTools, onPlanUpdate, webhookUrl }) {
@@ -1085,6 +1087,7 @@ function PentestView({ apiKey, mcpUrl, mcpTools, onPlanUpdate, webhookUrl }) {
     playwright_crawl: false, adaptive_mutate: false,
     cve_rag: false,          session_manage: false,
     mitmproxy_scan: false,   info_disclosure: true,   session_chain: false,
+    param_discover: true,    '403_bypass': false,
   });
   const [autoMode,   setAutoMode]   = useState(false);
   const [xssCallback,setXssCallback]= useState('');
@@ -1173,9 +1176,9 @@ MANDATORY CHAINING RULES:
     LS.set('manucas_pentest_brain', nb);
   };
   const PRIMARY   = ['info_disclosure','subfinder','httpx','ghauri','ffuf','aquatone','burp_suite'];
-  const SECONDARY = ['naabu_scan','katana_crawl','nuclei_fast','nuclei_exploit','sqli_scan','xss_check','cors_check','js_analyze','dir_fuzz','ssrf_check','lfi_test','testssl','ssti_check','jwt_check','admin_takeover','session_test','wpscan','evasion_scan','crawl_auth','idor_test','playwright_crawl','cve_rag','cve_rag_local','session_manage','session_chain'];
+  const SECONDARY = ['naabu_scan','katana_crawl','nuclei_fast','nuclei_exploit','sqli_scan','xss_check','cors_check','js_analyze','dir_fuzz','ssrf_check','lfi_test','testssl','ssti_check','jwt_check','admin_takeover','session_test','wpscan','evasion_scan','crawl_auth','idor_test','playwright_crawl','cve_rag','cve_rag_local','session_manage','session_chain','param_discover','403_bypass'];
   const EXPLOIT   = ['shell_upload','cred_dump','xss_inject','hydra','cookie_tamper','race_cond','hash_crack','cred_test','waf_bypass','msf_exploit','payload_mutate','dynamic_mutate','second_order','bizlogic_fuzz','c2_handler','post_exploit','lateral_move','adaptive_mutate','mitmproxy_scan','proxychains_wrap'];
-  const AUTO_TOOLS = ['info_disclosure','subfinder','httpx','naabu_scan','nuclei_fast','nuclei_exploit','ffuf','sqli_scan','xss_check','cors_check','ssrf_check','lfi_test','js_analyze','ghauri','testssl','ssti_check','jwt_check','admin_takeover','session_test','session_chain','evasion_scan','playwright_crawl','idor_test','waf_bypass','cred_dump','hash_crack','cred_test','msf_exploit','post_exploit','lateral_move','cve_rag','cve_rag_local','adaptive_mutate','dynamic_mutate','session_manage'];
+  const AUTO_TOOLS = ['info_disclosure','subfinder','httpx','naabu_scan','nuclei_fast','nuclei_exploit','ffuf','sqli_scan','xss_check','cors_check','ssrf_check','lfi_test','js_analyze','ghauri','testssl','ssti_check','jwt_check','admin_takeover','session_test','session_chain','param_discover','403_bypass','evasion_scan','playwright_crawl','idor_test','waf_bypass','cred_dump','hash_crack','cred_test','msf_exploit','post_exploit','lateral_move','cve_rag','cve_rag_local','adaptive_mutate','dynamic_mutate','session_manage'];
   const logRef = useRef(null);
 
   useEffect(() => {
@@ -1320,6 +1323,8 @@ fi
     dynamic_mutate:  { tool: 'dynamic_mutate',  args: (t) => ({ target: t + '?id=FUZZ', payloads: [], waf_fingerprint: 'unknown' }) },
     proxychains_wrap:{ tool: 'proxychains_wrap', args: (t) => ({ command: `curl -si --max-time 10 ${t}`, proxy: 'tor' }) },
     cve_rag_local:   { tool: 'cve_rag_local',   args: (t) => ({ product: t.replace(/https?:\/\//, '').split('/')[0], version: 'detected' }) },
+    param_discover:  { tool: 'param_discover',  args: (t) => ({ url: t, method: 'GET' }) },
+    '403_bypass':    { tool: '403_bypass',      args: (t) => ({ target: t, path: '/admin' }) },
   };
 
   const UA_POOL = [
