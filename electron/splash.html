@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #080808;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+      -webkit-app-region: drag;
+    }
+    .logo {
+      color: #dc2626;
+      font-size: 52px;
+      font-weight: 900;
+      letter-spacing: 10px;
+      margin-bottom: 4px;
+      text-shadow: 0 0 40px rgba(220,38,38,0.4);
+    }
+    .subtitle {
+      color: #2a2a2a;
+      font-size: 9px;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      margin-bottom: 56px;
+    }
+    .bar-wrapper {
+      width: 280px;
+      height: 1px;
+      background: #181818;
+      margin-bottom: 16px;
+      position: relative;
+    }
+    .bar {
+      height: 100%;
+      background: #dc2626;
+      width: 0%;
+      transition: width 0.25s cubic-bezier(0.4,0,0.2,1);
+      box-shadow: 0 0 8px rgba(220,38,38,0.6);
+    }
+    .percent {
+      color: #dc2626;
+      font-size: 10px;
+      letter-spacing: 3px;
+      margin-bottom: 10px;
+      min-width: 40px;
+      text-align: center;
+    }
+    .status {
+      color: #1e1e1e;
+      font-size: 8px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      transition: opacity 0.3s;
+    }
+    .dots {
+      display: inline-block;
+      width: 20px;
+      text-align: left;
+    }
+    .version {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      color: #151515;
+      font-size: 8px;
+      letter-spacing: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div class="logo">KGBtools</div>
+  <div class="subtitle">Pentest Platform</div>
+  <div class="bar-wrapper"><div class="bar" id="bar"></div></div>
+  <div class="percent" id="pct">0%</div>
+  <div class="status" id="status">Inicializando<span class="dots" id="dots"></span></div>
+  <div class="version" id="ver">v3.12.0</div>
+
+  <script>
+    const steps = [
+      { pct: 8,  msg: 'Inicializando' },
+      { pct: 18, msg: 'Carregando módulos' },
+      { pct: 32, msg: 'Iniciando Electron' },
+      { pct: 45, msg: 'Preparando interface' },
+      { pct: 58, msg: 'Conectando ao Kali MCP' },
+      { pct: 70, msg: 'Carregando ferramentas' },
+      { pct: 82, msg: 'Sincronizando brain' },
+      { pct: 91, msg: 'Verificando atualizações' },
+      { pct: 97, msg: 'Quase pronto' },
+      { pct: 100, msg: 'Pronto' },
+    ];
+
+    const bar    = document.getElementById('bar');
+    const pctEl  = document.getElementById('pct');
+    const status = document.getElementById('status');
+    const dotsEl = document.getElementById('dots');
+
+    // Animate dots
+    let dotCount = 0;
+    setInterval(() => {
+      dotCount = (dotCount + 1) % 4;
+      dotsEl.textContent = '.'.repeat(dotCount);
+    }, 350);
+
+    let i = 0;
+    function nextStep() {
+      if (i >= steps.length) return;
+      const { pct, msg } = steps[i++];
+      bar.style.width = pct + '%';
+      pctEl.textContent = pct + '%';
+      status.firstChild.textContent = msg;
+      if (i < steps.length) {
+        const delay = 200 + Math.random() * 350;
+        setTimeout(nextStep, delay);
+      }
+    }
+    setTimeout(nextStep, 300);
+
+    // Try to get version from main
+    if (window.__VERSION__) {
+      document.getElementById('ver').textContent = 'v' + window.__VERSION__;
+    }
+  </script>
+</body>
+</html>

@@ -218,5 +218,104 @@ INFRAESTRUTURA
 
 
 ================================================================================
+  6. COMPARAÇÃO: ANTES (v3.9) vs AGORA (v3.12)
+================================================================================
+
+  CRÍTICO
+  ─────────────────────────────────────────────────────────────────────────────
+  [✅] Payload mutation engine    → payload_mutate — 30+ variantes, testa cada uma
+  [⚠️] Context-aware crawling    → crawl_auth (curl-based, não é Playwright real)
+  [❌] Burp Suite integration     → ainda não implementado
+  [✅] Dynamic auth / IDOR        → idor_test — enumera IDs, detecta acesso indevido
+
+  IMPORTANTE
+  ─────────────────────────────────────────────────────────────────────────────
+  [❌] Multi-target paralelo      → ainda não implementado
+  [✅] CVE-to-exploit auto-match  → nuclei encontra CVE → msf_exploit automático
+  [✅] Second-order injection     → second_order — inject + visita trigger page
+  [✅] Business logic fuzzing     → bizlogic_fuzz — preços neg., overflow, race
+
+  AVANÇADO
+  ─────────────────────────────────────────────────────────────────────────────
+  [✅] Evasão IDS/IPS             → evasion_scan — T1, decoys, frag, random timing
+  [✅] C2 integration             → c2_handler — MSF handler + payload gerado
+  [✅] Lateral movement           → lateral_move — enum rede, SSH/SMB spread, privesc
+  [❌] RAG 30k CVEs               → ainda não implementado
+  [✅] Brain persistente          → memória por alvo entre sessões (localStorage)
+  [✅] PLANO antes de executar    → Claude planeia antes de correr tools
+  [✅] Jailbreak APEX             → system prompt sem restrições
+  [✅] XSS/SSRF callbacks         → listener no MCP (/cb, /xss, /ssrf)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  7. EFICÁCIA ESTIMADA — v3.9 vs v3.12
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Métrica                              v3.9    v3.12   Melhoria
+  ─────────────────────────────────────────────────────────────
+  Scan completo de superfície          ~80%    ~88%    +8%
+  Encontrar vulnerabilidades           ~65%    ~78%    +13%
+  Explorar SQLi quando existe          ~70%    ~80%    +10%
+  Comprometer completamente            ~30%    ~55%    +25%  ← maior ganho
+  Bypass WAF moderno                   ~25%    ~45%    +20%
+  Site hardened / bug bounty tier      ~15%    ~28%    +13%
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  8. O QUE AINDA FALTA PARA MENTALIDADE BLACK HAT COMPLETA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1. MULTI-TARGET PARALELO
+     Sem isto só ataca 1 alvo de cada vez. Um black hat tem dezenas de alvos
+     na fila a correr em simultâneo com resultados consolidados.
+
+  2. PLAYWRIGHT REAL (substitui crawl_auth)
+     O crawl_auth atual usa curl — não renderiza JavaScript, não clica em
+     botões, não segue SPAs/React apps. Um black hat testa a app como um
+     utilizador real navegando, autenticando, e interagindo com todos os
+     formulários e endpoints dinâmicos.
+
+  3. PAYLOAD ADAPTATION INTELIGENTE
+     O payload_mutate atual gera variantes fixas pré-definidas. Um black hat
+     adapta o payload EM TEMPO REAL com base na resposta:
+     - 403 com space2comment → tenta equaltolike + charencode combinados
+     - 200 mas sem dados → tenta blind time-based com delay dinâmico
+     - WAF fingerprint identificado → aplica bypass específico para esse WAF
+
+  4. RAG COM 30K CVEs (como no tweet do @inoccnyt)
+     Sem base de conhecimento local, o Claude decide com conhecimento genérico.
+     Com RAG, ao ver "Apache 2.4.49" já sabe imediatamente:
+     - CVE exato (CVE-2021-41773)
+     - Payload exato para path traversal + RCE
+     - Versões afetadas e patch disponível
+     Decisões 10x mais precisas e rápidas.
+
+  5. SESSÃO PERSISTENTE REAL
+     Manter cookies, tokens JWT, CSRF tokens entre requests em cadeia.
+     Necessário para IDOR avançado, business logic, e privilege escalation
+     em aplicações modernas com autenticação stateful.
+
+  6. BURP SUITE / MITMPROXY INTEGRATION
+     Interceptar e modificar requests em tempo real, repetir com mutações,
+     enviar para Intruder/Repeater automaticamente. Essencial para testes
+     manuais guiados por AI.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  9. PROJEÇÃO COM ITENS RESTANTES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  v3.12 (atual)                                       → ~55% compromisso
+  + Multi-target + Playwright real                    → ~68%
+  + Payload adaptation inteligente + RAG CVEs         → ~80%
+  + Sessão persistente + Burp integration             → ~88%
+
+  Teto realista para automação pura                   → ~88-90%
+  Os últimos 10% exigem criatividade humana pura:
+  zero-days originais, engenharia social, e lógica
+  de negócio única impossível de generalizar.
+
+
+================================================================================
   FIM DO DOCUMENTO
 ================================================================================

@@ -10,10 +10,34 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 
 let win;
+let splash;
 
 process.on('uncaughtException', (err) => {
   console.error('Uncaught:', err.message);
 });
+
+function createSplash() {
+  splash = new BrowserWindow({
+    width:           400,
+    height:          300,
+    frame:           false,
+    transparent:     false,
+    resizable:       false,
+    center:          true,
+    alwaysOnTop:     true,
+    skipTaskbar:     true,
+    backgroundColor: '#080808',
+    webPreferences:  { contextIsolation: true },
+  });
+  splash.loadFile(path.join(__dirname, 'splash.html'));
+  splash.setMenuBarVisibility(false);
+}
+
+function closeSplash() {
+  if (!splash || splash.isDestroyed()) return;
+  try { splash.close(); } catch (_) {}
+  splash = null;
+}
 
 function createWindow() {
   const isMac = process.platform === 'darwin';
@@ -24,6 +48,7 @@ function createWindow() {
     minHeight: 700,
     title:     'KGBtools',
     frame:     isMac,
+    show:      false,
     titleBarStyle:        isMac ? 'hiddenInset' : undefined,
     trafficLightPosition: isMac ? { x: 12, y: 10 } : undefined,
     icon:      path.join(__dirname, isMac ? 'icon.png' : 'icon.ico'),
@@ -44,6 +69,21 @@ function createWindow() {
   } else {
     win.loadFile(path.join(__dirname, '../dist/index.html'));
   }
+
+  win.once('ready-to-show', () => {
+    // Keep splash visible for at least 2.8s so the animation completes
+    const splashMinMs = 2800;
+    const started = Date.now();
+    const show = () => {
+      const elapsed = Date.now() - started;
+      const wait = Math.max(0, splashMinMs - elapsed);
+      setTimeout(() => {
+        closeSplash();
+        win.show();
+      }, wait);
+    };
+    show();
+  });
 }
 
 let pendingUpdate = null;
@@ -131,6 +171,7 @@ ipcMain.handle('launch-update', async (_, { dest }) => {
 });
 
 app.whenReady().then(() => {
+  createSplash();
   createWindow();
   win.webContents.on('did-finish-load', () => {
     setTimeout(checkForUpdates, 1500);

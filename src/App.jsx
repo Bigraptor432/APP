@@ -1037,6 +1037,8 @@ const TOOL_BINS = {
 
 function PentestView({ apiKey, mcpUrl, mcpTools }) {
   const [target,     setTarget]     = useState('https://target-01.com');
+  const [targetQueue, setTargetQueue] = useState([]);
+  const [queueRunning, setQueueRunning] = useState(false);
   const [running,    setRunning]    = useState(false);
   const [log,        setLog]        = useState([]);
   const [toolStatus, setToolStatus] = useState({});
@@ -1372,6 +1374,21 @@ Responde APENAS em JSON:\n{"findings":[{"severity":"critical|high|medium|low","t
 
   const stop = () => setRunning(false);
 
+  const runQueue = async () => {
+    if (queueRunning || targetQueue.length === 0) return;
+    setQueueRunning(true);
+    const queue = [...targetQueue];
+    for (let i = 0; i < queue.length; i++) {
+      setTarget(queue[i]);
+      setLog(prev => [...prev, { t: 'info', m: `FILA [${i+1}/${queue.length}] → ${queue[i]}` }]);
+      await new Promise(r => setTimeout(r, 300));
+      await runPentest(queue[i]);
+      setLog(prev => [...prev, { t: 'ok', m: `FILA [${i+1}/${queue.length}] concluído: ${queue[i]}` }]);
+    }
+    setQueueRunning(false);
+    setLog(prev => [...prev, { t: 'ok', m: `FILA COMPLETA — ${queue.length} alvos processados` }]);
+  };
+
   return (
     <div className="space-y-4">
       <div className="rounded-xl p-3" style={{ background: C.panel, border: `1px solid ${C.border}` }}>
@@ -1385,6 +1402,30 @@ Responde APENAS em JSON:\n{"findings":[{"severity":"critical|high|medium|low","t
           onFocus={e => (e.target.style.borderColor = C.red)}
           onBlur={e  => (e.target.style.borderColor = C.border)}
         />
+        {/* Multi-target queue */}
+        <div className="mt-2">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="font-mono text-[8px] uppercase tracking-widest" style={{ color: C.textDim, opacity: 0.5 }}>Fila</span>
+            <button
+              onClick={() => { if (target && !targetQueue.includes(target)) setTargetQueue(q => [...q, target]); }}
+              className="font-mono text-[8px] px-2 py-0.5 rounded transition-all hover:opacity-80"
+              style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', color: C.red }}
+            >+ Adicionar à fila</button>
+            {targetQueue.length > 0 && (
+              <button onClick={() => setTargetQueue([])} className="font-mono text-[8px]" style={{ color: '#333' }}>limpar</button>
+            )}
+          </div>
+          {targetQueue.length > 0 && (
+            <div className="space-y-1">
+              {targetQueue.map((t, i) => (
+                <div key={i} className="flex items-center gap-2 rounded px-2 py-1" style={{ background: '#0a0a0a', border: '1px solid #1a1a1a' }}>
+                  <span className="font-mono text-[8px] flex-1 truncate" style={{ color: '#444' }}>{t}</span>
+                  <button onClick={() => setTargetQueue(q => q.filter((_, j) => j !== i))} className="font-mono text-[8px]" style={{ color: '#2a2a2a' }}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="rounded-xl p-3 space-y-3" style={{ background: C.panel, border: `1px solid ${C.border}` }}>
@@ -1482,14 +1523,14 @@ Responde APENAS em JSON:\n{"findings":[{"severity":"critical|high|medium|low","t
           {autoMode ? 'AUTO ON' : 'AUTO'}
         </button>
         <button
-          onClick={running ? stop : runPentest}
+          onClick={running ? stop : (targetQueue.length > 0 ? runQueue : runPentest)}
           className="flex-1 py-2 rounded-xl font-mono text-xs font-semibold tracking-widest uppercase transition-all"
           style={running
             ? { background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }
             : { background: C.redDim, border: `1px solid ${C.redBorder}`, color: C.red }
           }
         >
-          {running ? '■  PARAR' : `INICIAR${autoMode ? ' (AUTO)' : ''}`}
+          {running ? '■  PARAR' : targetQueue.length > 0 ? `FILA (${targetQueue.length})${autoMode?' AUTO':''}` : `INICIAR${autoMode ? ' (AUTO)' : ''}`}
         </button>
       </div>
 
