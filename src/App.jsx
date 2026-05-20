@@ -1422,22 +1422,23 @@ Responde APENAS em JSON:\n{"findings":[{"severity":"critical|high|medium|low","t
         {/* Multi-target queue */}
         <div className="mt-2">
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="font-mono text-[8px] uppercase tracking-widest" style={{ color: C.textDim, opacity: 0.5 }}>Fila</span>
+            <span className="font-mono text-[8px] uppercase tracking-widest" style={{ color: C.textDim }}>Fila {targetQueue.length > 0 && <span style={{ color: C.red }}>({targetQueue.length})</span>}</span>
             <button
-              onClick={() => { if (target && !targetQueue.includes(target)) setTargetQueue(q => [...q, target]); }}
+              onClick={() => { if (target) setTargetQueue(q => [...q, target]); }}
               className="font-mono text-[8px] px-2 py-0.5 rounded transition-all hover:opacity-80"
-              style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', color: C.red }}
-            >+ Adicionar à fila</button>
+              style={{ background: C.redDim, border: `1px solid ${C.redBorder}`, color: C.red }}
+            >+ Adicionar</button>
             {targetQueue.length > 0 && (
-              <button onClick={() => setTargetQueue([])} className="font-mono text-[8px]" style={{ color: '#333' }}>limpar</button>
+              <button onClick={() => setTargetQueue([])} className="font-mono text-[8px] px-1.5 py-0.5 rounded transition-all hover:opacity-70" style={{ color: '#666', border: '1px solid #333' }}>limpar</button>
             )}
           </div>
           {targetQueue.length > 0 && (
-            <div className="space-y-1">
+            <div className="space-y-1 mt-1">
               {targetQueue.map((t, i) => (
-                <div key={i} className="flex items-center gap-2 rounded px-2 py-1" style={{ background: '#0a0a0a', border: '1px solid #1a1a1a' }}>
-                  <span className="font-mono text-[8px] flex-1 truncate" style={{ color: '#444' }}>{t}</span>
-                  <button onClick={() => setTargetQueue(q => q.filter((_, j) => j !== i))} className="font-mono text-[8px]" style={{ color: '#2a2a2a' }}>✕</button>
+                <div key={i} className="flex items-center gap-2 rounded px-2 py-1.5" style={{ background: '#111', border: '1px solid #2a2a2a' }}>
+                  <span className="font-mono text-[8px]" style={{ color: C.red, opacity: 0.6 }}>{i + 1}</span>
+                  <span className="font-mono text-[8px] flex-1 truncate" style={{ color: '#888' }}>{t}</span>
+                  <button onClick={() => setTargetQueue(q => q.filter((_, j) => j !== i))} className="font-mono text-[9px] transition-all hover:opacity-100" style={{ color: '#555' }}>✕</button>
                 </div>
               ))}
             </div>
