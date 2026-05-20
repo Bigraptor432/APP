@@ -1688,7 +1688,7 @@ for H in 'X-Original-URL: /{path}' 'X-Rewrite-URL: /{path}' 'X-Forwarded-For: 12
   [ "$CODE" != "$ORIG" ] && echo "[BYPASS:$CODE] -H $H"
 done &&
 echo '--- Path normalization ---' &&
-for VAR in '{path}/.' '/{path}//' '//{path}' './{path}' '/{path}%20' '/{path}%09' '/{path}?' '/{path}#' '/{path}..;/' '/{path};.js' '/{path}/.;/'; do
+for VAR in '/{path}/.' '/{path}//' '//{path}' '/%2e/{path}' '/{path}%20' '/{path}%09' '/{path}?' '/{path}#' '/{path}..;/' '/{path};.js' '/{path}/.;/'; do
   CODE=$(curl -sk -o /dev/null -w '%{{http_code}}' -m 8 {qt}$VAR 2>/dev/null)
   [ "$CODE" != "$ORIG" ] && echo "[BYPASS:$CODE] $VAR"
 done &&
