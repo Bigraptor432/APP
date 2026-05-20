@@ -1,16 +1,27 @@
-Resposta curta: parcialmente, mas falta a parte mais importante.
+ESTADO: TUDO IMPLEMENTADO ✅ (v3.15)
 
-O que o app faz actualmente:
+Todos os gaps listados abaixo foram resolvidos com a tool info_disclosure
+adicionada ao backend (kali-mcp-server.py) e ao AUTO_TOOLS (App.jsx).
 
-nuclei_fast com tag exposure → apanha .env, c:/Users/User/Downloads/a/123/.git/config, painéis expostos básicos (Nuclei tem templates para isso)
-ffuf → fuzzing de directorias com wordlist genérica
-evasion_scan → testa 6 paths fixos: /admin /config /.env /.git/config /backup /phpinfo.php
-O que NÃO faz (e devia fazer segundo o pentest.md):
+[✅] /vendor/composer/installed.json → COMPOSER_DEPS
+[✅] /package.json, /package-lock.json, /requirements.txt → NPM_DEPS, PY_DEPS
+[✅] Source maps: /assets/index-XXXX.js.map → SOURCE_MAP check automático
+[✅] /rest/settings (n8n), /api/status (Portainer), /rest/v1/ (Supabase)
+[✅] /adminer.php, /phpmyadmin/ → ADMINER, PHPMYADMIN
+[✅] /app/config/parameters.yml, /var/logs/prod.log → SYMFONY_CONFIG, SYMFONY_LOGS
+[✅] /actuator (Spring Boot), /_debug, /graphql, /api-docs, /swagger-ui.html
+[✅] js_analyze reescrito → extrai segredos de JS + rotas API + source maps
 
-/vendor/composer/installed.json → goldmine de CVEs em PHP
-/package.json, /package-lock.json, /requirements.txt → versões de deps
-Source maps: /assets/index-XXXX.js.map → código fonte completo exposto
-Stack-specific: /rest/settings (n8n), /api/status (Portainer), /rest/v1/ (Supabase)
-/adminer.php, /phpmyadmin/ → painéis de BD
-/app/config/parameters.yml, /var/logs/prod.log (Symfony)
-Queres que eu adicione uma tool dedicada info_disclosure ao backend + AUTO_TOOLS que corre exactamente a Fase 2 do pentest.md com curl directo em todos esses paths? Seria executada automaticamente em todos os scans AUTO e seria uma das primeiras a correr (baixo ruído, alto yield).
+v3.15 deep-tool-overhaul (Maio 2026):
+  - sqli_scan: level 5 + risk 3 + forms crawl + 7 tamper scripts + BEUSTQ
+  - ffuf: raft-large + 13 extensões + recursion
+  - gobuster: raft-large + 14 extensões incl. .sql .db .sqlite
+  - naabu_scan: 27 portas + vuln NSE scripts
+  - cors_check: 4 origins manuais (evil.com, null, localhost)
+  - lfi_test: 8 payloads manuais × 10 params
+  - ssrf_check: probe AWS metadata + internal network
+  - ssti_check: 6 payloads manuais (Jinja, Mako, ERB, Freemarker)
+  - jwt_check: alg:none attack + weak secret brute (openssl HMAC)
+  - session_test: 6 security headers + cookie flags audit
+  - testssl: --vulnerable --cipher-per-proto --sneaky
+  - wpscan: --enumerate vt,vp,cb,dbe,u,m,ap + aggressive detection

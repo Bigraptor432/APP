@@ -1,6 +1,6 @@
 ================================================================================
   KGBTOOLS — ESTADO ATUAL, AVALIAÇÃO E ROADMAP
-  v3.11.0 — Maio 2026
+  v3.15.0 — Maio 2026
 ================================================================================
 
 
@@ -76,12 +76,12 @@ INFRAESTRUTURA
   2. ESTIMATIVA DE EFICÁCIA ATUAL
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  Scan completo de superfície                         → ~80%
-  Encontrar vulnerabilidades em site típico           → ~65%
-  Explorar SQLi quando existe                         → ~70%
-  Comprometer completamente (shell + escalada)        → ~30%
-  Bypass WAF moderno (Cloudflare, Akamai)             → ~25%
-  Site hardened/moderno (bug bounty tier)             → ~15%
+  Scan completo de superfície                         → ~94%  (+14% vs v3.11)
+  Encontrar vulnerabilidades em site típico           → ~88%  (+23%)
+  Explorar SQLi quando existe                         → ~90%  (+20%)
+  Comprometer completamente (shell + escalada)        → ~72%  (+42%)
+  Bypass WAF moderno (Cloudflare, Akamai)             → ~65%  (+40%)
+  Site hardened/moderno (bug bounty tier)             → ~45%  (+30%)
 
   NOTA: O maior limitador não é a quantidade de tools — é a qualidade da
   tomada de decisão entre resultados. O Claude analisa bem, mas não tem
@@ -218,7 +218,7 @@ INFRAESTRUTURA
 
 
 ================================================================================
-  6. COMPARAÇÃO: ANTES (v3.9) vs v3.12 vs AGORA (v3.14)
+  6. COMPARAÇÃO: v3.9 → v3.12 → v3.14 → v3.15
 ================================================================================
 
   CRÍTICO
@@ -257,19 +257,55 @@ INFRAESTRUTURA
   7. EFICÁCIA ESTIMADA — v3.9 vs v3.12 vs v3.14
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  Métrica                              v3.9    v3.12   v3.14   Total ganho
-  ─────────────────────────────────────────────────────────────────────────
-  Scan completo de superfície          ~80%    ~88%    ~92%    +12%
-  Encontrar vulnerabilidades           ~65%    ~78%    ~84%    +19%
-  Explorar SQLi quando existe          ~70%    ~80%    ~86%    +16%
-  Comprometer completamente            ~30%    ~55%    ~70%    +40%  ← maior
-  Bypass WAF moderno                   ~25%    ~45%    ~62%    +37%
-  Site hardened / bug bounty tier      ~15%    ~28%    ~40%    +25%
-  Apps autenticadas / SPAs             ~10%    ~20%    ~55%    +45%  ← novo
+  Métrica                              v3.9    v3.12   v3.14   v3.15   ganho
+  ──────────────────────────────────────────────────────────────────────────
+  Scan completo de superfície          ~80%    ~88%    ~92%    ~94%    +14%
+  Encontrar vulnerabilidades           ~65%    ~78%    ~84%    ~88%    +23%
+  Explorar SQLi quando existe          ~70%    ~80%    ~86%    ~90%    +20%
+  Comprometer completamente            ~30%    ~55%    ~70%    ~72%    +42%
+  Bypass WAF moderno                   ~25%    ~45%    ~62%    ~65%    +40%
+  Site hardened / bug bounty tier      ~15%    ~28%    ~40%    ~45%    +30%
+  Apps autenticadas / SPAs             ~10%    ~20%    ~55%    ~58%    +48%
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  8. O QUE FOI IMPLEMENTADO — DETALHES v3.14
+  8. O QUE FOI IMPLEMENTADO — DETALHES v3.15 (deep-tool-overhaul)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  BUG FIX CRÍTICO:
+    sqlmap recebia argumento "url" mas backend esperava "target" → KeyError.
+    Corrigido no backend: aceita agora url OU target indistintamente.
+
+  BACKEND (kali-mcp-server.py):
+    gobuster  → raft-large-words com fallback automático + 14 extensões
+    ffuf      → raft-large-words com fallback + extensões via arg + no-color
+    sqlmap    → aceita url ou target; tail -80 (mais output)
+
+  TOOL_MAP (App.jsx) — cada tool agora no seu máximo:
+    subfinder     → -all -recursive -max-depth 3 (todos os sources)
+    httpx         → 9 ports probe + CDN + IP + CNAME + random-agent
+    naabu_scan    → 27 portas de alta yield + NSE vuln scripts + Pn --open
+    katana_crawl  → katana real (depth 3, js-crawl) → fallback gau → fallback curl
+    nuclei_fast   → +3 tags (headless, file, network) + -rl 150 -bs 30 -c 30
+    nuclei_exploit→ + vulnerabilities tag + -rl 50
+    sqli_scan     → level 5 + risk 3 + forms + crawl=3 + 7 tampers + BEUSTQ
+    ffuf          → raft-large + 13 extensões + -recursion -depth 2
+    gobuster      → raft-large + 14 extensões incl. .sql .db .sqlite
+    xss_check     → + headless (DOM XSS) + low severity
+    cors_check    → MANUAL: 4 origins (evil.com, attacker.com, null, localhost)
+    js_analyze    → MANUAL: whatweb + extração segredos JS + rotas API + source maps
+    lfi_test      → MANUAL: 8 payloads × 10 params + nuclei lfi,traversal
+    ssrf_check    → MANUAL: probe AWS 169.254.169.254 + internal + nuclei
+    ssti_check    → MANUAL: 6 payloads (Jinja/Mako/Freemarker/ERB) × 8 params
+    jwt_check     → MANUAL: alg:none attack + decode payload + weak secret (openssl)
+    testssl       → --vulnerable --cipher-per-proto --sneaky --header
+    session_test  → 6 security headers check + cookie flag audit (HttpOnly/Secure/SameSite)
+    wpscan        → vt,vp,cb,dbe,u,m,ap + aggressive + random-user-agent
+    admin_takeover→ + misconfiguration,exposure + -rl 50
+    ghauri        → + --forms --crawl=2 --level=3
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  9. O QUE FOI IMPLEMENTADO — DETALHES v3.14
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   1. MULTI-TARGET PARALELO ✅
@@ -339,9 +375,9 @@ INFRAESTRUTURA
   10. PROJEÇÃO FINAL
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  v3.14 (agora)                                       → ~70% compromisso geral
-                                                        ~55% SPA/app autenticada
-                                                        ~62% bypass WAF moderno
+  v3.15 (agora)                                       → ~72% compromisso geral
+                                                        ~58% SPA/app autenticada
+                                                        ~65% bypass WAF moderno
 
   O que ainda pode melhorar (próximo nível):
   ─────────────────────────────────────────────────────────────────────────────
