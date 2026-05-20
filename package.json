@@ -1,7 +1,7 @@
 {
   "name": "kgbtools",
   "private": true,
-  "version": "3.15.0",
+  "version": "3.15.1",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
@@ -46,7 +46,14 @@
       "package.json"
     ],
     "win": {
-      "target": [{ "target": "portable", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "electron/icon.ico",
       "artifactName": "kgbtools.exe"
     },
@@ -54,7 +61,15 @@
       "artifactName": "kgbtools.exe"
     },
     "mac": {
-      "target": [{"target": "dmg", "arch": ["x64", "arm64"]}],
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
       "icon": "electron/icon.png",
       "artifactName": "kgbtools-${version}-${arch}.dmg",
       "category": "public.app-category.developer-tools"
