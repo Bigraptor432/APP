@@ -1038,7 +1038,7 @@ const TOOL_BINS = {
   mitmproxy_scan: 'mitmdump',
 };
 
-function PentestView({ apiKey, mcpUrl, mcpTools }) {
+function PentestView({ apiKey, mcpUrl, mcpTools, onPlanUpdate }) {
   const [target,     setTarget]     = useState('https://target-01.com');
   const [targetQueue, setTargetQueue] = useState([]);
   const [queueRunning, setQueueRunning] = useState(false);
@@ -1280,6 +1280,7 @@ fi
       if (planJson.plano?.length) {
         setPlan(planJson.plano);
         setLog(prev => [...prev, { t: 'plan', m: planJson.plano.map(s => `  ${s.step}. ${s.objective}  [${(s.tools||[]).join(', ')}]`).join('\n') }]);
+        if (onPlanUpdate) onPlanUpdate(planJson.plano.map((s, i) => ({ id: i + 1, text: s.objective, checked: false })));
       }
     } catch (_) {}
 
@@ -1740,7 +1741,7 @@ function TerminalsView({ mcpUrl }) {
 
 // ─── MAIN INTERACTION PANEL ────────────────────────────────────────────────────
 
-function InteractionPanel({ planItems, onPlanToggle, messages, onSend, apiKey, groqKey, activeNav, activeTarget, activeConv, convs, targets, logs, activeModel, onModelChange, onSplit, isSplit, onCloseSplit, supaUrl, syncStatus, mcpTools, toolProgress, mcpUrl }) {
+function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onSend, apiKey, groqKey, activeNav, activeTarget, activeConv, convs, targets, logs, activeModel, onModelChange, onSplit, isSplit, onCloseSplit, supaUrl, syncStatus, mcpTools, toolProgress, mcpUrl }) {
   const [input, setInput]         = useState('');
   const [tab, setTab]             = useState('findings');
   const [attachment, setAttachment] = useState(null);
@@ -1881,7 +1882,7 @@ function InteractionPanel({ planItems, onPlanToggle, messages, onSend, apiKey, g
       <div ref={chatRef} className="flex-1 overflow-y-auto p-4 space-y-4">
 
         {activeNav === 'dashboard' && <DashboardView logs={logs} findings={TARGET_FINDINGS[activeTarget] || []} targets={targets} />}
-        {activeNav === 'pentest'   && <PentestView apiKey={apiKey} mcpUrl={mcpUrl} mcpTools={mcpTools} />}
+        {activeNav === 'pentest'   && <PentestView apiKey={apiKey} mcpUrl={mcpUrl} mcpTools={mcpTools} onPlanUpdate={onPlanUpdate} />}
 
         {/* Findings tab */}
         {activeNav === 'chat' && (tab === 'findings' || tab === 'plano') && (
@@ -2501,6 +2502,7 @@ export default function App() {
       <InteractionPanel
         planItems={plan}
         onPlanToggle={togglePlan}
+        onPlanUpdate={(items) => setTargetPlans(prev => ({ ...prev, [activeTarget]: items }))}
         messages={messages}
         onSend={sendMessage}
         apiKey={apiKey}
@@ -2527,6 +2529,7 @@ export default function App() {
           <InteractionPanel
             planItems={plan}
             onPlanToggle={togglePlan}
+            onPlanUpdate={(items) => setTargetPlans(prev => ({ ...prev, [activeTarget]: items }))}
             messages={convMessages[splitConv] || []}
             onSend={(text) => sendMessage(text, splitConv)}
             apiKey={apiKey}
