@@ -993,13 +993,20 @@ echo "Interesting files:" && find /home /root /var/www /opt -name "*.conf" -o -n
         username  = shlex.quote(args.get('username', ''))
         password  = shlex.quote(args.get('password', ''))
         depth     = int(args.get('depth', 2))
-        script = f"""python3 - <<'PYEOF'
+        VENV = '/opt/kgb_venv'
+        script = f"""echo "=== playwright_crawl bootstrap ==="
+if [ ! -f {VENV}/bin/python3 ]; then
+  echo "[+] Creating venv at {VENV}..."
+  python3 -m venv {VENV} 2>&1
+fi
+if ! {VENV}/bin/python3 -c 'import playwright' 2>/dev/null; then
+  echo "[+] Installing playwright in venv..."
+  {VENV}/bin/pip install playwright --quiet 2>&1
+  {VENV}/bin/playwright install chromium 2>&1 | tail -5
+fi
+{VENV}/bin/python3 - <<'PYEOF'
 import asyncio, json, sys
-try:
-    from playwright.async_api import async_playwright
-except ImportError:
-    print("INSTALL: pip3 install playwright && playwright install chromium")
-    sys.exit(0)
+from playwright.async_api import async_playwright
 
 async def run():
     async with async_playwright() as p:
@@ -1244,16 +1251,15 @@ PYEOF"""
         target    = shlex.quote(args['target'])
         duration  = int(args.get('duration', 30))
         flows_f   = shlex.quote(args.get('flows_file', '/tmp/kgb_flows.mitm'))
+        VENV      = '/opt/kgb_venv'
+        VENV_BOOTSTRAP = f"""if [ ! -f {VENV}/bin/python3 ]; then python3 -m venv {VENV} 2>&1; fi
+if ! {VENV}/bin/python3 -c 'import mitmproxy' 2>/dev/null; then {VENV}/bin/pip install mitmproxy --quiet 2>&1; fi"""
 
         if mode == "intercept":
-            return f"""echo "=== MITMPROXY INTERCEPT (port {port}, {duration}s) ===" &&
+            return f"""echo "=== MITMPROXY INTERCEPT (port {port}, {duration}s) ==="
+{VENV_BOOTSTRAP}
 mkdir -p /tmp/kgb_mitm &&
-python3 - <<'PYEOF' &
-from mitmproxy.tools.main import mitmdump
-import sys, os
-sys.argv = ['mitmdump', '-p', '{port}', '-w', '/tmp/kgb_flows.mitm', '--quiet']
-mitmdump()
-PYEOF
+{VENV}/bin/mitmdump -p {port} -w /tmp/kgb_flows.mitm --quiet &
 PROXY_PID=$!
 echo "Proxy PID: $PROXY_PID  Port: {port}" &&
 sleep 2 &&
@@ -1262,16 +1268,17 @@ curl -s --proxy http://127.0.0.1:{port} --insecure {target} -A 'Mozilla/5.0' -L 
 sleep 2 &&
 kill $PROXY_PID 2>/dev/null &&
 echo "\\n=== CAPTURED ===" &&
-python3 -c "
+{VENV}/bin/python3 -c "
 from mitmproxy import io as mio
 with open('/tmp/kgb_flows.mitm','rb') as f:
     for flow in mio.FlowReader(f).stream():
         print(f'  {{flow.request.method}} {{flow.request.pretty_url}} -> {{flow.response.status_code if flow.response else \"?\"}}')" 2>&1 | head -50"""
         elif mode == "analyze":
-            return f"""python3 - <<'PYEOF'
+            return f"""{VENV_BOOTSTRAP}
+{VENV}/bin/python3 - <<'PYEOF'
 from mitmproxy import io as mio
 import re, json
-SECRETS_RE = re.compile(r'(password|passwd|token|secret|api[_-]?key|auth|session|jwt|bearer)["\s:=]+([^\s"&{{}}]+)', re.I)
+SECRETS_RE = re.compile(r'(password|passwd|token|secret|api[_-]?key|auth|session|jwt|bearer)["\\s:=]+([^\\s"&{{}}]+)', re.I)
 try:
     with open({flows_f}, 'rb') as f:
         for flow in mio.FlowReader(f).stream():
