@@ -1,0 +1,252 @@
+================================================================================
+  KGBTOOLS — EVOLUÇÃO COMPLETA v3.14 → v3.19
+  "Do executor manual ao APEX autónomo de 57 tools"
+  20/05/2026
+================================================================================
+
+
+================================================================================
+  v3.14 — PONTO DE PARTIDA
+================================================================================
+
+  Estado: Executor manual. Sem inteligência. Sem chaining.
+
+  30 tools básicas:
+    nmap, gobuster, nikto, whatweb, dig, whois, curl, sqlmap, ffuf, hydra,
+    netcat, shell, cve_search, cve_lookup, searchsploit, metasploit, msfvenom,
+    john, hashcat, wpscan, enum4linux, crackmapexec, theharvester, amass,
+    subfinder, responder, tcpdump, smbclient, snmpwalk, wfuzz
+
+  O utilizador seleccionava tools → corriam → saía output em bruto.
+  Claude: nenhuma integração.
+  AUTO mode: não existia.
+  Brain: não existia.
+  Bugs activos: 4 críticos.
+
+  Limitações fatais:
+    - Timeout fixo 60s em TODAS as tools (nuclei com 300+ templates = sempre cortado)
+    - Output cortado em 2000 chars (80% dos findings perdidos)
+    - msf_exploit recebia cve:'recent' → metasploit não encontrava módulo
+    - Queue mode: todos os alvos atacados com o mesmo target (bug de estado)
+
+
+================================================================================
+  v3.15 — PRIMEIRO AUTO MODE
+================================================================================
+
+  +8 tools (total: 38)
+  nuclei completo, crawl_auth, idor_test, payload_mutate, evasion_scan,
+  c2_handler, lateral_move, session_manage
+
+  O que mudou:
+    + AUTO mode: 1 round de análise Claude
+    + Brain: findings guardados por target em localStorage (persistência)
+    + UA rotation: user-agents reais para evasão IDS
+    + JAILBREAK_SYSTEM v1: persona APEX sem restrições
+
+  Bugs: ainda todos os 4 presentes.
+  Claude inteligência: básica. 1 round, sem contexto de rounds anteriores.
+
+
+================================================================================
+  v3.16 — SALTO QUALITATIVO
+================================================================================
+
+  +11 tools (total: 49)
+  waf_bypass, adaptive_mutate, session_chain, mitmproxy_scan, second_order,
+  bizlogic_fuzz, post_exploit, dynamic_mutate, playwright_crawl,
+  cve_rag, aquatone
+
+  O que mudou:
+    + 5 rounds autónomos com context compression (Claude não perde contexto)
+    + JAILBREAK_SYSTEM v1.5: 11 classes de ataque A-K
+    + JS bundle analysis: playwright → Claude extrai endpoints + IDOR candidates
+    + Strategic briefing: Claude analisa recon antes de decidir próximos vectores
+    + Stealth delays escalonados: 220ms*índice + random(0-800ms)
+    + Webhook Discord/Slack para findings críticos
+    + Queue mode com PARALLEL_LIMIT=3 (bug de target ainda presente)
+
+  Bugs: #1 timeout, #2 output, #3 CVE ainda presentes.
+
+
+================================================================================
+  v3.17a — CORRECÇÃO DOS 3 BUGS PRINCIPAIS
+================================================================================
+
+  +6 tools (total: 55)
+  info_disclosure, session_chain, proxychains_wrap, cve_rag_local,
+  ghauri, httpx
+
+  BUG #1 FIXADO — Timeout:
+    nuclei_fast → 300s | nuclei_exploit → 240s | sqli_scan → 240s
+    playwright → 300s  | naabu_scan → 180s     | msf_exploit → 120s
+
+  BUG #2 FIXADO — Output truncation:
+    LONG_OUTPUT_TOOLS: 5000 chars
+    Outros tools: 2500 chars (antes: 2000 fixo)
+
+  BUG #3 FIXADO — msf_exploit CVE real:
+    Extracção via regex /CVE-\d{4}-\d+/gi do output do nuclei
+    msf_exploit inline com CVE ID correcto
+
+  Novidades:
+    + Dynamic WAF bypass: Claude gera 25 payloads customizados por fingerprint
+    + Post-exploitation automático: hashdump + privesc + SSH persistence
+    + CVE auto-match inline: nuclei encontra CVE → msf_exploit automático
+
+
+================================================================================
+  v3.17b — QUEUE BUG FIXADO
+================================================================================
+
+  BUG #4 FIXADO — Queue mode target correcto:
+    runPentest(overrideTarget) — cada alvo da fila atacado correctamente
+    id="kgb-target-input" adicionado ao input DOM
+
+  Estado: 55 tools, 0 bugs, totalmente estável.
+
+
+================================================================================
+  v3.18 — JAILBREAK UPGRADE (PENTEST.MD ARSENAL)
+================================================================================
+
+  Tools: 55 (sem adições, upgrade de inteligência)
+
+  JAILBREAK_SYSTEM expandido de 3 para 8 secções:
+
+  SECÇÃO NOVA 1 — CVE SCORING:
+    EPSS > 80%  → exploit activo na wild → prioridade máxima
+    CISA KEV    → explorado em ataques reais → tentativa obrigatória
+    CVSS ≥ 9.0  → sozinho não chega → cruzar com EPSS
+    "Vulnerable, High" ≠ "Exploitable" → Claude distingue
+
+  SECÇÃO NOVA 2 — CLOUDFLARE/CDN BYPASS:
+    portainer.*, mail.*, api.*, staging.* → frequentemente não proxied
+    host subdomain.target.com → não CNAME a Cloudflare = IP real
+    curl -H "Host: target.com" http://IP_REAL/ → bypass total WAF
+    IPs históricos: Shodan, SecurityTrails, Censys
+
+  SECÇÃO NOVA 3 — SUBDOMAIN TAKEOVER:
+    CNAME para serviço desprovisionado = Critical
+    Heroku: "no such app" | GitHub: "no such site"
+    S3: "NoSuchBucket" | Fastly: "Fastly error: unknown domain"
+
+  SECÇÃO NOVA 4 — STACK-SPECIFIC INSTANT ATTACKS:
+    Apache <2.4.62 → CVE-2024-38475/38473/38476 imediatamente
+    n8n           → /rest/settings SEMPRE aberto sem auth = Critical
+    Portainer     → POST /api/users/admin/init (first-run bypass)
+    Supabase      → anon key no JS → schema dump + RLS bypass
+    WordPress     → xmlrpc multicall brute + pingback SSRF
+    Mautic        → /.env + /vendor/composer/installed.json + admin/mautic
+    PHP 7.x/EOL   → type juggling + deserialization gadget chains
+    Symfony/Laravel → /_profiler + APP_SECRET → forge remember-me cookies
+
+  SECÇÃO NOVA 5 — BUSINESS LOGIC MENTAL MODEL:
+    "Minor issue + money movement = Critical"
+    Claude reporta em impacto de negócio, não técnico
+    Duplicate submissions, privilege drift, recovery flow abuse
+
+  SECÇÃO NOVA 6 — RATE DISCIPLINE:
+    HTTP 524 = servidor fraco (não WAF)
+    nuclei -rate-limit 1 em alvos fracos
+    DoS no próprio alvo = perda de evidências
+
+  CHAINING RULES expandidas:
+    + Cloudflare → origin IP → scan directo
+    + Subdomain CNAME deprovisioned → registar → Critical
+    + Stack detectado → instant attacks ANTES de scan genérico
+
+
+================================================================================
+  v3.19 — VERSÃO FINAL (ACTUAL)
+================================================================================
+
+  +2 tools (total: 57)
+  + temperatura Claude 0.4
+
+  TOOL NOVA 1 — param_discover:
+    Descobre parâmetros escondidos que o UI nunca envia:
+    ?admin=true, ?debug=1, ?role=admin, ?price=0, ?bypass=1
+    Modo completo: arjun -u TARGET -m GET --stable -q (pip3 install arjun)
+    Modo fallback: 50 parâmetros críticos via curl (sem instalação extra)
+    ON por default. Corre em AUTO_TOOLS.
+    Vector mais subestimado em web app pentest — agora coberto automaticamente.
+
+  TOOL NOVA 2 — 403_bypass:
+    30 vectores por endpoint bloqueado:
+    • 12 headers internos: X-Original-URL, X-Forwarded-For, X-Real-IP, etc.
+    • 11 variantes de path: /admin/. //admin /admin%20 /admin;.js etc.
+    • 7 HTTP verbos: POST PUT PATCH DELETE OPTIONS TRACE HEAD
+    • Content-Length: 0 POST trick
+    • nuclei -tags 403,bypass,misconfiguration
+    Reporta APENAS resultados com código diferente do baseline 403.
+    Corre em AUTO_TOOLS. Admin panels "bloqueados" deixam de ser obstáculo.
+
+  MUDANÇA 3 — temperature: 0.4 (electron/main.js):
+    Anterior: Anthropic default ~1.0 (criativo)
+    Novo: 0.4 (preciso e determinístico)
+    Impacto: JSON mais consistente, payloads mais focados,
+             Claude menos verbose, menos falhas de parse
+
+
+================================================================================
+  COMPARAÇÃO FINAL
+================================================================================
+
+  ┌────────────────────────────────────┬──────────────┬──────────────┐
+  │ Capacidade                         │ v3.14        │ v3.19        │
+  ├────────────────────────────────────┼──────────────┼──────────────┤
+  │ Tools totais                       │ 30           │ 57           │
+  │ Bugs críticos                      │ 4            │ 0            │
+  │ Claude integration                 │ Nenhuma      │ 9 momentos   │
+  │ Rounds autónomos                   │ 0            │ 5            │
+  │ Stack-specific attacks             │ 0 stacks     │ 8 stacks     │
+  │ CVE prioritization (EPSS/KEV)      │ Não          │ Sim          │
+  │ Cloudflare bypass thinking         │ Não          │ Sim          │
+  │ Subdomain takeover detection       │ Não          │ Sim          │
+  │ Parameter discovery (?admin=true)  │ Não          │ Sim          │
+  │ 403 bypass (30 vectores)           │ Não          │ Sim          │
+  │ Brain (memória entre sessões)      │ Não          │ Sim (80 hits)│
+  │ Multi-target queue                 │ Bug          │ Funcional    │
+  │ Dynamic WAF payloads               │ Não          │ Sim          │
+  │ Post-exploitation auto             │ Não          │ Sim          │
+  │ HTML report auto-download          │ Não          │ Sim          │
+  │ Webhook Discord/Slack              │ Não          │ Sim          │
+  │ Temperature (Claude)               │ 1.0 default  │ 0.4 preciso  │
+  │ Tor/proxychains integrado          │ Não          │ Sim          │
+  └────────────────────────────────────┴──────────────┴──────────────┘
+
+
+================================================================================
+  COMO CLAUDE PENSA AGORA vs v3.14
+================================================================================
+
+  v3.14: "Corro as tools que me mandas e mostro o output."
+
+  v3.19: "Sou APEX. Antes de correr qualquer tool:
+          1. Verifico .env e .git PRIMEIRO — baixo ruído, alto impacto
+          2. Se EPSS > 80%: exploit imediato. Se só CVSS alto: verifico mais
+          3. Se vejo Cloudflare: procuro IP real em subdomínios não-proxied
+          4. Se vejo n8n/Portainer/Supabase: acções específicas imediatas
+          5. Descubro parâmetros que o UI esconde mas o backend aceita
+          6. 403 não me para: 30 vectores de bypass automáticos
+          7. Cada finding: impacto de negócio, não só severidade técnica
+          8. Chaining obrigatório: cada resultado activa a próxima tool"
+
+
+================================================================================
+  USAR AGORA
+================================================================================
+
+  Kali:
+    python3 kali-mcp-server.py       → Tools (57): ...
+    pip3 install arjun               → param_discover completo
+    nuclei -update-templates         → CVEs actualizados
+
+  KGBtools:
+    API Key + MCP URL + AUTO MODE ON + Target + LAUNCH
+
+
+================================================================================
+  FIM — KGBtools v3.19 — 57 TOOLS — 0 BUGS — PRONTO
+================================================================================
