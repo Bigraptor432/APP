@@ -1320,17 +1320,18 @@ fi
     return results;
   };
 
-  const runPentest = async () => {
+  const runPentest = async (overrideTarget) => {
+    const target = overrideTarget !== undefined ? overrideTarget : (document.getElementById('kgb-target-input')?.value || '');
     if (!apiKey) { setLog([{ t: 'err', m: 'API Key Anthropic não configurada.' }]); return; }
     if (!mcpUrl)  { setLog([{ t: 'err', m: 'Kali MCP Server não configurado.' }]); return; }
-    setRunning(true);
+    if (overrideTarget === undefined) setRunning(true);
 
     // Modo autónomo: usa todas as tools sem input humano
     const selected = autoMode
       ? AUTO_TOOLS
       : Object.entries(tools).filter(([,on]) => on).map(([k]) => k);
 
-    setLog([{ t: 'info', m: autoMode ? `MODO AUTÓNOMO — ${target}` : `PENTEST PARALELO — ${target}` }]);
+    setLog(prev => overrideTarget !== undefined ? [...prev, { t: 'info', m: `▶ ${target}` }] : [{ t: 'info', m: autoMode ? `MODO AUTÓNOMO — ${target}` : `PENTEST PARALELO — ${target}` }]);
     setPlan([]);
 
     // BRAIN: load previous findings for this target
@@ -1642,6 +1643,7 @@ Responde em JSON: {"api_endpoints":[], "idor_candidates":[], "hardcoded_secrets"
       <div className="rounded-xl p-3" style={{ background: C.panel, border: `1px solid ${C.border}` }}>
         <div className="font-mono text-[9px] uppercase tracking-widest mb-2" style={{ color: C.textDim }}>ALVO</div>
         <input
+          id="kgb-target-input"
           type="text"
           value={target}
           onChange={e => setTarget(e.target.value)}
