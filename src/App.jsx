@@ -1061,7 +1061,7 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
   const toggle      = (t) => setTools(prev => ({ ...prev, [t]: !prev[t] }));
   const activeCount = Object.values(tools).filter(Boolean).length;
 
-  useEffect(() => {
+  const runToolCheck = () => {
     if (!mcpUrl || !window.electron?.mcpCheckTools) return;
     const pairs  = Object.entries(TOOL_BINS);
     const unique = [...new Set(pairs.map(([,b]) => b))];
@@ -1070,7 +1070,9 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
       pairs.forEach(([k, b]) => { if (res[b] !== undefined && res[b] !== null) checked[k] = res[b]; });
       setToolStatus(checked);
     }).catch(() => {});
-  }, [mcpUrl]);
+  };
+  useEffect(() => { runToolCheck(); }, [mcpUrl]);
+  useEffect(() => { if (mcpTools?.length > 0) runToolCheck(); }, [mcpTools]);
 
   const TOOL_MAP = {
     subfinder:    { tool: 'subfinder', args: (t) => ({ domain: t.replace(/https?:\/\//, ''), flags: '-silent' }) },
@@ -1291,7 +1293,15 @@ fi
       <div className="rounded-xl p-3 space-y-3" style={{ background: C.panel, border: `1px solid ${C.border}` }}>
         <div className="flex items-center justify-between">
           <span className="font-mono text-[9px] uppercase tracking-widest" style={{ color: C.textDim }}>FERRAMENTAS</span>
-          <span className="font-mono text-[9px]" style={{ color: '#3a3a3a' }}>{activeCount} ativas</span>
+          <div className="flex items-center gap-2">
+            {mcpUrl && Object.keys(toolStatus).length === 0 && (
+              <span className="font-mono text-[8px]" style={{ color: '#444' }}>sem MCP</span>
+            )}
+            {mcpUrl && (
+              <button onClick={runToolCheck} title="Verificar tools instaladas" className="font-mono text-[8px] transition-opacity hover:opacity-70" style={{ color: '#555' }}>↺</button>
+            )}
+            <span className="font-mono text-[9px]" style={{ color: '#3a3a3a' }}>{activeCount} ativas</span>
+          </div>
         </div>
 
         <div>
