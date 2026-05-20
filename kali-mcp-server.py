@@ -655,9 +655,11 @@ def build_command(tool, args):
         return f"nmap {flags} {shlex.quote(str(args['target']))}"
 
     elif tool == "gobuster":
-        wl    = args.get("wordlist", "/usr/share/wordlists/dirb/common.txt")
+        wl    = args.get("wordlist", "")
         flags = args.get("flags", "")
-        return f"gobuster dir -u {shlex.quote(args['target'])} -w {wl} {flags} --no-error 2>&1 | head -80"
+        ext   = f"-x {args['extensions']}" if args.get("extensions") else "-x php,asp,aspx,jsp,txt,bak,old,zip,env,conf,log,json,xml"
+        wl_cmd = f"WL={shlex.quote(wl)}" if wl else "WL=/usr/share/seclists/Discovery/Web-Content/raft-large-words.txt; [ ! -f \"$WL\" ] && WL=/usr/share/seclists/Discovery/Web-Content/common.txt; [ ! -f \"$WL\" ] && WL=/usr/share/wordlists/dirb/common.txt"
+        return f"{wl_cmd}; gobuster dir -u {shlex.quote(args['target'])} -w \"$WL\" {ext} -t 50 {flags} --no-error 2>&1 | head -150"
 
     elif tool == "nikto":
         flags = args.get("flags", "")
@@ -680,13 +682,16 @@ def build_command(tool, args):
         return f"curl {flags} {shlex.quote(args['url'])} 2>&1 | head -100"
 
     elif tool == "sqlmap":
-        flags = args.get("flags", "--batch --level=1")
-        return f"sqlmap -u {shlex.quote(args['target'])} {flags} 2>&1 | tail -50"
+        flags  = args.get("flags", "--batch --level=1")
+        target = args.get('target') or args.get('url', '')
+        return f"sqlmap -u {shlex.quote(target)} {flags} 2>&1 | tail -80"
 
     elif tool == "ffuf":
-        wl    = args.get("wordlist", "/usr/share/wordlists/dirb/common.txt")
-        flags = args.get("flags", "-fc 404")
-        return f"ffuf -u {shlex.quote(args['url'])} -w {wl} {flags} 2>&1 | head -80"
+        wl    = args.get("wordlist", "")
+        flags = args.get("flags", "-mc 200,201,204,301,302,307,403 -fc 404,429 -t 50")
+        ext   = f"-e {args['extensions']}" if args.get("extensions") else ""
+        wl_cmd = f"WL={shlex.quote(wl)}" if wl else "WL=/usr/share/seclists/Discovery/Web-Content/raft-large-words.txt; [ ! -f \"$WL\" ] && WL=/usr/share/seclists/Discovery/Web-Content/common.txt; [ ! -f \"$WL\" ] && WL=/usr/share/wordlists/dirb/common.txt"
+        return f"{wl_cmd}; ffuf -u {shlex.quote(args['url'])} -w \"$WL\" {ext} {flags} -no-color 2>&1 | head -150"
 
     elif tool == "hydra":
         service  = args.get("service", "ssh")

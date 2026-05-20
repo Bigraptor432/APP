@@ -1,0 +1,16 @@
+Resposta curta: parcialmente, mas falta a parte mais importante.
+
+O que o app faz actualmente:
+
+nuclei_fast com tag exposure → apanha .env, c:/Users/User/Downloads/a/123/.git/config, painéis expostos básicos (Nuclei tem templates para isso)
+ffuf → fuzzing de directorias com wordlist genérica
+evasion_scan → testa 6 paths fixos: /admin /config /.env /.git/config /backup /phpinfo.php
+O que NÃO faz (e devia fazer segundo o pentest.md):
+
+/vendor/composer/installed.json → goldmine de CVEs em PHP
+/package.json, /package-lock.json, /requirements.txt → versões de deps
+Source maps: /assets/index-XXXX.js.map → código fonte completo exposto
+Stack-specific: /rest/settings (n8n), /api/status (Portainer), /rest/v1/ (Supabase)
+/adminer.php, /phpmyadmin/ → painéis de BD
+/app/config/parameters.yml, /var/logs/prod.log (Symfony)
+Queres que eu adicione uma tool dedicada info_disclosure ao backend + AUTO_TOOLS que corre exactamente a Fase 2 do pentest.md com curl directo em todos esses paths? Seria executada automaticamente em todos os scans AUTO e seria uma das primeiras a correr (baixo ruído, alto yield).
