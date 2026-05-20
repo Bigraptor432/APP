@@ -1028,6 +1028,7 @@ const TOOL_BINS = {
   admin_takeover: 'nuclei', cookie_tamper: 'curl', session_test: 'nuclei',
   wpscan: 'wpscan',  race_cond: 'curl',
   hash_crack: 'hashcat', cred_test: 'curl',
+  waf_bypass: 'wafw00f', msf_exploit: 'msfconsole',
 };
 
 function PentestView({ apiKey, mcpUrl, mcpTools }) {
@@ -1045,13 +1046,14 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
     testssl: false, hydra: false, ssti_check: false, jwt_check: false, admin_takeover: false,
     cookie_tamper: false, session_test: false, wpscan: false, race_cond: false,
     hash_crack: false, cred_test: false,
+    waf_bypass: false, msf_exploit: false,
   });
   const [autoMode,   setAutoMode]   = useState(false);
   const [xssCallback,setXssCallback]= useState('');
   const PRIMARY   = ['subfinder','httpx','ghauri','ffuf','aquatone','burp_suite'];
   const SECONDARY = ['naabu_scan','katana_crawl','nuclei_fast','nuclei_exploit','sqli_scan','xss_check','cors_check','js_analyze','dir_fuzz','ssrf_check','lfi_test','testssl','ssti_check','jwt_check','admin_takeover','session_test','wpscan'];
-  const EXPLOIT   = ['shell_upload','cred_dump','xss_inject','hydra','cookie_tamper','race_cond','hash_crack','cred_test'];
-  const AUTO_TOOLS = ['subfinder','httpx','naabu_scan','nuclei_fast','nuclei_exploit','ffuf','sqli_scan','xss_check','cors_check','ssrf_check','lfi_test','js_analyze','ghauri','testssl','ssti_check','jwt_check','admin_takeover','session_test','cred_dump','hash_crack','cred_test'];
+  const EXPLOIT   = ['shell_upload','cred_dump','xss_inject','hydra','cookie_tamper','race_cond','hash_crack','cred_test','waf_bypass','msf_exploit'];
+  const AUTO_TOOLS = ['subfinder','httpx','naabu_scan','nuclei_fast','nuclei_exploit','ffuf','sqli_scan','xss_check','cors_check','ssrf_check','lfi_test','js_analyze','ghauri','testssl','ssti_check','jwt_check','admin_takeover','session_test','waf_bypass','cred_dump','hash_crack','cred_test','msf_exploit'];
   const logRef = useRef(null);
 
   useEffect(() => {
@@ -1162,6 +1164,8 @@ else
   done
 fi
 `.trim() }) },
+    waf_bypass:     { tool: 'waf_bypass', args: (t) => ({ target: t, mode: 'full' }) },
+    msf_exploit:    { tool: 'msf_exploit', args: (t) => ({ target: t.replace(/https?:\/\//, '').split('/')[0], cve: 'recent', lport: '4444' }) },
   };
 
   const runToolParallel = async (selected, tgt) => {
@@ -1214,7 +1218,7 @@ fi
     }
 
     // Claude analysis
-    const ALL_EXPLOIT_TOOLS = 'shell_upload,cred_dump,xss_inject,nuclei_exploit,sqli_scan,lfi_test,ssrf_check,ghauri,cookie_tamper,session_test,hydra,wpscan,race_cond,testssl,ssti_check,jwt_check,admin_takeover';
+    const ALL_EXPLOIT_TOOLS = 'shell_upload,cred_dump,xss_inject,nuclei_exploit,sqli_scan,lfi_test,ssrf_check,ghauri,cookie_tamper,session_test,hydra,wpscan,race_cond,testssl,ssti_check,jwt_check,admin_takeover,waf_bypass,hash_crack,cred_test,msf_exploit';
     const buildPrompt = (results, rnd) => {
       const techHints = results.find(r => r.key === 'httpx' || r.key === 'js_analyze')?.out || '';
       const techContext = [
@@ -1225,10 +1229,18 @@ fi
         techHints.match(/apache|nginx/i)? 'Web server found — check version CVEs, path traversal' : '',
         techHints.match(/mysql|mariadb/i)?'Database found — run cred_dump, ghauri' : '',
         techHints.match(/upload/i)      ? 'Upload found — run shell_upload with bypass techniques' : '',
+        techHints.match(/waf|cloudflare|akamai|imperva|sucuri/i) ? 'WAF detected — run waf_bypass BEFORE sqli_scan and dir_fuzz' : '',
+        techHints.match(/cve|vuln/i)    ? 'CVE found — run msf_exploit to attempt exploitation via Metasploit' : '',
       ].filter(Boolean).join('\n');
       return `TARGET: ${target}\nROUND: ${rnd}\n${ techContext ? `\nTECH CONTEXT:\n${techContext}\n` : ''}\nRESULTADOS:\n${results.map(r => `## ${r.key}\n${r.out}`).join('\n\n')}\n\n`
       + (autoMode
-        ? `Analisa como APEX pentester elite. Cobre OWASP Top 10 2025. Verifica cookies, sessions, IDOR, business logic, injection, crypto. Responde APENAS em JSON:\n{"findings":[{"severity":"critical|high|medium|low","title":"...","desc":"...","cve":"CVE-XXXX-XXXX ou null","exploitable":true|false,"attack":"comando exato para explorar"}],"next_tools":[de: ${ALL_EXPLOIT_TOOLS}],"status":"continue|done","report":"relatorio markdown profissional completo"}`
+        ? `Analisa como APEX pentester elite. Cobre OWASP Top 10 2025. Verifica cookies, sessions, IDOR, business logic, injection, crypto.
+REGRAS DE CHAINING OBRIGATÓRIAS:
+- WAF detectado → SEMPRE correr waf_bypass antes de sqli_scan/ffuf
+- SQLi encontrado → chain: cred_dump → hash_crack → cred_test (nesta ordem)
+- CVE exploitável encontrado → chain: msf_exploit
+- Upload form → chain: shell_upload
+Responde APENAS em JSON:\n{"findings":[{"severity":"critical|high|medium|low","title":"...","desc":"...","cve":"CVE-XXXX-XXXX ou null","exploitable":true|false,"attack":"comando exato para explorar"}],"next_tools":[de: ${ALL_EXPLOIT_TOOLS}],"chain":[{"trigger":"condicao","tools":["tool1","tool2"]}],"status":"continue|done","report":"relatorio markdown profissional completo"}`
         : `Analisa como APEX pentester elite. Cobre todos os vetores OWASP Top 10 2025. Inclui: cookies/sessions, IDOR, business logic, injection, cripto, autenticacao. Relatorio profissional com CVEs, CVSS, exploit commands, e remediacoes.`);
     };
 
