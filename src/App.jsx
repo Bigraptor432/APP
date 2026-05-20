@@ -161,12 +161,13 @@ function ConfirmModal({ open, message, onConfirm, onCancel }) {
 
 // ─── SETTINGS MODAL ────────────────────────────────────────────────────────────
 
-function SettingsModal({ open, onClose, anthropicKey, groqKey, supaUrl, supaKey, mcpUrl, onSave, onReset }) {
+function SettingsModal({ open, onClose, anthropicKey, groqKey, supaUrl, supaKey, mcpUrl, webhookUrl, onSave, onReset }) {
   const [aVal,  setAVal]  = useState(anthropicKey);
   const [gVal,  setGVal]  = useState(groqKey);
   const [sUrl,  setSUrl]  = useState(supaUrl);
   const [sKey,  setSKey]  = useState(supaKey);
   const [mUrl,  setMUrl]  = useState(mcpUrl);
+  const [wVal,  setWVal]  = useState(webhookUrl || '');
   const [showA, setShowA] = useState(false);
   const [showG, setShowG] = useState(false);
   const [showS, setShowS] = useState(false);
@@ -219,7 +220,7 @@ function SettingsModal({ open, onClose, anthropicKey, groqKey, supaUrl, supaKey,
 
   useEffect(() => {
     if (open) {
-      setAVal(anthropicKey); setGVal(groqKey); setSUrl(supaUrl); setSKey(supaKey); setMUrl(mcpUrl);
+      setAVal(anthropicKey); setGVal(groqKey); setSUrl(supaUrl); setSKey(supaKey); setMUrl(mcpUrl); setWVal(webhookUrl || '');
       setAStatus('idle'); setGStatus('idle'); setMStatus('idle'); setMTools(0);
       if (anthropicKey) checkKey('anthropic', anthropicKey, setAStatus);
       if (groqKey)      checkKey('groq',      groqKey,      setGStatus);
@@ -236,7 +237,7 @@ function SettingsModal({ open, onClose, anthropicKey, groqKey, supaUrl, supaKey,
     return '#555';
   };
 
-  const save = () => { onSave({ anthropic: aVal.trim(), groq: gVal.trim(), supaUrl: sUrl.trim(), supaKey: sKey.trim(), mcpUrl: mUrl.trim() }); onClose(); };
+  const save = () => { onSave({ anthropic: aVal.trim(), groq: gVal.trim(), supaUrl: sUrl.trim(), supaKey: sKey.trim(), mcpUrl: mUrl.trim(), webhookUrl: wVal.trim() }); onClose(); };
 
   return (
     <div
@@ -395,6 +396,19 @@ function SettingsModal({ open, onClose, anthropicKey, groqKey, supaUrl, supaKey,
             <p className="font-mono text-[9px] mt-1.5" style={{ color: C.textFaint }}>
               IP do Kali → python3 kali-mcp-server.py
             </p>
+          </div>
+
+          {/* Webhook Notifications */}
+          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14 }}>
+            <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: C.textDim }}>Notificações</span>
+            <input
+              type="text"
+              value={wVal}
+              onChange={e => setWVal(e.target.value)}
+              placeholder="Webhook Telegram/Discord (notificação ao encontrar critical/high)"
+              className="mt-2 w-full rounded-lg px-2.5 py-1.5 font-mono text-[9px] outline-none"
+              style={{ background: C.bg, border: '1px solid rgba(99,102,241,0.3)', color: '#818cf8', caretColor: '#6366f1' }}
+            />
           </div>
 
           {/* Versão / Atualização */}
@@ -1626,14 +1640,6 @@ Responde APENAS em JSON:\n{"findings":[{"severity":"critical|high|medium|low","t
               style={{ background: C.bg, border: '1px solid rgba(249,115,22,0.3)', color: '#fb923c', caretColor: '#f97316' }}
             />
           )}
-          <input
-            type="text"
-            value={webhookUrl}
-            onChange={e => { setWebhookUrl(e.target.value); LS.set('apex_webhook_url', e.target.value); }}
-            placeholder="Webhook Telegram/Discord (notificação ao encontrar critical/high)"
-            className="mt-2 w-full rounded-lg px-2.5 py-1.5 font-mono text-[9px] outline-none"
-            style={{ background: C.bg, border: '1px solid rgba(99,102,241,0.3)', color: '#818cf8', caretColor: '#6366f1' }}
-          />
         </div>
       </div>
 
@@ -2308,9 +2314,10 @@ export default function App() {
     }));
   }, [activeTarget]);
 
-  const saveKeys = useCallback(({ anthropic, groq, supaUrl: su, supaKey: sk, mcpUrl: mu }) => {
+  const saveKeys = useCallback(({ anthropic, groq, supaUrl: su, supaKey: sk, mcpUrl: mu, webhookUrl: wu }) => {
     setApiKey(anthropic);
     setGroqKey(groq);
+    if (wu !== undefined) { setWebhookUrl(wu); LS.set('apex_webhook_url', wu); }
     setSupaUrl(su);
     setSupaKey(sk);
     setMcpUrl(mu);
@@ -2583,6 +2590,7 @@ export default function App() {
         supaUrl={supaUrl}
         supaKey={supaKey}
         mcpUrl={mcpUrl}
+        webhookUrl={webhookUrl}
         onSave={saveKeys}
         onReset={resetAll}
       />
