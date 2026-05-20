@@ -1460,7 +1460,7 @@ fi
     }
 
     // Claude analysis — with brain context and jailbreak
-    const ALL_EXPLOIT_TOOLS = 'shell_upload,cred_dump,xss_inject,nuclei_exploit,sqli_scan,lfi_test,ssrf_check,ghauri,cookie_tamper,session_test,hydra,wpscan,race_cond,testssl,ssti_check,jwt_check,admin_takeover,waf_bypass,hash_crack,cred_test,msf_exploit,payload_mutate,crawl_auth,idor_test,second_order,bizlogic_fuzz,evasion_scan,c2_handler,lateral_move';
+    const ALL_EXPLOIT_TOOLS = 'shell_upload,cred_dump,xss_inject,nuclei_exploit,sqli_scan,lfi_test,ssrf_check,ghauri,cookie_tamper,session_test,hydra,wpscan,race_cond,testssl,ssti_check,jwt_check,admin_takeover,waf_bypass,hash_crack,cred_test,msf_exploit,payload_mutate,crawl_auth,idor_test,second_order,bizlogic_fuzz,evasion_scan,c2_handler,lateral_move,param_discover,403_bypass';
     const buildPrompt = (results, rnd, prevSummary) => {
       const techHints = results.find(r => r.key === 'httpx' || r.key === 'js_analyze' || r.key === 'js_bundle_analysis')?.out || '';
       const techContext = [
@@ -1660,7 +1660,7 @@ Responde em JSON: {"api_endpoints":[], "idor_candidates":[], "hardcoded_secrets"
     } catch (_) {}
 
     setLog(prev => [...prev, { t: 'ok', m: '■ Pentest concluído.' }]);
-    setRunning(false);
+    if (overrideTarget === undefined) setRunning(false);
   };
 
   const stop = () => setRunning(false);
