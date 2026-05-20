@@ -1,0 +1,222 @@
+================================================================================
+  KGBTOOLS — ESTADO ATUAL, AVALIAÇÃO E ROADMAP
+  v3.11.0 — Maio 2026
+================================================================================
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  1. O QUE O APP CONSEGUE FAZER AGORA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RECONHECIMENTO
+  - subfinder       → enumeração de subdomínios
+  - httpx           → fingerprint (tech stack, headers, status, IPs, CDN)
+  - katana_crawl    → crawling de endpoints
+  - theharvester    → OSINT (emails, IPs, subdomínios públicos)
+  - js_analyze      → análise de ficheiros JS expostos
+
+SCANNING
+  - naabu_scan      → port scan + service detection (nmap)
+  - nuclei_fast     → templates CVE, misconfig, exposure, takeovers
+  - nuclei_exploit  → exploits conhecidos
+  - sqli_scan       → SQLi detection e dump (sqlmap)
+  - ghauri          → SQLi bypass avançado
+  - xss_check       → XSS via Nuclei
+  - cors_check      → CORS misconfiguration
+  - ssrf_check      → Server-Side Request Forgery
+  - lfi_test        → Local File Inclusion
+  - ssti_check      → Server-Side Template Injection
+  - testssl         → análise SSL/TLS completa
+  - jwt_check       → JWT vulnerabilities (alg:none, weak secret)
+  - wpscan          → WordPress enum + CVEs
+  - dir_fuzz        → directory fuzzing (gobuster)
+  - ffuf            → fuzzing avançado
+  - enum4linux      → SMB/Samba enumeration
+  - crackmapexec    → Windows/AD enumeration
+
+EXPLORAÇÃO
+  - waf_bypass      → detect WAF + tamper scripts automáticos
+  - shell_upload    → file upload bypass
+  - cred_dump       → dump de credenciais via SQLi
+  - xss_inject      → payload injection
+  - hydra           → brute force (ssh, ftp, http)
+  - metasploit      → MSF commands interativos
+  - msf_exploit     → CVE exploitation automático via Metasploit
+  - msfvenom        → geração de payloads (reverse shells, encoders)
+  - searchsploit    → exploit database lookup
+  - race_cond       → race condition testing
+  - cookie_tamper   → cookie manipulation
+  - session_test    → session fixation/hijacking
+
+PÓS-EXPLORAÇÃO
+  - hash_crack      → crack automático (hashcat + john) MD5/SHA1/bcrypt/NTLM
+  - cred_test       → testar creds cracadas nos admin panels automaticamente
+  - admin_takeover  → nuclei admin takeover templates
+
+INTELIGÊNCIA / AI
+  - PLANO           → Claude gera plano de ataque estruturado antes de executar
+  - AUTO mode       → 5 rounds autónomos com chaining inteligente
+  - Brain persistente → memória de findings por alvo entre sessões (localStorage)
+  - Jailbreak APEX  → system prompt sem restrições para pentest
+  - CVE Lookup NVD  → lookup em tempo real na National Vulnerability Database
+  - XSS/SSRF Callbacks → listener no MCP que recebe pings (/cb, /xss, /ssrf)
+  - Chaining rules  → WAF→waf_bypass; SQLi→cred_dump→hash_crack→cred_test; CVE→msf_exploit
+
+INFRAESTRUTURA
+  - Electron + React UI (dark, profissional)
+  - Kali MCP Server (Python HTTP) em Kali Linux via Tailscale
+  - Supabase sync (settings + conversations)
+  - Groq (modelos rápidos alternativos ao Claude)
+  - Multi-conversa com histórico
+  - Targets view
+  - Dashboard com stats
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  2. ESTIMATIVA DE EFICÁCIA ATUAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Scan completo de superfície                         → ~80%
+  Encontrar vulnerabilidades em site típico           → ~65%
+  Explorar SQLi quando existe                         → ~70%
+  Comprometer completamente (shell + escalada)        → ~30%
+  Bypass WAF moderno (Cloudflare, Akamai)             → ~25%
+  Site hardened/moderno (bug bounty tier)             → ~15%
+
+  NOTA: O maior limitador não é a quantidade de tools — é a qualidade da
+  tomada de decisão entre resultados. O Claude analisa bem, mas não tem
+  memória de contexto real entre chamadas, não adapta payloads
+  dinamicamente, e não "sente" o alvo como um humano faria.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  3. O QUE FALTA PARA CHEGAR A MENTALIDADE BLACK HAT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  CRÍTICO (maior impacto)
+  ─────────────────────────────────────────────────────────────────────────────
+  [ ] Payload mutation engine
+      Gerar variações automáticas de payloads quando bloqueados.
+      Ex: se "' OR 1=1--" é bloqueado, tenta 50 variantes automaticamente
+      sem Claude decidir cada uma.
+
+  [ ] Context-aware crawling (Playwright/Puppeteer)
+      Seguir formulários, autenticar-se, navegar como utilizador real.
+      Testa IDOR, BOLA, business logic numa app autenticada.
+
+  [ ] Burp Suite integration real
+      Interceptar e modificar requests em tempo real, repetir com mutações,
+      enviar para Intruder/Repeater automaticamente.
+
+  [ ] Dynamic auth testing
+      Testar IDOR e privilege escalation de forma automática navegando
+      pela app com múltiplas contas simultaneamente.
+
+  IMPORTANTE
+  ─────────────────────────────────────────────────────────────────────────────
+  [ ] Multi-target paralelo
+      Atacar vários alvos simultaneamente (como no tweet do @inoccnyt).
+
+  [ ] CVE-to-exploit matching automático
+      Quando nuclei encontra "Apache 2.4.49", lança automaticamente
+      o exploit CVE correto sem Claude ter que decidir.
+
+  [ ] Second-order injection testing
+      Testar onde o input é armazenado e executado mais tarde
+      (ex: username → stored XSS que dispara noutro contexto).
+
+  [ ] Business logic fuzzing
+      Testar preços negativos, quantidade 0, discount stacking,
+      coupon reuse, transfer races, etc.
+
+  AVANÇADO (Black Hat nível)
+  ─────────────────────────────────────────────────────────────────────────────
+  [ ] Evasão de IDS/IPS real
+      Fragmentação de packets, timing attacks, IP rotation via proxychains,
+      rotate User-Agent por request.
+
+  [ ] C2 integration
+      Depois de shell, comunicar via Metasploit handler automático,
+      Sliver ou Havoc C2. Manter persistência automaticamente.
+
+  [ ] Lateral movement automático
+      Após comprometer um host, enumerar rede interna,
+      pivotar para outros sistemas automaticamente.
+
+  [ ] Memória semântica / RAG com CVEs (como no tweet)
+      Base de conhecimento de 30k+ CVEs treinada localmente.
+      Decisões baseadas em conhecimento específico, não apenas
+      Claude genérico. Ex: vector embedding de vulnerabilidades
+      por tech stack, versão, configuração.
+
+  [ ] Autonomous session management
+      Manter sessões HTTP abertas, renovar cookies, gerir tokens,
+      simular comportamento humano para não ser detectado.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  4. ROADMAP — ORDEM POR IMPACTO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  FASE 1 — Inteligência (+20% eficácia estimada)
+  ─────────────────────────────────────────────────────────────────────────────
+  1. CVE-to-exploit auto-match
+     nuclei encontra versão → lookup NVD → lança msf_exploit automático
+     sem Claude decidir
+
+  2. Payload mutation engine
+     Para cada vector bloqueado, gera N variantes com encoding,
+     case mixing, whitespace tricks, unicode, comment injection
+
+  FASE 2 — Navegação real (+15% eficácia estimada)
+  ─────────────────────────────────────────────────────────────────────────────
+  3. Playwright headless crawler
+     Crawl autenticado, click em forms, follow redirects,
+     extrai endpoints escondidos, testa IDOR em API calls
+
+  4. Multi-target paralelo
+     Fila de alvos, execução paralela, relatório consolidado
+
+  FASE 3 — Pós-exploração (+10% eficácia estimada)
+  ─────────────────────────────────────────────────────────────────────────────
+  5. C2 handler automático
+     Após shell upload, conecta ao Metasploit handler,
+     corre post-exploitation modules (hashdump, getuid, etc.)
+
+  6. Lateral movement
+     Após comprometer, nmap da rede interna, crackmapexec
+     em todos os hosts, pivot automático
+
+  FASE 4 — Nível elite
+  ─────────────────────────────────────────────────────────────────────────────
+  7. RAG com CVEs (30k+)
+     Embeddings locais de CVEs por tech stack.
+     Claude consulta a base antes de decidir próxima ação.
+
+  8. Evasão avançada
+     Proxychains rotation, timing randomization,
+     fragmentação, User-Agent realistic pools
+
+  9. Business logic AI
+     Claude analisa fluxo de negócio específico do alvo
+     e gera test cases custom para a lógica desse site
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  5. PROJEÇÃO DE EFICÁCIA COM ROADMAP COMPLETO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Atual (v3.11.0)                                     → ~30% compromisso
+  + Fase 1 (CVE-match + mutation)                     → ~50%
+  + Fase 2 (Playwright + multi-target)                → ~65%
+  + Fase 3 (C2 + lateral movement)                    → ~75%
+  + Fase 4 (RAG + evasão + business logic)            → ~85-90%
+
+  O teto realista para automação pura é ~85-90%.
+  Os últimos 10-15% exigem criatividade humana — zero-days,
+  engenharia social, e vulnerabilidades de lógica únicas.
+
+
+================================================================================
+  FIM DO DOCUMENTO
+================================================================================

