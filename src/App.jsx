@@ -1861,7 +1861,7 @@ function TerminalsView({ mcpUrl }) {
 
 // ─── MAIN INTERACTION PANEL ────────────────────────────────────────────────────
 
-function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onSend, apiKey, groqKey, activeNav, activeTarget, activeConv, convs, targets, logs, activeModel, onModelChange, onSplit, isSplit, onCloseSplit, supaUrl, syncStatus, mcpTools, toolProgress, mcpUrl }) {
+function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onSend, apiKey, groqKey, activeNav, activeTarget, activeConv, convs, targets, logs, activeModel, onModelChange, onSplit, isSplit, onCloseSplit, supaUrl, syncStatus, mcpTools, toolProgress, mcpUrl, webhookUrl }) {
   const [input, setInput]         = useState('');
   const [tab, setTab]             = useState('findings');
   const [attachment, setAttachment] = useState(null);
@@ -2645,6 +2645,7 @@ export default function App() {
         mcpTools={mcpTools}
         toolProgress={toolProgress}
         mcpUrl={mcpUrl}
+        webhookUrl={webhookUrl}
       />
       {splitConv && (
         <>
