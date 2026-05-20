@@ -400,15 +400,22 @@ function SettingsModal({ open, onClose, anthropicKey, groqKey, supaUrl, supaKey,
 
           {/* Webhook Notifications */}
           <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14 }}>
-            <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: C.textDim }}>Notificações</span>
+            <label className="block font-mono text-[10px] uppercase tracking-widest mb-2" style={{ color: C.textDim }}>
+              <span style={{ color: wVal.trim() ? C.green : '#555' }}>●</span> Notificações <span style={{ color: C.textFaint }}>· telegram / discord · opcional</span>
+            </label>
             <input
               type="text"
               value={wVal}
               onChange={e => setWVal(e.target.value)}
-              placeholder="Webhook Telegram/Discord (notificação ao encontrar critical/high)"
-              className="mt-2 w-full rounded-lg px-2.5 py-1.5 font-mono text-[9px] outline-none"
-              style={{ background: C.bg, border: '1px solid rgba(99,102,241,0.3)', color: '#818cf8', caretColor: '#6366f1' }}
+              placeholder="https://hooks.slack.com/... ou https://discord.com/api/webhooks/..."
+              className="w-full rounded-lg px-3 py-2 font-mono text-xs outline-none transition-all"
+              style={{ background: C.bg, border: `1px solid ${C.border}`, color: C.text }}
+              onFocus={e => (e.target.style.borderColor = '#818cf8')}
+              onBlur={e  => (e.target.style.borderColor = C.border)}
             />
+            <p className="font-mono text-[9px] mt-1.5" style={{ color: C.textFaint }}>
+              notificação automática ao encontrar critical/high
+            </p>
           </div>
 
           {/* Versão / Atualização */}
