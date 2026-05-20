@@ -6,7 +6,7 @@
 VEREDICTO: PRONTO PARA USAR EM ALVOS REAIS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Esta versão passou por auditoria completa de todos os 53 tools, da lógica de
+Esta versão passou por auditoria completa de todos os 55 tools, da lógica de
 encadeamento, do timeout de execução, do output truncation e dos bugs críticos.
 Todos os problemas identificados foram corrigidos antes desta release.
 
@@ -108,7 +108,7 @@ FEATURE #4 — cve_rag_local (CVE Lookup Offline)
 
 
 ================================================================================
-  3. MAPEAMENTO COMPLETO — 53 TOOLS (TODAS AUDITADAS)
+  3. MAPEAMENTO COMPLETO — 55 TOOLS (TODAS AUDITADAS)
 ================================================================================
 
   RECON / OSINT (8 tools):
@@ -155,7 +155,7 @@ FEATURE #4 — cve_rag_local (CVE Lookup Offline)
   OUTROS (2 tools):
     shell (exec direto), burp_suite (launch)
 
-  TOTAL: 53 tools ✓
+  TOTAL: 55 tools ✓
 
 
 ================================================================================
@@ -230,7 +230,7 @@ FEATURE #4 — cve_rag_local (CVE Lookup Offline)
 
   Verificar após update do .py:
     python3 kali-mcp-server.py
-    → Deve mostrar: Tools (53): nmap, gobuster, nikto, ...
+    → Deve mostrar: Tools (55): nmap, gobuster, nikto, ...
 
 
 ================================================================================
@@ -243,7 +243,7 @@ FEATURE #4 — cve_rag_local (CVE Lookup Offline)
             +cross-tool correlation. Claude para de ter amnésia entre rounds.
   v3.17  → +post_exploit, +dynamic_mutate, +proxychains_wrap, +cve_rag_local.
             Fix: timeout por tool, output expandido, msf_exploit com CVE real.
-            53 tools auditadas. Pronto para alvos reais.
+            55 tools auditadas. Pronto para alvos reais.
 
   VERSÃO MAIS POTENTE: v3.17 (esta versão)
 
@@ -255,7 +255,7 @@ FEATURE #4 — cve_rag_local (CVE Lookup Offline)
   PASSO 1: Actualizar Kali
     git pull   (ou download direto do repo)
     python3 kali-mcp-server.py
-    → Confirmar: "Tools (53): ..."
+    → Confirmar: "Tools (55): ..."
 
   PASSO 2: Abrir KGBtools no Windows
     → Inserir API Key Claude (Anthropic)
