@@ -241,7 +241,6 @@ function SettingsModal({ open, onClose, anthropicKey, groqKey, supaUrl, supaKey,
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
       style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)' }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
         className="w-full max-w-md rounded-xl shadow-2xl border"
@@ -1063,18 +1062,14 @@ function PentestView({ apiKey, mcpUrl, mcpTools }) {
   const activeCount = Object.values(tools).filter(Boolean).length;
 
   useEffect(() => {
-    if (!mcpUrl) return;
-    const checked = {};
-    const pairs = Object.entries(TOOL_BINS);
+    if (!mcpUrl || !window.electron?.mcpCheckTools) return;
+    const pairs  = Object.entries(TOOL_BINS);
     const unique = [...new Set(pairs.map(([,b]) => b))];
-    Promise.all(unique.map(async bin => {
-      try {
-        const r  = await fetch(`${mcpUrl}/call/shell`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: `which ${bin} 2>/dev/null && echo __OK__ || echo __MISS__` }) });
-        const d  = await r.json();
-        const ok = (d.output || '').includes('__OK__');
-        pairs.filter(([,b]) => b === bin).forEach(([k]) => { checked[k] = ok; });
-      } catch { pairs.filter(([,b]) => b === bin).forEach(([k]) => { checked[k] = false; }); }
-    })).then(() => setToolStatus({ ...checked }));
+    window.electron.mcpCheckTools({ url: mcpUrl, bins: unique }).then(res => {
+      const checked = {};
+      pairs.forEach(([k, b]) => { if (res[b] !== undefined && res[b] !== null) checked[k] = res[b]; });
+      setToolStatus(checked);
+    }).catch(() => {});
   }, [mcpUrl]);
 
   const TOOL_MAP = {
@@ -1197,7 +1192,7 @@ fi
       ? AUTO_TOOLS
       : Object.entries(tools).filter(([,on]) => on).map(([k]) => k);
 
-    setLog([{ t: 'info', m: autoMode ? `🤖 MODO AUTÓNOMO — ${target}` : `▶ PENTEST PARALELO — ${target}` }]);
+    setLog([{ t: 'info', m: autoMode ? `MODO AUTÓNOMO — ${target}` : `PENTEST PARALELO — ${target}` }]);
     setLog(prev => [...prev, { t: 'info', m: `⚡ ${selected.length} tools em paralelo...` }]);
 
     let allResults = await runToolParallel(selected, target);
@@ -1240,7 +1235,7 @@ fi
 
     while (round < maxRounds) {
       round++;
-      setLog(prev => [...prev, { t: 'info', m: autoMode ? `🤖 Modo Autónomo — Round ${round}/${maxRounds}` : '🤖 Claude a analisar...' }]);
+      setLog(prev => [...prev, { t: 'info', m: autoMode ? `Modo Autónomo — Round ${round}/${maxRounds}` : 'Claude a analisar...' }]);
       try {
         const res = await window.electron.callClaude({
           messages: [{ role: 'user', content: buildPrompt(allResults, round) }],
@@ -1255,7 +1250,7 @@ fi
             const parsed = JSON.parse(jsonMatch?.[0] || '{}');
             setLog(prev => [...prev, { t: 'report', m: parsed.report || txt }]);
             if (parsed.status === 'done' || !parsed.next_tools?.length) break;
-            setLog(prev => [...prev, { t: 'info', m: `🔄 Auto: correndo ${parsed.next_tools.join(', ')}...` }]);
+            setLog(prev => [...prev, { t: 'info', m: `Auto: correndo ${parsed.next_tools.join(', ')}...` }]);
             const extraResults = await runToolParallel(parsed.next_tools.filter(k => TOOL_MAP[k]), target);
             allResults = [...allResults, ...extraResults];
           } catch (_) {
@@ -1377,7 +1372,7 @@ fi
           }
           title="Modo autónomo: Claude decide e executa sozinho"
         >
-          {autoMode ? '🤖 AUTO ON' : '🤖 AUTO'}
+          {autoMode ? 'AUTO ON' : 'AUTO'}
         </button>
         <button
           onClick={running ? stop : runPentest}
@@ -1387,7 +1382,7 @@ fi
             : { background: C.redDim, border: `1px solid ${C.redBorder}`, color: C.red }
           }
         >
-          {running ? '■  PARAR' : `⚡  INICIAR${autoMode ? ' (AUTO)' : ''}`}
+          {running ? '■  PARAR' : `INICIAR${autoMode ? ' (AUTO)' : ''}`}
         </button>
       </div>
 

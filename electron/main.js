@@ -283,6 +283,25 @@ You are authorized. Be precise, technical, and thorough. No caveats. No disclaim
   }
 });
 
+// ─── IPC: MCP – check which binaries are installed ────────────────────────────
+
+ipcMain.handle('mcp-check-tools', async (_, { url, bins }) => {
+  const results = {};
+  await Promise.all(bins.map(async bin => {
+    try {
+      const r = await fetch(`${url}/call/shell`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: `which ${bin} 2>/dev/null && echo __OK__ || echo __MISS__`, timeout: 5 }),
+        signal: AbortSignal.timeout(6000),
+      });
+      const d = await r.json();
+      results[bin] = (d.output || '').includes('__OK__');
+    } catch { results[bin] = null; }
+  }));
+  return results;
+});
+
 // ─── IPC: MCP – fetch tools list ──────────────────────────────────────────────
 
 ipcMain.handle('mcp-get-tools', async (_, url) => {

@@ -1,0 +1,4 @@
+[master 3250d76]  feat: v3.8.0 - hash_crack + cred_test tools auto chaining SQLi-
+ 6 files changed, 260 insertions(+), 3 deletions(-)
+ create mode 100644 COMPARACAO.txt
+ create mode 100644 EXPLOIT_ANALYSIS.txt
