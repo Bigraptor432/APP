@@ -185,7 +185,8 @@ function SettingsModal({ open, onClose, anthropicKey, groqKey, supaUrl, supaKey,
       const res  = await fetch('https://api.github.com/repos/Bigraptor432/APP/releases/latest');
       const data = await res.json();
       const latest = (data.tag_name || '').replace(/^v/, '');
-      if (latest && latest !== CURRENT_VER) {
+      const isNewer = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i=0;i<3;i++) { if ((x[i]||0)>(y[i]||0)) return true; if ((x[i]||0)<(y[i]||0)) return false; } return false; };
+      if (latest && isNewer(latest, CURRENT_VER)) {
         const dlUrl = data.assets?.find(a => a.name.endsWith('.exe'))?.browser_download_url || null;
         setUpdStatus('available');
         setUpdInfo({ version: latest, url: data.html_url, downloadUrl: dlUrl });
