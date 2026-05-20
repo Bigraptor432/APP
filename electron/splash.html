@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
-      background: #080808;
-      font-family: 'Courier New', monospace;
+      background: #060606;
+      font-family: Inter, -apple-system, 'Segoe UI', sans-serif;
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -15,99 +17,197 @@
       overflow: hidden;
       user-select: none;
       -webkit-app-region: drag;
-    }
-    .logo {
-      color: #dc2626;
-      font-size: 52px;
-      font-weight: 900;
-      letter-spacing: 10px;
-      margin-bottom: 4px;
-      text-shadow: 0 0 40px rgba(220,38,38,0.4);
-    }
-    .subtitle {
-      color: #2a2a2a;
-      font-size: 9px;
-      letter-spacing: 6px;
-      text-transform: uppercase;
-      margin-bottom: 56px;
-    }
-    .bar-wrapper {
-      width: 280px;
-      height: 1px;
-      background: #181818;
-      margin-bottom: 16px;
       position: relative;
     }
-    .bar {
+
+    /* subtle grid background */
+    body::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(220,38,38,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(220,38,38,0.025) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+
+    /* center glow */
+    body::after {
+      content: '';
+      position: absolute;
+      width: 300px;
+      height: 200px;
+      background: radial-gradient(ellipse, rgba(220,38,38,0.06) 0%, transparent 70%);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -60%);
+      pointer-events: none;
+    }
+
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .badge {
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: rgba(220,38,38,0.4);
+      margin-bottom: 14px;
+      padding: 3px 10px;
+      border: 1px solid rgba(220,38,38,0.1);
+      border-radius: 20px;
+      background: rgba(220,38,38,0.04);
+    }
+
+    .logo {
+      font-size: 46px;
+      font-weight: 700;
+      letter-spacing: -1px;
+      color: #fff;
+      margin-bottom: 3px;
+      line-height: 1;
+    }
+
+    .logo span { color: #dc2626; }
+
+    .subtitle {
+      font-size: 9px;
+      font-weight: 400;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: #1f1f1f;
+      margin-bottom: 52px;
+    }
+
+    .bar-track {
+      width: 260px;
+      height: 2px;
+      background: #111;
+      border-radius: 4px;
+      margin-bottom: 18px;
+      overflow: visible;
+      position: relative;
+    }
+
+    .bar-fill {
       height: 100%;
       background: #dc2626;
+      border-radius: 4px;
       width: 0%;
-      transition: width 0.25s cubic-bezier(0.4,0,0.2,1);
-      box-shadow: 0 0 8px rgba(220,38,38,0.6);
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
     }
-    .percent {
-      color: #dc2626;
+
+    .bar-fill::after {
+      content: '';
+      position: absolute;
+      right: -1px;
+      top: -3px;
+      width: 8px;
+      height: 8px;
+      background: #dc2626;
+      border-radius: 50%;
+      box-shadow: 0 0 12px 3px rgba(220,38,38,0.5);
+    }
+
+    .info-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      height: 16px;
+    }
+
+    .pct {
       font-size: 10px;
-      letter-spacing: 3px;
-      margin-bottom: 10px;
-      min-width: 40px;
-      text-align: center;
+      font-weight: 600;
+      color: #dc2626;
+      min-width: 32px;
+      text-align: right;
+      letter-spacing: 1px;
     }
-    .status {
-      color: #1e1e1e;
-      font-size: 8px;
-      letter-spacing: 4px;
+
+    .divider {
+      width: 1px;
+      height: 10px;
+      background: #1e1e1e;
+    }
+
+    .status-msg {
+      font-size: 9px;
+      font-weight: 400;
+      color: #2a2a2a;
+      letter-spacing: 2px;
       text-transform: uppercase;
-      transition: opacity 0.3s;
+      min-width: 180px;
     }
-    .dots {
-      display: inline-block;
-      width: 20px;
-      text-align: left;
-    }
+
     .version {
       position: fixed;
-      bottom: 20px;
-      right: 20px;
-      color: #151515;
+      bottom: 18px;
+      right: 18px;
       font-size: 8px;
       letter-spacing: 2px;
+      color: #161616;
+      font-weight: 400;
     }
+
+    .corner {
+      position: fixed;
+      width: 16px;
+      height: 16px;
+      border-color: rgba(220,38,38,0.12);
+      border-style: solid;
+    }
+    .corner-tl { top: 14px; left: 14px; border-width: 1px 0 0 1px; }
+    .corner-tr { top: 14px; right: 14px; border-width: 1px 1px 0 0; }
+    .corner-bl { bottom: 14px; left: 14px; border-width: 0 0 1px 1px; }
+    .corner-br { bottom: 14px; right: 14px; border-width: 0 1px 1px 0; }
   </style>
 </head>
 <body>
-  <div class="logo">KGBtools</div>
-  <div class="subtitle">Pentest Platform</div>
-  <div class="bar-wrapper"><div class="bar" id="bar"></div></div>
-  <div class="percent" id="pct">0%</div>
-  <div class="status" id="status">Inicializando<span class="dots" id="dots"></span></div>
-  <div class="version" id="ver">v3.12.0</div>
+  <div class="corner corner-tl"></div>
+  <div class="corner corner-tr"></div>
+  <div class="corner corner-bl"></div>
+  <div class="corner corner-br"></div>
+
+  <div class="wrapper">
+    <div class="badge">Pentest Platform</div>
+    <div class="logo">KGB<span>tools</span></div>
+    <div class="subtitle">Red Team Intelligence</div>
+    <div class="bar-track"><div class="bar-fill" id="bar"></div></div>
+    <div class="info-row">
+      <span class="pct" id="pct">0%</span>
+      <div class="divider"></div>
+      <span class="status-msg" id="status">Inicializando</span>
+    </div>
+  </div>
+
+  <div class="version" id="ver">v3.13.0</div>
 
   <script>
     const steps = [
       { pct: 8,  msg: 'Inicializando' },
-      { pct: 18, msg: 'Carregando módulos' },
-      { pct: 32, msg: 'Iniciando Electron' },
-      { pct: 45, msg: 'Preparando interface' },
-      { pct: 58, msg: 'Conectando ao Kali MCP' },
-      { pct: 70, msg: 'Carregando ferramentas' },
-      { pct: 82, msg: 'Sincronizando brain' },
-      { pct: 91, msg: 'Verificando atualizações' },
-      { pct: 97, msg: 'Quase pronto' },
+      { pct: 20, msg: 'Carregando módulos' },
+      { pct: 35, msg: 'Iniciando Electron' },
+      { pct: 48, msg: 'Preparando interface' },
+      { pct: 62, msg: 'Conectando ao Kali MCP' },
+      { pct: 74, msg: 'Carregando ferramentas' },
+      { pct: 85, msg: 'Sincronizando brain' },
+      { pct: 93, msg: 'Verificando updates' },
       { pct: 100, msg: 'Pronto' },
     ];
 
     const bar    = document.getElementById('bar');
     const pctEl  = document.getElementById('pct');
     const status = document.getElementById('status');
-    const dotsEl = document.getElementById('dots');
-
-    // Animate dots
-    let dotCount = 0;
-    setInterval(() => {
-      dotCount = (dotCount + 1) % 4;
-      dotsEl.textContent = '.'.repeat(dotCount);
-    }, 350);
 
     let i = 0;
     function nextStep() {
@@ -115,18 +215,11 @@
       const { pct, msg } = steps[i++];
       bar.style.width = pct + '%';
       pctEl.textContent = pct + '%';
-      status.firstChild.textContent = msg;
-      if (i < steps.length) {
-        const delay = 200 + Math.random() * 350;
-        setTimeout(nextStep, delay);
-      }
+      status.textContent = msg;
+      if (pct === 100) bar.style.removeProperty('transition'), (bar.style.boxShadow = 'none');
+      if (i < steps.length) setTimeout(nextStep, 220 + Math.random() * 320);
     }
-    setTimeout(nextStep, 300);
-
-    // Try to get version from main
-    if (window.__VERSION__) {
-      document.getElementById('ver').textContent = 'v' + window.__VERSION__;
-    }
+    setTimeout(nextStep, 250);
   </script>
 </body>
 </html>

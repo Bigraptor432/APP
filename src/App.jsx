@@ -1856,31 +1856,6 @@ function InteractionPanel({ planItems, onPlanToggle, messages, onSend, apiKey, g
               {t.label}
             </button>
           ))}
-          <div style={{ width: 1, height: 12, background: '#222', margin: '0 4px' }} />
-          {!isSplit && onSplit && (
-            <button
-              onClick={onSplit}
-              title="Abrir painel paralelo"
-              className="flex items-center justify-center w-6 h-5 rounded transition-colors"
-              style={{ color: '#333', border: '1px solid #222', background: 'transparent' }}
-              onMouseEnter={e => { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#333'; }}
-              onMouseLeave={e => { e.currentTarget.style.color = '#333'; e.currentTarget.style.borderColor = '#222'; }}
-            >
-              <Columns2 size={10} />
-            </button>
-          )}
-          {isSplit && (
-            <button
-              onClick={onCloseSplit}
-              title="Fechar painel paralelo"
-              className="flex items-center justify-center w-6 h-5 rounded transition-colors"
-              style={{ color: '#555', border: `1px solid ${C.redBorder}`, background: C.redDim }}
-              onMouseEnter={e => { e.currentTarget.style.color = C.red; }}
-              onMouseLeave={e => { e.currentTarget.style.color = '#555'; }}
-            >
-              <X size={10} />
-            </button>
-          )}
         </div>}
       </div>
 
@@ -2031,13 +2006,7 @@ function InteractionPanel({ planItems, onPlanToggle, messages, onSend, apiKey, g
               </>
             )}
           </div>
-          <div className="flex items-center gap-3 font-mono" style={{ fontSize: 9 }}>
-            <button onClick={() => setTab('plano')} className="transition-colors hover:opacity-70" style={{ color: tab === 'plano' ? '#555' : '#2e2e2e' }}>
-              plano {planItems.filter(p => !p.checked).length > 0 && <span style={{ color: C.red }}>·{planItems.filter(p => !p.checked).length}</span>}
-            </button>
-            <button onClick={() => setTab('findings')} className="transition-colors hover:opacity-70" style={{ color: tab === 'findings' ? '#555' : '#2e2e2e' }}>
-              findings {(TARGET_FINDINGS[activeTarget]||[]).length > 0 && <span style={{ color: C.orange }}>·{(TARGET_FINDINGS[activeTarget]||[]).length}</span>}
-            </button>
+          <div className="flex items-center gap-2 font-mono" style={{ fontSize: 9 }}>
             <span style={{ color: logs.length > 0 ? '#555' : '#2e2e2e' }}>
               atividade{logs.length > 0 && <span style={{ color: '#555' }}> ·{logs.length}</span>}
             </span>
