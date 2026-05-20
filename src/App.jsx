@@ -2009,9 +2009,13 @@ export default function App() {
         if (map.manucas_target_plans  != null) apply(setTargetPlans,   map.manucas_target_plans);
         if (map.manucas_active_target != null) setActiveTarget(prev => prev !== map.manucas_active_target ? map.manucas_active_target : prev);
         if (map.manucas_active_conv   != null) setActiveConv(prev   => prev !== map.manucas_active_conv   ? map.manucas_active_conv   : prev);
-        if (map.manucas_api_key  != null) setApiKey(prev  => prev !== map.manucas_api_key  ? map.manucas_api_key  : prev);
-        if (map.manucas_groq_key != null) setGroqKey(prev => prev !== map.manucas_groq_key ? map.manucas_groq_key : prev);
-        if (map.manucas_mcp_url  != null) setMcpUrl(prev  => prev !== map.manucas_mcp_url  ? map.manucas_mcp_url  : prev);
+        // API keys: localStorage tem prioridade — não sobrescreve se já existe localmente
+        const lsApi  = localStorage.getItem('manucas_api_key');
+        const lsGroq = localStorage.getItem('manucas_groq_key');
+        const lsMcp  = localStorage.getItem('manucas_mcp_url');
+        if (!lsApi  && map.manucas_api_key  != null) setApiKey(map.manucas_api_key);
+        if (!lsGroq && map.manucas_groq_key != null) setGroqKey(map.manucas_groq_key);
+        if (!lsMcp  && map.manucas_mcp_url  != null) setMcpUrl(map.manucas_mcp_url);
         setSyncStatus('synced');
       } catch { setSyncStatus('error'); }
     };
@@ -2037,6 +2041,16 @@ export default function App() {
     if (su)        localStorage.setItem('manucas_supa_url', su);        else localStorage.removeItem('manucas_supa_url');
     if (sk)        localStorage.setItem('manucas_supa_key', sk);        else localStorage.removeItem('manucas_supa_key');
     if (mu)        localStorage.setItem('manucas_mcp_url',  mu);        else localStorage.removeItem('manucas_mcp_url');
+    // push imediato para Supabase para evitar que o polling sobrescreva
+    if (su && sk) {
+      supaSave(su, sk, [
+        { key: 'manucas_api_key',  value: anthropic },
+        { key: 'manucas_groq_key', value: groq },
+        { key: 'manucas_mcp_url',  value: mu },
+        { key: 'manucas_supa_url', value: su },
+        { key: 'manucas_supa_key', value: sk },
+      ]).catch(() => {});
+    }
   }, []);
 
   const changeModel = useCallback((m) => {
