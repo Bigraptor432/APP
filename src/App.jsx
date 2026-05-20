@@ -1356,7 +1356,7 @@ fi
         const args = { ...(toolKey === 'xss_inject' ? map.args(tgt, xssCallback) : map.args(tgt)), user_agent: randUA() };
         const r  = await fetch(`${mcpUrl}/call/${map.tool}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(args) });
         const rd = await r.json();
-        const LONG_OUTPUT_TOOLS = ['nuclei_fast','nuclei_exploit','info_disclosure','playwright_crawl','js_analyze','js_bundle_analysis','sqli_scan','wpscan','cve_rag','cve_rag_local','lateral_move','post_exploit'];
+        const LONG_OUTPUT_TOOLS = ['nuclei_fast','nuclei_exploit','info_disclosure','playwright_crawl','js_analyze','js_bundle_analysis','sqli_scan','wpscan','cve_rag','cve_rag_local','lateral_move','post_exploit','param_discover','403_bypass','session_chain','evasion_scan'];
         const maxOut = LONG_OUTPUT_TOOLS.includes(toolKey) ? 5000 : 2500;
         const out = (rd.output || rd.error || '(sem output)').slice(0, maxOut);
         results.push({ key: toolKey, out });
@@ -1370,6 +1370,7 @@ fi
 
   const runPentest = async (overrideTarget) => {
     const target = overrideTarget !== undefined ? overrideTarget : (document.getElementById('kgb-target-input')?.value || '');
+    if (!target.trim()) { setLog([{ t: 'err', m: 'Alvo não definido. Insere um URL ou IP.' }]); if (overrideTarget === undefined) setRunning(false); return; }
     if (!apiKey) { setLog([{ t: 'err', m: 'API Key Anthropic não configurada.' }]); return; }
     if (!mcpUrl)  { setLog([{ t: 'err', m: 'Kali MCP Server não configurado.' }]); return; }
     if (overrideTarget === undefined) setRunning(true);
