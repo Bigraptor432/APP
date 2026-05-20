@@ -1134,9 +1134,9 @@ MANDATORY CHAINING RULES:
     LS.set('manucas_pentest_brain', nb);
   };
   const PRIMARY   = ['info_disclosure','subfinder','httpx','ghauri','ffuf','aquatone','burp_suite'];
-  const SECONDARY = ['naabu_scan','katana_crawl','nuclei_fast','nuclei_exploit','sqli_scan','xss_check','cors_check','js_analyze','dir_fuzz','ssrf_check','lfi_test','testssl','ssti_check','jwt_check','admin_takeover','session_test','wpscan','evasion_scan','crawl_auth','idor_test','playwright_crawl','cve_rag','session_manage','session_chain'];
-  const EXPLOIT   = ['shell_upload','cred_dump','xss_inject','hydra','cookie_tamper','race_cond','hash_crack','cred_test','waf_bypass','msf_exploit','payload_mutate','second_order','bizlogic_fuzz','c2_handler','lateral_move','adaptive_mutate','mitmproxy_scan'];
-  const AUTO_TOOLS = ['info_disclosure','subfinder','httpx','naabu_scan','nuclei_fast','nuclei_exploit','ffuf','sqli_scan','xss_check','cors_check','ssrf_check','lfi_test','js_analyze','ghauri','testssl','ssti_check','jwt_check','admin_takeover','session_test','session_chain','evasion_scan','playwright_crawl','idor_test','waf_bypass','cred_dump','hash_crack','cred_test','msf_exploit','lateral_move','cve_rag','adaptive_mutate','session_manage'];
+  const SECONDARY = ['naabu_scan','katana_crawl','nuclei_fast','nuclei_exploit','sqli_scan','xss_check','cors_check','js_analyze','dir_fuzz','ssrf_check','lfi_test','testssl','ssti_check','jwt_check','admin_takeover','session_test','wpscan','evasion_scan','crawl_auth','idor_test','playwright_crawl','cve_rag','cve_rag_local','session_manage','session_chain'];
+  const EXPLOIT   = ['shell_upload','cred_dump','xss_inject','hydra','cookie_tamper','race_cond','hash_crack','cred_test','waf_bypass','msf_exploit','payload_mutate','dynamic_mutate','second_order','bizlogic_fuzz','c2_handler','post_exploit','lateral_move','adaptive_mutate','mitmproxy_scan','proxychains_wrap'];
+  const AUTO_TOOLS = ['info_disclosure','subfinder','httpx','naabu_scan','nuclei_fast','nuclei_exploit','ffuf','sqli_scan','xss_check','cors_check','ssrf_check','lfi_test','js_analyze','ghauri','testssl','ssti_check','jwt_check','admin_takeover','session_test','session_chain','evasion_scan','playwright_crawl','idor_test','waf_bypass','cred_dump','hash_crack','cred_test','msf_exploit','post_exploit','lateral_move','cve_rag','cve_rag_local','adaptive_mutate','dynamic_mutate','session_manage'];
   const logRef = useRef(null);
 
   useEffect(() => {
@@ -1277,6 +1277,10 @@ fi
     mitmproxy_scan:  { tool: 'mitmproxy_scan',  args: (t) => ({ target: t, port: 8080, mode: 'fuzz', duration: 30 }) },
     info_disclosure: { tool: 'info_disclosure', args: (t) => ({ target: t, deep: true }) },
     session_chain:   { tool: 'session_chain',   args: (t) => ({ target: t, username: 'admin', password: 'admin', id_range: '1-100' }) },
+    post_exploit:    { tool: 'post_exploit',    args: (t) => ({ host: t.replace(/https?:\/\//, '').split('/')[0], session: '1', lport: '4444' }) },
+    dynamic_mutate:  { tool: 'dynamic_mutate',  args: (t) => ({ target: t + '?id=FUZZ', payloads: [], waf_fingerprint: 'unknown' }) },
+    proxychains_wrap:{ tool: 'proxychains_wrap', args: (t) => ({ command: `curl -si --max-time 10 ${t}`, proxy: 'tor' }) },
+    cve_rag_local:   { tool: 'cve_rag_local',   args: (t) => ({ product: t.replace(/https?:\/\//, '').split('/')[0], version: 'detected' }) },
   };
 
   const UA_POOL = [
@@ -1514,6 +1518,42 @@ Responde em JSON: {"api_endpoints":[], "idor_candidates":[], "hardcoded_secrets"
               const topCve = [...new Set(cveMatches)][0];
               setLog(prev => [...prev, { t: 'ok', m: `CVE auto-match: ${topCve} → msf_exploit` }]);
               parsed.next_tools = [...(parsed.next_tools || []), 'msf_exploit'];
+            }
+            // Dynamic payload generation: if WAF blocked, ask Claude to invent custom bypasses
+            const wafOut = allResults.find(r => r.key === 'waf_bypass' || r.key === 'adaptive_mutate')?.out || '';
+            const wafDetected = wafOut.match(/cloudflare|akamai|imperva|sucuri|modsec|blocked|403|406/i);
+            if (wafDetected && autoMode && round === 1) {
+              try {
+                setLog(prev => [...prev, { t: 'brain', m: 'WAF detectado → gerando payloads customizados com Claude...' }]);
+                const wafFp = (wafOut.match(/cloudflare|akamai|imperva|sucuri|modsec/i) || ['unknown'])[0].toLowerCase();
+                const dynRes = await window.electron.callClaude({
+                  messages: [{ role: 'user', content: `WAF FINGERPRINT: ${wafFp}\nTARGET: ${target}\nRESPOSTAS ANTERIORES:\n${wafOut.slice(0,800)}\n\nComo APEX expert em WAF bypass, gera 15 payloads SQLi E 10 payloads XSS customizados para bypassar especificamente este WAF. Usa técnicas: unicode mixing, HTTP parameter pollution, chunked encoding tricks, comment obfuscation, case mixing não-standard, HPP, null byte, overlong UTF-8. Responde APENAS em JSON: {"sqli_payloads":["payload1",...],"xss_payloads":["payload1",...],"technique":"explicacao"}` }],
+                  apiKey,
+                  system: JAILBREAK_SYSTEM,
+                });
+                const dynTxt = dynRes.content?.find(b => b.type === 'text')?.text || '';
+                const dynJson = JSON.parse(dynTxt.match(/\{[\s\S]*\}/)?.[0] || '{}');
+                if (dynJson.sqli_payloads?.length || dynJson.xss_payloads?.length) {
+                  const allPayloads = [...(dynJson.sqli_payloads || []), ...(dynJson.xss_payloads || [])];
+                  setLog(prev => [...prev, { t: 'ok', m: `Dynamic payloads: ${allPayloads.length} gerados (${wafFp}) → testando...` }]);
+                  const dynArgs = { target: target + '?id=FUZZ', payloads: allPayloads, waf_fingerprint: wafFp };
+                  const dynR = await fetch(`${mcpUrl}/call/dynamic_mutate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dynArgs) });
+                  const dynRd = await dynR.json();
+                  allResults.push({ key: 'dynamic_mutate', out: (dynRd.output || '').slice(0, 2000) });
+                  const bypasses = (dynRd.output || '').match(/BYPASS!/gi)?.length || 0;
+                  if (bypasses > 0) setLog(prev => [...prev, { t: 'ok', m: `✓ ${bypasses} bypass(es) encontrado(s) com payloads customizados!` }]);
+                }
+              } catch (_) {}
+            }
+            // Post-exploitation: if shell obtained, auto-run post_exploit
+            const shellOut = allResults.find(r => r.key === 'shell_upload' || r.key === 'c2_handler')?.out || '';
+            if (shellOut.match(/session.*opened|meterpreter|shell.*opened/i) && !allResults.find(r => r.key === 'post_exploit')) {
+              setLog(prev => [...prev, { t: 'ok', m: 'Shell obtida → post-exploitation automático...' }]);
+              const peArgs = { host: target.replace(/https?:\/\//, '').split('/')[0], session: '1', lport: '4444' };
+              const peR = await fetch(`${mcpUrl}/call/post_exploit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(peArgs) });
+              const peRd = await peR.json();
+              allResults.push({ key: 'post_exploit', out: (peRd.output || '').slice(0, 2000) });
+              setLog(prev => [...prev, { t: 'ok', m: '✓ post_exploit concluído' }]);
             }
             // Context compression: save compact summary of this round
             if (parsed.findings?.length) {

