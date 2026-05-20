@@ -1560,7 +1560,7 @@ else:
 # Step 2: CSRF token extraction
 print("\\n[STEP 2] CSRF token extraction...")
 home_body, _, _ = curl('GET', TARGET)
-csrf = re.search(r'(?:csrf[_-]?token|_token|__RequestVerificationToken)["\s]+value=["\']([^"\']{10,})', home_body, re.I)
+csrf = re.search(r'(?:csrf[_-]?token|_token|__RequestVerificationToken)["\\s]+value=["\']([^"\']{10,})', home_body, re.I)
 if csrf:
     print(f"  [CSRF_FOUND] {{csrf.group(1)[:60]}}")
 else:
