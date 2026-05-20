@@ -1088,6 +1088,8 @@ function PentestView({ apiKey, mcpUrl, mcpTools, onPlanUpdate, webhookUrl }) {
     cve_rag: false,          session_manage: false,
     mitmproxy_scan: false,   info_disclosure: true,   session_chain: false,
     param_discover: true,    '403_bypass': false,
+    nuclei_exploit: false,   cve_rag_local: false,    dynamic_mutate: false,
+    post_exploit: false,     proxychains_wrap: false,
   });
   const [autoMode,   setAutoMode]   = useState(false);
   const [xssCallback,setXssCallback]= useState('');

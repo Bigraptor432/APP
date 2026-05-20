@@ -1714,7 +1714,7 @@ searchsploit {shlex.quote(query)} 2>&1 | head -30 &&
 echo '--- msfconsole search ---' &&
 msfconsole -q -x "search type:exploit {shlex.quote(query)}; exit" 2>&1 | grep -v '^$' | head -30 &&
 echo '--- nuclei CVE templates ---' &&
-nuclei -u placeholder -tags cves -search {shlex.quote(query)} -no-color 2>&1 | head -20"""
+find /root/nuclei-templates/cves /home/kali/nuclei-templates/cves 2>/dev/null -name '*.yaml' | xargs grep -li {shlex.quote(query)} 2>/dev/null | head -15 || echo "(nuclei-templates not found locally)" """
 
     return None
 
