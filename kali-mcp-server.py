@@ -993,7 +993,7 @@ echo "Interesting files:" && find /home /root /var/www /opt -name "*.conf" -o -n
         username  = shlex.quote(args.get('username', ''))
         password  = shlex.quote(args.get('password', ''))
         depth     = int(args.get('depth', 2))
-        VENV = '/opt/kgb_venv'
+        VENV = '/home/kali/.kgb_venv'
         script = f"""echo "=== playwright_crawl bootstrap ==="
 if [ ! -f {VENV}/bin/python3 ]; then
   echo "[+] Creating venv at {VENV}..."
@@ -1251,7 +1251,7 @@ PYEOF"""
         target    = shlex.quote(args['target'])
         duration  = int(args.get('duration', 30))
         flows_f   = shlex.quote(args.get('flows_file', '/tmp/kgb_flows.mitm'))
-        VENV      = '/opt/kgb_venv'
+        VENV      = '/home/kali/.kgb_venv'
         VENV_BOOTSTRAP = f"""if [ ! -f {VENV}/bin/python3 ]; then python3 -m venv {VENV} 2>&1; fi
 if ! {VENV}/bin/python3 -c 'import mitmproxy' 2>/dev/null; then {VENV}/bin/pip install mitmproxy --quiet 2>&1; fi"""
 
