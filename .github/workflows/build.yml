@@ -14,23 +14,59 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version from package.json
+        id: ver
+        shell: pwsh
+        run: |
+          $v = (Get-Content package.json | ConvertFrom-Json).version
+          echo "version=$v" >> $env:GITHUB_OUTPUT
+          echo "tag=v$v" >> $env:GITHUB_OUTPUT
+
+      - name: Check if tag already exists
+        id: check
+        shell: pwsh
+        run: |
+          $tag = "v${{ steps.ver.outputs.version }}"
+          $exists = git tag -l $tag
+          if ($exists) {
+            echo "exists=true" >> $env:GITHUB_OUTPUT
+          } else {
+            echo "exists=false" >> $env:GITHUB_OUTPUT
+          }
+
       - uses: actions/setup-node@v4
+        if: steps.check.outputs.exists == 'false'
         with:
           node-version: 20
           cache: npm
+
       - run: npm ci
+        if: steps.check.outputs.exists == 'false'
+
       - run: npm run build:portable
+        if: steps.check.outputs.exists == 'false'
+
       - uses: actions/upload-artifact@v4
+        if: steps.check.outputs.exists == 'false'
         with:
           name: kgbtools-windows
-          path: release/kgbtools-portable.exe
-      - name: Publicar Release (só em tags)
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: release/kgbtools-portable.exe
-          name: KGBtools ${{ github.ref_name }}
-          draft: false
-          prerelease: false
+          path: release/kgbtools.exe
+
+      - name: Create tag and publish release
+        if: steps.check.outputs.exists == 'false'
+        shell: pwsh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "v${{ steps.ver.outputs.version }}"
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag $tag
+          git push origin $tag
+          gh release create $tag release/kgbtools.exe `
+            --title "KGBtools $tag" `
+            --notes "Release automática $tag" `
+            --latest
