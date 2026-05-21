@@ -101,7 +101,7 @@ const supaLoad = async (url, key) => {
 };
 
 const supaSave = async (url, key, rows) => {
-  const r = await fetch(`${url}/rest/v1/app_state`, {
+  const r = await fetch(`${url}/rest/v1/app_state?on_conflict=key`, {
     method: 'POST',
     headers: { ...supaHeaders(key), 'Prefer': 'resolution=merge-duplicates' },
     body: JSON.stringify(rows),
@@ -2538,8 +2538,9 @@ export default function App() {
   const [mcpTools,     setMcpTools]     = useState([]);
   const [webhookUrl,   setWebhookUrl]   = useState(() => LS.get('apex_webhook_url', ''));
   const [appLogs,      setAppLogs]      = useState([]);
-  const appLogsRef      = useRef([]);
-  const localMutatedRef  = useRef(0);
+  const appLogsRef         = useRef([]);
+  const localMutatedRef     = useRef(0);
+  const pendingLocalChange  = useRef(false);
 
   useEffect(() => {
     const push = (level, args) => {
@@ -2652,6 +2653,7 @@ export default function App() {
   // ── Supabase: debounced cloud sync on every state change ──────────────────
   useEffect(() => {
     localMutatedRef.current = Date.now();
+    pendingLocalChange.current = true;  // local changed, not yet confirmed in cloud
     if (!supaUrl || !supaKey) return;
     const timer = setTimeout(async () => {
       try {
@@ -2669,7 +2671,8 @@ export default function App() {
           { key: 'manucas_mcp_url',       value: mcpUrl },
         ]);
         setSyncStatus('synced');
-      } catch { setSyncStatus('error'); }
+        pendingLocalChange.current = false;  // saved successfully — poll can run
+      } catch { setSyncStatus('error'); }  // pendingLocalChange stays true until next success
     }, 800);
     return () => clearTimeout(timer);
   }, [convs, convMessages, targets, targetLogs, targetPlans, activeTarget, activeConv, apiKey, groqKey, mcpUrl]);
@@ -2679,7 +2682,8 @@ export default function App() {
     if (!supaUrl || !supaKey) return;
     const apply = (set, remote) => set(prev => JSON.stringify(prev) !== JSON.stringify(remote) ? remote : prev);
     const poll = async () => {
-      // skip if local was mutated in the last 3s to prevent race with debounced save
+      // skip if there are unsaved local changes (prevents stale cloud from overwriting deletions)
+      if (pendingLocalChange.current) return;
       if (Date.now() - localMutatedRef.current < 3000) return;
       try {
         const data = await supaLoad(supaUrl, supaKey);
