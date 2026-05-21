@@ -1581,10 +1581,23 @@ fi
         const args = { ...(toolKey === 'xss_inject' ? map.args(tgt, xssCallback) : map.args(tgt)), user_agent: randUA() };
         const toolCtrl = new AbortController();
         const toolTimer = setTimeout(() => toolCtrl.abort(), 120_000);
-        let r, rd;
+        const mcpBase = (mcpUrl || '').replace(/\/+$/, '');
+        let rd;
         try {
-          r  = await fetch(`${mcpUrl}/call/${map.tool}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(args), signal: toolCtrl.signal });
-          rd = await r.json();
+          let fetchErr;
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              const r = await fetch(`${mcpBase}/call/${map.tool}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(args), signal: toolCtrl.signal });
+              rd = await r.json();
+              fetchErr = null;
+              break;
+            } catch (fe) {
+              if (fe.name === 'AbortError' || fe.name === 'TimeoutError') throw fe;
+              fetchErr = fe;
+              if (attempt < 2) await sleep(600 * (attempt + 1));
+            }
+          }
+          if (fetchErr) throw fetchErr;
         } finally { clearTimeout(toolTimer); }
         const LONG_OUTPUT_TOOLS = ['nuclei_fast','info_disclosure','playwright_crawl','js_analyze','sqli_scan','wpscan','param_discover','evasion_scan'];
         const maxOut = LONG_OUTPUT_TOOLS.includes(toolKey) ? 1200 : 600;
