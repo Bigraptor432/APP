@@ -12,6 +12,11 @@ const __dirname  = path.dirname(__filename);
 let win;
 let splash;
 
+// Persistent userData for portable builds — store data next to the executable
+if (process.env.PORTABLE_EXECUTABLE_DIR) {
+  app.setPath('userData', path.join(process.env.PORTABLE_EXECUTABLE_DIR, '.kgbtools-data'));
+}
+
 process.on('uncaughtException', (err) => {
   console.error('Uncaught:', err.message);
 });

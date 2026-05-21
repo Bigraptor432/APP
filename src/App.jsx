@@ -2644,6 +2644,10 @@ export default function App() {
         if (map.manucas_target_plans)  setTargetPlans(map.manucas_target_plans);
         if (map.manucas_active_target) setActiveTarget(map.manucas_active_target);
         if (map.manucas_active_conv)   setActiveConv(map.manucas_active_conv);
+        // Restore API keys from cloud (only if not already saved locally)
+        if (map.manucas_api_key  && !localStorage.getItem('manucas_api_key'))  { setApiKey(map.manucas_api_key);   localStorage.setItem('manucas_api_key',  map.manucas_api_key); }
+        if (map.manucas_groq_key && !localStorage.getItem('manucas_groq_key')) { setGroqKey(map.manucas_groq_key); localStorage.setItem('manucas_groq_key', map.manucas_groq_key); }
+        if (map.manucas_mcp_url  && !localStorage.getItem('manucas_mcp_url'))  { setMcpUrl(map.manucas_mcp_url);   localStorage.setItem('manucas_mcp_url',  map.manucas_mcp_url); }
         setSyncStatus('synced');
       } catch { setSyncStatus('error'); }
     }, 500);
@@ -2666,9 +2670,9 @@ export default function App() {
           { key: 'manucas_target_plans',  value: targetPlans },
           { key: 'manucas_active_target', value: activeTarget },
           { key: 'manucas_active_conv',   value: activeConv },
-          { key: 'manucas_api_key',       value: apiKey },
-          { key: 'manucas_groq_key',      value: groqKey },
-          { key: 'manucas_mcp_url',       value: mcpUrl },
+          ...(apiKey  ? [{ key: 'manucas_api_key',  value: apiKey  }] : []),
+          ...(groqKey ? [{ key: 'manucas_groq_key', value: groqKey }] : []),
+          ...(mcpUrl  ? [{ key: 'manucas_mcp_url',  value: mcpUrl  }] : []),
         ]);
         setSyncStatus('synced');
         pendingLocalChange.current = false;  // saved successfully — poll can run
