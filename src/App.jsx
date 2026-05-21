@@ -1062,7 +1062,7 @@ const TOOL_BINS = {
   '403_bypass':    'curl',
 };
 
-function PentestView({ apiKey, mcpUrl, mcpTools, onPlanUpdate, webhookUrl }) {
+function PentestView({ apiKey, mcpUrl, mcpTools, onPlanUpdate, webhookUrl, onPentestCreate, onPentestLog }) {
   const [target,     setTarget]     = useState(() => LS.get('kgb_last_target', 'https://target-01.com'));
   const [targetQueue, setTargetQueue] = useState([]);
   const [queueRunning, setQueueRunning] = useState(false);
@@ -1186,7 +1186,17 @@ MANDATORY CHAINING RULES:
   const SECONDARY = ['naabu_scan','katana_crawl','nuclei_fast','nuclei_exploit','sqli_scan','xss_check','cors_check','js_analyze','dir_fuzz','ssrf_check','lfi_test','testssl','ssti_check','jwt_check','admin_takeover','session_test','wpscan','evasion_scan','crawl_auth','idor_test','playwright_crawl','cve_rag','cve_rag_local','session_manage','session_chain','param_discover','403_bypass'];
   const EXPLOIT   = ['shell_upload','cred_dump','xss_inject','hydra','cookie_tamper','race_cond','hash_crack','cred_test','waf_bypass','msf_exploit','payload_mutate','dynamic_mutate','second_order','bizlogic_fuzz','c2_handler','post_exploit','lateral_move','adaptive_mutate','mitmproxy_scan','proxychains_wrap'];
   const AUTO_TOOLS = ['info_disclosure','subfinder','httpx','naabu_scan','nuclei_fast','nuclei_exploit','ffuf','sqli_scan','xss_check','cors_check','ssrf_check','lfi_test','js_analyze','ghauri','testssl','ssti_check','jwt_check','admin_takeover','session_test','session_chain','param_discover','403_bypass','evasion_scan','playwright_crawl','idor_test','waf_bypass','cred_dump','hash_crack','cred_test','msf_exploit','post_exploit','lateral_move','cve_rag','cve_rag_local','adaptive_mutate','dynamic_mutate','session_manage'];
+  const pentestConvRef = useRef(null);
+  const logLenRef      = useRef(0);
   const logRef = useRef(null);
+
+  useEffect(() => {
+    if (!pentestConvRef.current || !onPentestLog) return;
+    const newEntries = log.slice(logLenRef.current);
+    if (newEntries.length === 0) return;
+    logLenRef.current = log.length;
+    onPentestLog(pentestConvRef.current, newEntries);
+  }, [log]);
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -1376,7 +1386,13 @@ fi
     if (!target.trim()) { setLog([{ t: 'err', m: 'Alvo não definido. Insere um URL ou IP.' }]); if (overrideTarget === undefined) setRunning(false); return; }
     if (!apiKey) { setLog([{ t: 'err', m: 'API Key Anthropic não configurada.' }]); return; }
     if (!mcpUrl)  { setLog([{ t: 'err', m: 'Kali MCP Server não configurado.' }]); return; }
-    if (overrideTarget === undefined) setRunning(true);
+    if (overrideTarget === undefined) {
+      setRunning(true);
+      if (onPentestCreate) {
+        pentestConvRef.current = onPentestCreate(target);
+        logLenRef.current = 0;
+      }
+    }
 
     // Modo autónomo: usa todas as tools sem input humano
     const selected = autoMode
@@ -2038,7 +2054,7 @@ function TerminalsView({ mcpUrl }) {
 
 // ─── MAIN INTERACTION PANEL ────────────────────────────────────────────────────
 
-function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onSend, apiKey, groqKey, activeNav, activeTarget, activeConv, convs, targets, logs, activeModel, onModelChange, onSplit, isSplit, onCloseSplit, supaUrl, syncStatus, mcpTools, toolProgress, mcpUrl, webhookUrl }) {
+function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onSend, apiKey, groqKey, activeNav, activeTarget, activeConv, convs, targets, logs, activeModel, onModelChange, onSplit, isSplit, onCloseSplit, supaUrl, syncStatus, mcpTools, toolProgress, mcpUrl, webhookUrl, onPentestCreate, onPentestLog }) {
   const [input, setInput]         = useState('');
   const [tab, setTab]             = useState('findings');
   const [attachment, setAttachment] = useState(null);
@@ -2179,7 +2195,7 @@ function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onS
       <div ref={chatRef} className="flex-1 overflow-y-auto p-4 space-y-4">
 
         {activeNav === 'dashboard' && <DashboardView logs={logs} findings={TARGET_FINDINGS[activeTarget] || []} targets={targets} />}
-        {activeNav === 'pentest'   && <PentestView apiKey={apiKey} mcpUrl={mcpUrl} mcpTools={mcpTools} onPlanUpdate={onPlanUpdate} webhookUrl={webhookUrl} />}
+        {activeNav === 'pentest'   && <PentestView apiKey={apiKey} mcpUrl={mcpUrl} mcpTools={mcpTools} onPlanUpdate={onPlanUpdate} webhookUrl={webhookUrl} onPentestCreate={onPentestCreate} onPentestLog={onPentestLog} />}
 
         {/* Findings tab */}
         {activeNav === 'chat' && (tab === 'findings' || tab === 'plano') && (
@@ -2618,14 +2634,8 @@ export default function App() {
   }, []);
 
   const deleteConv = useCallback((id) => {
-    let next = convs.filter(c => c.id !== id);
-    if (next.length === 0) {
-      const newId = Date.now();
-      next = [{ id: newId, label: 'sessão · 1' }];
-      setActiveConv(newId);
-    } else if (id === activeConv) {
-      setActiveConv(next[next.length - 1].id);
-    }
+    const next = convs.filter(c => c.id !== id);
+    if (id === activeConv) setActiveConv(next.length > 0 ? next[next.length - 1].id : null);
     setConvs(next);
     setConvMessages(prev => { const n = { ...prev }; delete n[id]; return n; });
   }, [convs, activeConv]);
@@ -2652,8 +2662,7 @@ export default function App() {
 
   const deleteTarget = useCallback((id) => {
     const next = targets.filter(t => t.id !== id);
-    if (next.length === 0) return;
-    if (id === activeTarget) setActiveTarget(next[next.length - 1].id);
+    if (id === activeTarget) setActiveTarget(next.length > 0 ? next[next.length - 1].id : null);
     setTargets(next);
     setTargetLogs(prev  => { const n = { ...prev }; delete n[id]; return n; });
     setTargetPlans(prev => { const n = { ...prev }; delete n[id]; return n; });
@@ -2661,6 +2670,34 @@ export default function App() {
 
   const renameTarget = useCallback((id, name) => {
     setTargets(prev => prev.map(t => t.id === id ? { ...t, name } : t));
+  }, []);
+
+  const onPentestCreate = useCallback((targetName) => {
+    const label = targetName.replace(/https?:\/\//, '').replace(/\/$/, '').split('/')[0].slice(0, 35);
+    const existing = convs.find(c => c.label === label);
+    let convId;
+    if (existing) {
+      convId = existing.id;
+      setConvMessages(prev => ({ ...prev, [convId]: [{ role: 'user', text: `⚡ PENTEST: ${targetName}` }, { role: 'assistant', text: '', loading: true }] }));
+    } else {
+      convId = Date.now();
+      setConvs(prev => [{ id: convId, label }, ...prev]);
+      setConvMessages(prev => ({ ...prev, [convId]: [{ role: 'user', text: `⚡ PENTEST: ${targetName}` }, { role: 'assistant', text: '', loading: true }] }));
+    }
+    setActiveConv(convId);
+    return convId;
+  }, [convs]);
+
+  const onPentestLog = useCallback((convId, entries) => {
+    setConvMessages(prev => {
+      const msgs = [...(prev[convId] || [])];
+      if (msgs.length === 0) return prev;
+      const last = msgs[msgs.length - 1];
+      const append = entries.map(e => e.m).join('\n');
+      const isDone = entries.some(e => e.t === 'ok' && e.m.includes('concluído'));
+      msgs[msgs.length - 1] = { ...last, text: (last.text ? last.text + '\n' : '') + append, loading: !isDone };
+      return { ...prev, [convId]: msgs };
+    });
   }, []);
 
   const renameConv = useCallback((id, label) => {
@@ -2823,6 +2860,8 @@ export default function App() {
         toolProgress={toolProgress}
         mcpUrl={mcpUrl}
         webhookUrl={webhookUrl}
+        onPentestCreate={onPentestCreate}
+        onPentestLog={onPentestLog}
       />
       {splitConv && (
         <>
