@@ -2635,11 +2635,21 @@ export default function App() {
   }, []);
 
   const deleteConv = useCallback((id) => {
-    const next = convs.filter(c => c.id !== id);
-    if (id === activeConv) setActiveConv(next.length > 0 ? next[next.length - 1].id : null);
+    const next      = convs.filter(c => c.id !== id);
+    const nextActive = id === activeConv ? (next.length > 0 ? next[next.length - 1].id : null) : activeConv;
+    if (id === activeConv) setActiveConv(nextActive);
     setConvs(next);
     setConvMessages(prev => { const n = { ...prev }; delete n[id]; return n; });
-  }, [convs, activeConv]);
+    // Immediate Supabase save — bypass 2s debounce so deletions survive app restart
+    if (supaUrl && supaKey) {
+      const nextMsgs = { ...convMessages }; delete nextMsgs[id];
+      supaSave(supaUrl, supaKey, [
+        { key: 'manucas_convs',         value: next },
+        { key: 'manucas_conv_messages', value: nextMsgs },
+        { key: 'manucas_active_conv',   value: nextActive },
+      ]).catch(() => {});
+    }
+  }, [convs, activeConv, convMessages, supaUrl, supaKey]);
 
   const addTarget = useCallback(() => {
     const id   = Date.now();
@@ -2662,12 +2672,24 @@ export default function App() {
   }, []);
 
   const deleteTarget = useCallback((id) => {
-    const next = targets.filter(t => t.id !== id);
-    if (id === activeTarget) setActiveTarget(next.length > 0 ? next[next.length - 1].id : null);
+    const next       = targets.filter(t => t.id !== id);
+    const nextActive = id === activeTarget ? (next.length > 0 ? next[next.length - 1].id : null) : activeTarget;
+    if (id === activeTarget) setActiveTarget(nextActive);
     setTargets(next);
     setTargetLogs(prev  => { const n = { ...prev }; delete n[id]; return n; });
     setTargetPlans(prev => { const n = { ...prev }; delete n[id]; return n; });
-  }, [targets, activeTarget]);
+    // Immediate Supabase save — bypass 2s debounce so deletions survive app restart
+    if (supaUrl && supaKey) {
+      const nextLogs  = { ...targetLogs  }; delete nextLogs[id];
+      const nextPlans = { ...targetPlans }; delete nextPlans[id];
+      supaSave(supaUrl, supaKey, [
+        { key: 'manucas_targets',       value: next },
+        { key: 'manucas_target_logs',   value: nextLogs },
+        { key: 'manucas_target_plans',  value: nextPlans },
+        { key: 'manucas_active_target', value: nextActive },
+      ]).catch(() => {});
+    }
+  }, [targets, activeTarget, targetLogs, targetPlans, supaUrl, supaKey]);
 
   const renameTarget = useCallback((id, name) => {
     setTargets(prev => prev.map(t => t.id === id ? { ...t, name } : t));
