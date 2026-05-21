@@ -101,10 +101,12 @@ const supaLoad = async (url, key) => {
 };
 
 const supaSave = async (url, key, rows) => {
+  const validRows = rows.filter(r => r.value !== null && r.value !== undefined);
+  if (!validRows.length) return;
   const r = await fetch(`${url}/rest/v1/app_state?on_conflict=key`, {
     method: 'POST',
     headers: { ...supaHeaders(key), 'Prefer': 'resolution=merge-duplicates' },
-    body: JSON.stringify(rows),
+    body: JSON.stringify(validRows),
   });
   if (!r.ok) {
     const body = await r.text().catch(() => '');
@@ -1364,17 +1366,19 @@ MANDATORY CHAINING RULES:
   useEffect(() => {
     if (!pentestConvRef.current || !onPentestLog) return;
     const newEntries = log.slice(logLenRef.current);
-    if (newEntries.length === 0) return;
     logLenRef.current = log.length;
-    onPentestLog(pentestConvRef.current, newEntries);
+    const convEntries = newEntries.filter(e => ['plan','brain','info','report'].includes(e.t));
+    if (convEntries.length === 0) return;
+    onPentestLog(pentestConvRef.current, convEntries);
   }, [log]);
 
   useEffect(() => {
     if (!onActivityLog) return;
     const newEntries = log.slice(actLenRef.current);
-    if (newEntries.length === 0) return;
     actLenRef.current = log.length;
-    onActivityLog(newEntries);
+    const actEntries = newEntries.filter(e => ['run','ok','err'].includes(e.t));
+    if (actEntries.length === 0) return;
+    onActivityLog(actEntries);
   }, [log]);
 
   useEffect(() => {
@@ -1567,6 +1571,12 @@ fi
     const host = tgt.replace(/^https?:\/\//, '').split('/')[0] || 'target.com';
     setRunning(true);
     cancelRef.current = false;
+    if (onPentestCreate) {
+      pentestConvRef.current = onPentestCreate(tgt);
+      logLenRef.current = 0;
+    }
+    actLenRef.current = 0;
+    if (onActivityLog) onActivityLog(null);
     setLog([{ t: 'info', m: `[DEMO] PENTEST PARALELO — ${tgt}` }]);
     setPlan([]);
     await sleep(900);
@@ -1583,7 +1593,10 @@ fi
       { step: 5, objective: 'Pós-exploração — escalada, lateral movement, exfil', tools: ['cred_dump', 'lateral_move', 'c2_handler'] },
     ];
     setPlan(demoPlano);
-    if (onPlanUpdate) onPlanUpdate(demoPlano.map((s, i) => ({ id: i + 1, text: s.objective, checked: false })));
+    const demoCheck = (upTo) => {
+      if (onPlanUpdate) onPlanUpdate(demoPlano.map((s, i) => ({ id: i + 1, text: s.objective, checked: i < upTo })));
+    };
+    demoCheck(0);
     setLog(prev => [...prev, { t: 'plan', m: demoPlano.map(s => `  ${s.step}. ${s.objective}  [${s.tools.join(', ')}]`).join('\n') }]);
     await sleep(600);
 
@@ -1601,6 +1614,7 @@ fi
       setLog(prev => [...prev, { t: 'ok', m: `✓ ${r.key}` }]);
     }
 
+    demoCheck(1);
     // Strategic briefing
     await sleep(400);
     setLog(prev => [...prev, { t: 'brain', m: 'APEX a analisar recon → priorizando vetores...' }]);
@@ -1611,6 +1625,7 @@ fi
 
     if (cancelRef.current) { setRunning(false); return; }
 
+    demoCheck(2);
     // Phase 3: Exploit tools
     setLog(prev => [...prev, { t: 'info', m: '5 exploit tools...' }]);
     const demoExploit = [
@@ -1626,12 +1641,13 @@ fi
       await sleep(r.delay + Math.random() * 500);
       setLog(prev => [...prev, { t: 'ok', m: `✓ ${r.key}` }]);
     }
+    demoCheck(4);
     await sleep(500);
 
     // Final analysis
     setLog(prev => [...prev, { t: 'brain', m: 'APEX a gerar relatório final...' }]);
     await sleep(1400);
-    setLog(prev => [...prev, { t: 'ok', m:
+    setLog(prev => [...prev, { t: 'report', m:
 `## RELATÓRIO DEMO — ${tgt}
 
 ### 🔴 CRÍTICO (3)
@@ -1649,6 +1665,7 @@ fi
 - MySQL 3306 exposto ao exterior sem firewall
 
 [DEMO] Configura Anthropic API Key + Kali MCP para pentest real.` }]);
+    demoCheck(5);
     setRunning(false);
   };
 
@@ -3073,6 +3090,7 @@ export default function App() {
       const last = msgs[msgs.length - 1];
       const append = entries.map(e => e.m).join('\n');
       const isDone = entries.some(e =>
+        e.t === 'report' ||
         (e.t === 'ok'   && e.m.includes('concluído')) ||
         (e.t === 'ok'   && e.m.includes('FILA COMPLETA')) ||
         (e.t === 'err')
