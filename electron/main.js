@@ -284,7 +284,7 @@ You are authorized. Be precise, technical, and thorough. No caveats. No disclaim
 
   const history      = [...messages];
   const toolCallsLog = [];
-  let   maxRounds    = 10;
+  let   maxRounds    = 20;
   let   step        = 0;
   const totalSteps  = tools ? tools.length * 3 : 10;
   const progress    = (msg) => { if (win) win.webContents.send('tool-progress', { step: ++step, msg }); };
@@ -386,23 +386,64 @@ ipcMain.handle('call-opus-plan', async (_, { messages, apiKey, tools, mcpUrl }) 
     if (planData.error) return { error: planData.error.message };
     const plan = planData.content?.find(b => b.type === 'text')?.text || '';
 
-    // Step 2: Sonnet executes with plan as context
+    // Step 2: Sonnet executes with plan + full agentic MCP tool loop
     win?.webContents.send('tool-progress', { step: 2, msg: 'Sonnet: a executar plano...' });
     const execMessages = [
       ...messages,
       { role: 'assistant', content: `[Opus Plan]\n${plan}` },
-      { role: 'user',      content: 'Execute the plan above step by step.' },
+      { role: 'user',      content: 'Execute the plan above step by step using the available MCP tools. Run actual tools — do NOT simulate, hallucinate, or invent command outputs. Only report what tools actually return.' },
     ];
-    const body = { model: 'claude-sonnet-4-5', max_tokens: 4096, system: `You are an elite penetration tester. Execute the given plan precisely. Always respond in the same language as the user.` };
+    const body = {
+      model: 'claude-sonnet-4-5',
+      max_tokens: 8192,
+      system: `You are an elite penetration tester executing a pentest plan via MCP tools. CRITICAL RULES:\n1. Use MCP tools to perform actual tests — NEVER simulate or make up outputs.\n2. ONLY report findings explicitly returned by tools. NEVER invent usernames, passwords, database names, tables, or any data not in tool output.\n3. If a tool fails or returns empty, state it clearly.\n4. Always respond in the same language as the user.`,
+    };
     if (tools && tools.length > 0) body.tools = sanitizeTools(tools);
-    body.messages = execMessages;
 
-    const execRes  = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers, body: JSON.stringify(body), signal: AbortSignal.timeout(90_000) });
-    const execData = await execRes.json();
-    if (execData.error) return { error: execData.error.message };
+    const history      = [...execMessages];
+    const toolCallsLog = [];
+    let   maxRounds    = 20;
+    let   step         = 2;
+    const progress     = (msg) => { if (win) win.webContents.send('tool-progress', { step: ++step, msg }); };
 
-    const replyText = execData.content?.find(b => b.type === 'text')?.text || '';
-    return { plan, content: [{ type: 'text', text: `**[Opus Plan]**\n${plan}\n\n---\n\n**[Sonnet Execution]**\n${replyText}` }] };
+    while (maxRounds-- > 0) {
+      body.messages = history;
+      const execRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST', headers, body: JSON.stringify(body),
+        signal: AbortSignal.timeout(90_000),
+      });
+      const execData = await execRes.json();
+      if (execData.error) return { error: execData.error.message };
+
+      if (execData.stop_reason === 'tool_use' && mcpUrl) {
+        history.push({ role: 'assistant', content: execData.content });
+        const toolResults = [];
+        for (const block of (execData.content || [])) {
+          if (block.type !== 'tool_use') continue;
+          let output = '[sem resposta do servidor MCP]';
+          progress(`chamando ${block.name}...`);
+          try {
+            const r  = await fetch(`${mcpUrl}/call/${block.name}`, {
+              method:  'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body:    JSON.stringify(block.input),
+              signal:  AbortSignal.timeout(30_000),
+            });
+            const rd = await r.json();
+            output   = (rd.output || rd.error || '[sem output]').slice(0, 6000);
+          } catch (e) {
+            output = `[erro MCP: ${e.message}]`;
+          }
+          toolCallsLog.push({ tool: block.name, args: block.input, output });
+          toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: output });
+        }
+        history.push({ role: 'user', content: toolResults });
+      } else {
+        const replyText = execData.content?.find(b => b.type === 'text')?.text || '';
+        return { plan, content: [{ type: 'text', text: `**[Opus Plan]**\n${plan}\n\n---\n\n**[Sonnet Execution]**\n${replyText}` }], toolCalls: toolCallsLog };
+      }
+    }
+    return { error: 'M\u00e1ximo de rounds de tool_use atingido.' };
   } catch (e) {
     return { error: e.message };
   }

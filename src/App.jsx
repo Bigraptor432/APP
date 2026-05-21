@@ -1711,7 +1711,7 @@ fi
       ].filter(Boolean).join('\n');
       const summaryCtx = prevSummary ? `\nCONTEXTO ROUNDS ANTERIORES (comprimido):\n${prevSummary}\n` : '';
       const missionLine = mission.trim() ? `\nMISSÃO PRIMÁRIA (OBRIGATÓRIO CUMPRIR): ${mission.trim()}\n` : '';
-      return `TARGET: ${target}\nROUND: ${rnd}\n${brainCtx}${missionLine}${summaryCtx}${ techContext ? `\nTECH CONTEXT:\n${techContext}\n` : ''}\nRESULTADOS ROUND ${rnd}:\n${results.map(r => `## ${r.key}\n${r.out}`).join('\n\n')}\n\n`
+      return `TARGET: ${target}\nROUND: ${rnd}\n${brainCtx}${missionLine}${summaryCtx}${ techContext ? `\nTECH CONTEXT:\n${techContext}\n` : ''}\nRESULTADOS ROUND ${rnd}:\n${results.map(r => `## ${r.key}\n${r.out}`).join('\n\n')}\n\n⚠️ ANTI-HALLUCINATION RULE (MANDATORY): ONLY report findings EXPLICITLY present in the tool outputs above. NEVER invent, assume or guess data — especially usernames, passwords, database names, table names, column names, file contents or CVEs. If a tool returned empty output or errors, report it as such. Every finding must be directly quotable from the results above.\n\n`
       + (autoMode
         ? `Analisa como APEX pentester elite. Cobre OWASP Top 10 2025. Verifica cookies, sessions, IDOR, business logic, injection, crypto.
 REGRAS DE CHAINING OBRIGATÓRIAS:
