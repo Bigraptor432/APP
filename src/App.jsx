@@ -2475,7 +2475,7 @@ export default function App() {
         ]);
         setSyncStatus('synced');
       } catch { setSyncStatus('error'); }
-    }, 2000);
+    }, 800);
     return () => clearTimeout(timer);
   }, [convs, convMessages, targets, targetLogs, targetPlans, activeTarget, activeConv, apiKey, groqKey, mcpUrl]);
 
