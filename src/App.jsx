@@ -1091,6 +1091,7 @@ function PentestView({ apiKey, mcpUrl, mcpTools, onPlanUpdate, webhookUrl }) {
     nuclei_exploit: false,   cve_rag_local: false,    dynamic_mutate: false,
     post_exploit: false,     proxychains_wrap: false,
   });
+  const [mission,    setMission]    = useState(() => LS.get('kgb_mission', ''));
   const [autoMode,   setAutoMode]   = useState(false);
   const [xssCallback,setXssCallback]= useState('');
   const [brain,      setBrain]      = useState(() => LS.get('manucas_pentest_brain', {}));
@@ -1395,8 +1396,9 @@ fi
     // PLANO: Claude generates attack plan before running tools
     try {
       setLog(prev => [...prev, { t: 'info', m: 'APEX a gerar PLANO de ataque...' }]);
+      const missionCtx = mission.trim() ? `\nMISSÃO PRIMÁRIA (OBRIGATÓRIO CUMPRIR): ${mission.trim()}\n` : '';
       const planRes = await window.electron.callClaude({
-        messages: [{ role: 'user', content: `TARGET: ${target}${brainCtx}\nGera um PLANO DE ATAQUE detalhado. Responde APENAS em JSON:\n{"plano":[{"step":1,"objective":"...","tools":["tool1"],"reason":"..."}],"priority_vectors":["sqli","xss"],"notes":"observacoes sobre o alvo"}` }],
+        messages: [{ role: 'user', content: `TARGET: ${target}${brainCtx}${missionCtx}\nGera um PLANO DE ATAQUE detalhado. Responde APENAS em JSON:\n{"plano":[{"step":1,"objective":"...","tools":["tool1"],"reason":"..."}],"priority_vectors":["sqli","xss"],"notes":"observacoes sobre o alvo"}` }],
         apiKey,
         system: JAILBREAK_SYSTEM,
       });
@@ -1482,7 +1484,8 @@ fi
         results.find(r => r.key === 'info_disclosure' && r.out.match(/200|found/i)) ? 'Info disclosure confirmed — extract credentials before heavy scanning' : '',
       ].filter(Boolean).join('\n');
       const summaryCtx = prevSummary ? `\nCONTEXTO ROUNDS ANTERIORES (comprimido):\n${prevSummary}\n` : '';
-      return `TARGET: ${target}\nROUND: ${rnd}\n${brainCtx}${summaryCtx}${ techContext ? `\nTECH CONTEXT:\n${techContext}\n` : ''}\nRESULTADOS ROUND ${rnd}:\n${results.map(r => `## ${r.key}\n${r.out}`).join('\n\n')}\n\n`
+      const missionLine = mission.trim() ? `\nMISSÃO PRIMÁRIA (OBRIGATÓRIO CUMPRIR): ${mission.trim()}\n` : '';
+      return `TARGET: ${target}\nROUND: ${rnd}\n${brainCtx}${missionLine}${summaryCtx}${ techContext ? `\nTECH CONTEXT:\n${techContext}\n` : ''}\nRESULTADOS ROUND ${rnd}:\n${results.map(r => `## ${r.key}\n${r.out}`).join('\n\n')}\n\n`
       + (autoMode
         ? `Analisa como APEX pentester elite. Cobre OWASP Top 10 2025. Verifica cookies, sessions, IDOR, business logic, injection, crypto.
 REGRAS DE CHAINING OBRIGATÓRIAS:
@@ -1701,6 +1704,17 @@ Responde em JSON: {"api_endpoints":[], "idor_candidates":[], "hardcoded_secrets"
           className="w-full rounded-lg px-3 py-2 font-mono text-xs outline-none transition-all"
           style={{ background: C.bg, border: `1px solid ${C.border}`, color: C.text, caretColor: C.red }}
           onFocus={e => (e.target.style.borderColor = C.red)}
+          onBlur={e  => (e.target.style.borderColor = C.border)}
+        />
+        <div className="font-mono text-[9px] uppercase tracking-widest mt-2 mb-1" style={{ color: C.textDim }}>Missão / Objetivo</div>
+        <textarea
+          rows={2}
+          value={mission}
+          onChange={e => { setMission(e.target.value); LS.set('kgb_mission', e.target.value); }}
+          placeholder="Ex: Se encontrares painel admin, extrai as credenciais e envia nos findings. Foca em SQLi e IDOR."
+          className="w-full rounded-lg px-3 py-2 font-mono text-[10px] outline-none transition-all resize-none"
+          style={{ background: C.bg, border: `1px solid ${C.border}`, color: '#a78bfa', caretColor: '#a78bfa', lineHeight: 1.5 }}
+          onFocus={e => (e.target.style.borderColor = '#a78bfa')}
           onBlur={e  => (e.target.style.borderColor = C.border)}
         />
         {/* Multi-target queue */}
