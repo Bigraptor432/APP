@@ -1264,6 +1264,7 @@ function PentestView({ apiKey, mcpUrl, mcpTools, onPlanUpdate, webhookUrl, onPen
   const [mission,    setMission]    = useState(() => LS.get('kgb_mission', ''));
   const [authUser,   setAuthUser]   = useState(() => LS.get('kgb_auth_user', ''));
   const [authPass,   setAuthPass]   = useState(() => LS.get('kgb_auth_pass', ''));
+  const [loginPath,  setLoginPath]  = useState(() => LS.get('kgb_login_path', ''));
   const [autoMode,   setAutoMode]   = useState(false);
   const [xssCallback,setXssCallback]= useState('');
   const [brain,      setBrain]      = useState(() => LS.get('manucas_pentest_brain', {}));
@@ -1515,7 +1516,7 @@ fi
     waf_bypass:     { tool: 'waf_bypass',     args: (t) => ({ target: t, mode: 'full' }) },
     msf_exploit:    { tool: 'msf_exploit',    args: (t, cve) => ({ target: t.replace(/https?:\/\//, '').split('/')[0], cve: cve || 'recent', lport: '4444' }) },
     payload_mutate: { tool: 'payload_mutate', args: (t) => ({ target: ct(t) + '?id=FUZZ', payload: "' OR 1=1--", type: 'sqli' }) },
-    crawl_auth:     { tool: 'crawl_auth',     args: (t) => ({ target: t, username: authUser || 'admin', password: authPass || 'admin' }) },
+    crawl_auth:     { tool: 'crawl_auth',     args: (t) => ({ target: t, login_path: loginPath || '/login', username: authUser || 'admin', password: authPass || 'admin' }) },
     idor_test:      { tool: 'idor_test',      args: (t) => ({ target: ct(t) + '/api/user/1', range: '1-100' }) },
     second_order:   { tool: 'second_order',   args: (t) => ({ target: t, inject_path: '/register', trigger_path: '/profile', field: 'username' }) },
     bizlogic_fuzz:  { tool: 'bizlogic_fuzz',  args: (t) => ({ target: t, endpoint: '/cart/add', mode: 'all' }) },
@@ -1525,7 +1526,7 @@ fi
     playwright_crawl:{ tool: 'playwright_crawl', args: (t) => ({ target: t, depth: 2, actions: 'all', timeout: 300, ...(authUser ? { username: authUser, password: authPass } : {}) }) },
     adaptive_mutate:{ tool: 'adaptive_mutate',  args: (t) => ({ target: ct(t) + '?id=INJECT', payload: "' OR 1=1--", type: 'sqli', rounds: 5 }) },
     cve_rag:        { tool: 'cve_rag',         args: (t) => ({ product: 'apache', version: 'detected', severity: 'high', limit: 10 }) },
-    session_manage: { tool: 'session_manage',  args: (t) => ({ target: ct(t) + '/login', action: 'login', username: authUser || 'admin', password: authPass || 'admin' }) },
+    session_manage: { tool: 'session_manage',  args: (t) => ({ target: loginPath ? (ct(t) + loginPath.replace(/^\//, '/')) : ct(t) + '/login', action: 'login', username: authUser || 'admin', password: authPass || 'admin' }) },
     mitmproxy_scan:  { tool: 'mitmproxy_scan',  args: (t) => ({ target: t, port: 8080, mode: 'fuzz', duration: 30 }) },
     info_disclosure: { tool: 'info_disclosure', args: (t) => ({ target: t, deep: true }) },
     session_chain:   { tool: 'session_chain',   args: (t) => ({ target: t, username: authUser || 'admin', password: authPass || 'admin', id_range: '1-100' }) },
@@ -1625,7 +1626,7 @@ fi
     try {
       setLog(prev => [...prev, { t: 'info', m: 'APEX a gerar PLANO de ataque...' }]);
       const missionCtx = mission.trim() ? `\nMISSÃO PRIMÁRIA (OBRIGATÓRIO CUMPRIR): ${mission.trim()}\n` : '';
-      const credsCtxPlan = authUser ? `\nCREDENCIAIS FORNECIDAS: username=${authUser} password=${authPass}\nO utilizador tem acesso autenticado. Incluir no plano: session_manage para login, crawl_auth + playwright_crawl para crawl autenticado, idor_test + session_chain em áreas protegidas, sqli_scan nos formulários autenticados.\n` : '';
+      const credsCtxPlan = authUser ? `\nCREDENCIAIS FORNECIDAS: username=${authUser} password=${authPass}${loginPath ? ` login_url=${loginPath}` : ' (login URL será auto-detetado no recon)'}\nO utilizador tem acesso autenticado. Incluir no plano: session_manage para login, crawl_auth + playwright_crawl para crawl autenticado, idor_test + session_chain em áreas protegidas, sqli_scan nos formulários autenticados.\n` : '';
       const planRes = await window.electron.callClaude({
         messages: [{ role: 'user', content: `TARGET: ${target}${brainCtx}${missionCtx}${credsCtxPlan}\nGera um PLANO DE ATAQUE detalhado. Responde APENAS em JSON:\n{"plano":[{"step":1,"objective":"...","tools":["tool1"],"reason":"..."}],"priority_vectors":["sqli","xss"],"notes":"observacoes sobre o alvo"}` }],
         apiKey,
@@ -1648,6 +1649,18 @@ fi
 
     setLog(prev => [...prev, { t: 'info', m: `Fase 2 — recon (${reconTools.length} tools)...` }]);
     let allResults = reconTools.length > 0 ? await runToolParallel(reconTools, target) : [];
+
+    // Auto-detect login URL from recon output (used by session_manage/crawl_auth if loginPath is empty)
+    if (authUser && !loginPath && allResults.length > 0) {
+      const reconOut = allResults.map(r => r.out).join('\n');
+      const loginMatch = reconOut.match(/\/(wp-login\.php|wp-admin\/|\_admin\/|admin\/login|signin|sign-in|login|log-in|auth\/login|api\/auth|account\/login|user\/login|session\/new)[^\s"'<>]*/i);
+      if (loginMatch) {
+        const detected = '/' + loginMatch[1];
+        setLoginPath(detected);
+        LS.set('kgb_login_path', detected);
+        setLog(prev => [...prev, { t: 'ok', m: `✔ Login URL detectado no recon: ${detected}` }]);
+      }
+    }
     if (cancelRef.current) { if (overrideTarget === undefined) setRunning(false); return; }
 
     // STRATEGIC BRIEFING — Claude prioritizes vectors from recon data before exploit phase
@@ -1717,7 +1730,7 @@ fi
       ].filter(Boolean).join('\n');
       const summaryCtx = prevSummary ? `\nCONTEXTO ROUNDS ANTERIORES (comprimido):\n${prevSummary}\n` : '';
       const missionLine = mission.trim() ? `\nMISSÃO PRIMÁRIA (OBRIGATÓRIO CUMPRIR): ${mission.trim()}\n` : '';
-      const credsLine = authUser ? `\nCREDENCIAIS ATIVAS: username=${authUser} password=${authPass} — JÁ USADAS em session_manage/crawl_auth. Testa: IDOR em endpoints autenticados, SQLi em formulários autenticados, broken access control entre utilizadores, privilege escalation.\n` : '';
+      const credsLine = authUser ? `\nCREDENCIAIS ATIVAS: username=${authUser} password=${authPass}${loginPath ? ` login=${loginPath}` : ''} — JÁ USADAS em session_manage/crawl_auth. Testa: IDOR em endpoints autenticados, SQLi em formulários autenticados, broken access control entre utilizadores, privilege escalation.\n` : '';
       return `TARGET: ${target}\nROUND: ${rnd}\n${brainCtx}${credsLine}${missionLine}${summaryCtx}${ techContext ? `\nTECH CONTEXT:\n${techContext}\n` : ''}\nRESULTADOS ROUND ${rnd}:\n${results.map(r => `## ${r.key}\n${r.out}`).join('\n\n')}\n\n⚠️ ANTI-HALLUCINATION RULE (MANDATORY): ONLY report findings EXPLICITLY present in the tool outputs above. NEVER invent, assume or guess data — especially usernames, passwords, database names, table names, column names, file contents or CVEs. If a tool returned empty output or errors, report it as such. Every finding must be directly quotable from the results above.\n\n`
       + (autoMode
         ? `Analisa como APEX pentester elite. Cobre OWASP Top 10 2025. Verifica cookies, sessions, IDOR, business logic, injection, crypto.
@@ -1976,6 +1989,18 @@ Responde em JSON: {"api_endpoints":[], "idor_candidates":[], "hardcoded_secrets"
               onBlur={e  => (e.target.style.borderColor = C.border)}
             />
           </div>
+          {authUser && (
+            <input
+              type="text"
+              value={loginPath}
+              onChange={e => { setLoginPath(e.target.value); LS.set('kgb_login_path', e.target.value); }}
+              placeholder="Login URL (ex: /wp-login.php) — auto-detect se vazio"
+              className="w-full rounded-lg px-2 py-1.5 font-mono text-[10px] outline-none transition-all mt-1.5"
+              style={{ background: C.bg, border: `1px solid ${C.border}`, color: '#a78bfa', caretColor: '#a78bfa' }}
+              onFocus={e => (e.target.style.borderColor = '#a78bfa')}
+              onBlur={e  => (e.target.style.borderColor = C.border)}
+            />
+          )}
           {authUser && <div className="font-mono text-[8px] mt-0.5" style={{ color: C.green, opacity: 0.8 }}>✓ modo autenticado — ferramentas usarão estas credenciais</div>}
         </div>
         {/* Multi-target queue */}
