@@ -1093,7 +1093,7 @@ function ChatMessage({ msg }) {
             : { background: C.panel,  border: `1px solid ${C.border}`,    color: '#7a7a7a' }
         }
       >
-        {msg.loading ? (
+        {msg.loading && !msg.text ? (
           <span className="flex items-center gap-1.5 font-mono text-[10px]" style={{ color: '#555' }}>
             <Loader2 size={10} className="animate-spin" />
             processando...
@@ -1101,7 +1101,14 @@ function ChatMessage({ msg }) {
         ) : isUser ? (
           <MarkdownText text={msg.text} dim={false} />
         ) : (
-          <MarkdownText text={msg.text} dim={true} />
+          <>
+            <MarkdownText text={msg.text} dim={true} />
+            {msg.loading && (
+              <span className="flex items-center gap-1 mt-1 font-mono" style={{ color: '#333', fontSize: 8 }}>
+                <Loader2 size={8} className="animate-spin" /> a processar...
+              </span>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -1668,6 +1675,14 @@ fi
     demoCheck(5);
     setRunning(false);
   };
+
+  // Force-close loading bubble when demo finishes (safety net if effect-based isDone fails)
+  useEffect(() => {
+    if (!running && pentestConvRef.current && onPentestLog) {
+      onPentestLog(pentestConvRef.current, [{ t: 'report', m: '' }]);
+      pentestConvRef.current = null;
+    }
+  }, [running]);
 
   const runPentest = async (overrideTarget) => {
     const target = overrideTarget !== undefined ? overrideTarget : (document.getElementById('kgb-target-input')?.value || '');
@@ -2727,7 +2742,7 @@ export default function App() {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [dlProgress,      setDlProgress]      = useState(null);
   const [dlDest,          setDlDest]          = useState(null);
-  const logs     = targetLogs[activeTarget]   || [];
+  const logs     = targetLogs[activeConv]     || [];
   const plan     = targetPlans[activeTarget]  || [];
   const messages = convMessages[activeConv]   || [];
 
@@ -3105,12 +3120,12 @@ export default function App() {
 
   const onActivityLog = useCallback((entries) => {
     setTargetLogs(prev => {
-      if (entries === null) return { ...prev, [activeTarget]: [] }; // reset on pentest start
+      if (entries === null) return { ...prev, [activeConv]: [] }; // reset on pentest start
       const hhmm = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       const stamped = entries.map(e => ({ ...e, hhmm }));
-      return { ...prev, [activeTarget]: [...(prev[activeTarget] || []), ...stamped] };
+      return { ...prev, [activeConv]: [...(prev[activeConv] || []), ...stamped] };
     });
-  }, [activeTarget]);
+  }, [activeConv]);
 
   const [pentestRunning, setPentestRunning] = useState(false);
   const pentestStopRef = useRef(null);
