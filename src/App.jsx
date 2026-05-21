@@ -817,6 +817,19 @@ function ActivityLog({ logs, running, onStop }) {
 
 function PlanSidebar({ planItems, onPlanToggle, activeTarget, targets }) {
   const target = targets?.find(t => t.id === activeTarget);
+  const [localChecked, setLocalChecked] = React.useState({});
+
+  React.useEffect(() => {
+    const map = {};
+    (planItems || []).forEach((item, i) => { map[item.id ?? i] = !!item.checked; });
+    setLocalChecked(map);
+  }, [planItems]);
+
+  const handleToggle = (key) => {
+    setLocalChecked(prev => ({ ...prev, [key]: !prev[key] }));
+    onPlanToggle?.(key);
+  };
+
   const endpoints = (planItems || []).flatMap(p => {
     const matches = (p.text || '').match(/\/[a-zA-Z0-9_\-/]{2,}/g) || [];
     return matches;
@@ -842,21 +855,25 @@ function PlanSidebar({ planItems, onPlanToggle, activeTarget, targets }) {
           <p className="font-mono text-[9px]" style={{ color: '#2a2a2a' }}>sem plano — inicia um pentest</p>
         ) : (
           <div className="space-y-2">
-            {planItems.map((item, i) => (
-              <button
-                key={item.id || i}
-                onClick={() => onPlanToggle && onPlanToggle(item.id || i)}
-                className="w-full flex items-start gap-2.5 text-left group"
-              >
-                <span className="flex-shrink-0 mt-[1px] w-3.5 h-3.5 rounded flex items-center justify-center transition-all"
-                  style={{ border: `1px solid ${item.checked ? C.red : '#2a2a2a'}`, background: item.checked ? C.redDim : 'transparent' }}>
-                  {item.checked && <span style={{ color: C.red, fontSize: 8, lineHeight: 1 }}>✓</span>}
-                </span>
-                <span className="font-mono text-[9.5px] leading-snug transition-colors" style={{ color: item.checked ? '#444' : '#888', textDecoration: item.checked ? 'line-through' : 'none' }}>
-                  {item.text}
-                </span>
-              </button>
-            ))}
+            {planItems.map((item, i) => {
+              const key = item.id ?? i;
+              const isChecked = localChecked[key] ?? !!item.checked;
+              return (
+                <button
+                  key={key}
+                  onClick={() => handleToggle(key)}
+                  className="w-full flex items-start gap-2.5 text-left group"
+                >
+                  <span className="flex-shrink-0 mt-[1px] w-3.5 h-3.5 rounded flex items-center justify-center transition-all"
+                    style={{ border: `1px solid ${isChecked ? C.red : '#2a2a2a'}`, background: isChecked ? C.redDim : 'transparent' }}>
+                    {isChecked && <span style={{ color: C.red, fontSize: 8, lineHeight: 1 }}>✓</span>}
+                  </span>
+                  <span className="font-mono text-[9.5px] leading-snug transition-colors" style={{ color: isChecked ? '#444' : '#888', textDecoration: isChecked ? 'line-through' : 'none' }}>
+                    {item.text}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -2859,10 +2876,17 @@ export default function App() {
   }, [supaUrl, supaKey]);
 
   const togglePlan = useCallback((itemId) => {
-    setTargetPlans(prev => ({
-      ...prev,
-      [activeTarget]: prev[activeTarget].map(i => i.id === itemId ? { ...i, checked: !i.checked } : i),
-    }));
+    setTargetPlans(prev => {
+      const current = prev[activeTarget];
+      if (!current) return prev;
+      return {
+        ...prev,
+        [activeTarget]: current.map(i => {
+          const key = i.id ?? current.indexOf(i);
+          return key === itemId || String(key) === String(itemId) ? { ...i, checked: !i.checked } : i;
+        }),
+      };
+    });
   }, [activeTarget]);
 
   const saveKeys = useCallback(({ anthropic, groq, supaUrl: su, supaKey: sk, mcpUrl: mu, webhookUrl: wu }) => {
