@@ -1063,7 +1063,7 @@ const TOOL_BINS = {
 };
 
 function PentestView({ apiKey, mcpUrl, mcpTools, onPlanUpdate, webhookUrl }) {
-  const [target,     setTarget]     = useState('https://target-01.com');
+  const [target,     setTarget]     = useState(() => LS.get('kgb_last_target', 'https://target-01.com'));
   const [targetQueue, setTargetQueue] = useState([]);
   const [queueRunning, setQueueRunning] = useState(false);
   const [running,    setRunning]    = useState(false);
@@ -1697,7 +1697,7 @@ Responde em JSON: {"api_endpoints":[], "idor_candidates":[], "hardcoded_secrets"
           id="kgb-target-input"
           type="text"
           value={target}
-          onChange={e => setTarget(e.target.value)}
+          onChange={e => { setTarget(e.target.value); LS.set('kgb_last_target', e.target.value); }}
           className="w-full rounded-lg px-3 py-2 font-mono text-xs outline-none transition-all"
           style={{ background: C.bg, border: `1px solid ${C.border}`, color: C.text, caretColor: C.red }}
           onFocus={e => (e.target.style.borderColor = C.red)}
@@ -1825,7 +1825,7 @@ Responde em JSON: {"api_endpoints":[], "idor_candidates":[], "hardcoded_secrets"
           {autoMode ? 'AUTO ON' : 'AUTO'}
         </button>
         <button
-          onClick={running ? stop : (targetQueue.length > 0 ? runQueue : runPentest)}
+          onClick={running ? stop : (targetQueue.length > 0 ? runQueue : () => runPentest())}
           className="flex-1 py-2 rounded-xl font-mono text-xs font-semibold tracking-widest uppercase transition-all"
           style={running
             ? { background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444' }
