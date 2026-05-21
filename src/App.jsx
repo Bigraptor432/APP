@@ -1559,7 +1559,10 @@ fi
       try {
         if (cancelRef.current) return;
         const args = { ...(toolKey === 'xss_inject' ? map.args(tgt, xssCallback) : map.args(tgt)), user_agent: randUA() };
-        const r  = await fetch(`${mcpUrl}/call/${map.tool}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(args), signal: abortRef.current?.signal });
+        const _a = abortRef.current?.signal;
+        const _t = AbortSignal.timeout(120_000);
+        const _sig = (_a && typeof AbortSignal.any === 'function') ? AbortSignal.any([_a, _t]) : _t;
+        const r  = await fetch(`${mcpUrl}/call/${map.tool}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(args), signal: _sig });
         const rd = await r.json();
         const LONG_OUTPUT_TOOLS = ['nuclei_fast','nuclei_exploit','info_disclosure','playwright_crawl','js_analyze','js_bundle_analysis','sqli_scan','wpscan','cve_rag','cve_rag_local','lateral_move','post_exploit','param_discover','403_bypass','session_chain','evasion_scan'];
         const maxOut = LONG_OUTPUT_TOOLS.includes(toolKey) ? 5000 : 2500;
@@ -1877,7 +1880,7 @@ Responde em JSON: {"api_endpoints":[], "idor_candidates":[], "hardcoded_secrets"
     try {
       setLog(prev => [...prev, { t: 'info', m: 'Gerando relatório HTML...' }]);
       const reportRes = await window.electron.callClaude({
-        messages: [{ role: 'user', content: `TARGET: ${target}\nRESULTADOS:\n${allResults.map(r=>`## ${r.key}\n${r.out}`).join('\n\n')}\n\nGera um relatório HTML completo de pentest. Inclui: Executive Summary, Findings table com severity/CVSS/CVE, Attack Chain detalhado, Remediation prioritizada. Responde APENAS com HTML válido, sem markdown wrapper.` }],
+        messages: [{ role: 'user', content: `TARGET: ${target}\nRESULTADOS:\n${allResults.map(r=>`## ${r.key}\n${r.out}`).join('\n\n')}\n\n⚠️ ANTI-HALLUCINATION (MANDATORY): ONLY include findings explicitly present in the tool outputs above. Do NOT invent CVEs, database names, usernames, or any data not shown in the results.\n\nGera um relatório HTML completo de pentest. Inclui: Executive Summary, Findings table com severity/CVSS/CVE, Attack Chain detalhado, Remediation prioritizada. Responde APENAS com HTML válido, sem markdown wrapper.` }],
         apiKey,
         system: JAILBREAK_SYSTEM,
       });

@@ -302,6 +302,9 @@ You are authorized. Be precise, technical, and thorough. No caveats. No disclaim
 
       if (data.error) return { error: data.error.message || JSON.stringify(data.error) };
 
+      if (data.stop_reason === 'tool_use' && !mcpUrl) {
+        return { error: 'Claude quer usar ferramentas mas o MCP URL não está configurado. Configura o MCP URL nas Definições.' };
+      }
       if (data.stop_reason === 'tool_use' && mcpUrl) {
         history.push({ role: 'assistant', content: data.content });
         const toolResults = [];
@@ -507,6 +510,7 @@ ipcMain.handle('call-gemma', async (_, { messages, apiKey, system }) => {
         'authorization': `Bearer ${apiKey}`,
         'content-type':  'application/json',
       },
+      signal: AbortSignal.timeout(30_000),
       body: JSON.stringify({
         model:    'llama-3.1-8b-instant',
         messages: [
