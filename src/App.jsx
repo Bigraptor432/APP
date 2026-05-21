@@ -2034,9 +2034,38 @@ function TerminalsView({ mcpUrl }) {
   );
 }
 
+// ─── CONSOLE VIEW ──────────────────────────────────────────────────────────────
+
+function ConsoleView({ logs, onClear }) {
+  const ref = useRef(null);
+  useEffect(() => { if (ref.current) ref.current.scrollTop = ref.current.scrollHeight; }, [logs]);
+  const col = { error: '#ff4444', warn: '#fbbf24', info: '#4ea8ff' };
+  const tag = { error: 'ERR', warn: 'WRN', info: 'INF' };
+  return (
+    <div className="flex flex-col h-full w-full" style={{ fontFamily: 'monospace' }}>
+      <div className="flex items-center justify-between mb-3">
+        <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: '#444' }}>Console — {logs.length} entradas</span>
+        <button onClick={onClear} className="font-mono text-[9px] px-2 py-1 rounded" style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', color: '#555', cursor: 'pointer' }}>limpar</button>
+      </div>
+      <div ref={ref} className="flex-1 overflow-y-auto space-y-0.5">
+        {logs.length === 0 && (
+          <p className="font-mono text-[10px]" style={{ color: '#333' }}>nenhum erro · o app está a funcionar normalmente.</p>
+        )}
+        {logs.map((e, i) => (
+          <div key={i} className="flex items-start gap-2 py-[2px] px-2 rounded" style={{ background: e.level === 'error' ? '#1a0000' : e.level === 'warn' ? '#1a1500' : 'transparent' }}>
+            <span className="font-mono text-[8px] flex-shrink-0" style={{ color: '#383838', minWidth: 42, marginTop: 1 }}>{e.ts}</span>
+            <span className="font-mono text-[9px] flex-shrink-0 font-bold" style={{ color: col[e.level] || '#555', minWidth: 24 }}>[{tag[e.level] || 'LOG'}]</span>
+            <span className="font-mono text-[9px] break-all" style={{ color: col[e.level] || '#666', lineHeight: 1.45 }}>{e.msg}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN INTERACTION PANEL ────────────────────────────────────────────────────
 
-function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onSend, apiKey, groqKey, activeNav, activeTarget, activeConv, convs, targets, logs, activeModel, onModelChange, onSplit, isSplit, onCloseSplit, supaUrl, syncStatus, mcpTools, toolProgress, mcpUrl, webhookUrl, onPentestCreate, onPentestLog, onActivityLog, stopRef, onRunningChange }) {
+function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onSend, apiKey, groqKey, activeNav, activeTarget, activeConv, convs, targets, logs, activeModel, onModelChange, onSplit, isSplit, onCloseSplit, supaUrl, syncStatus, mcpTools, toolProgress, mcpUrl, webhookUrl, onPentestCreate, onPentestLog, onActivityLog, stopRef, onRunningChange, appLogs, onClearAppLogs }) {
   const [input, setInput]         = useState('');
   const [tab, setTab]             = useState('findings');
   const [attachment, setAttachment] = useState(null);
@@ -2178,6 +2207,7 @@ function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onS
 
         {activeNav === 'dashboard' && <DashboardView logs={logs} findings={TARGET_FINDINGS[activeTarget] || []} targets={targets} />}
         {activeNav === 'pentest'   && <PentestView apiKey={apiKey} mcpUrl={mcpUrl} mcpTools={mcpTools} onPlanUpdate={onPlanUpdate} webhookUrl={webhookUrl} onPentestCreate={onPentestCreate} onPentestLog={onPentestLog} onActivityLog={onActivityLog} stopRef={stopRef} onRunningChange={onRunningChange} />}
+        {activeNav === 'terminals' && <ConsoleView logs={appLogs} onClear={onClearAppLogs} />}
 
         {/* Findings tab */}
         {activeNav === 'chat' && (tab === 'findings' || tab === 'plano') && (
@@ -2352,6 +2382,25 @@ export default function App() {
   const [mcpUrl,       setMcpUrl]       = useState(() => localStorage.getItem('manucas_mcp_url') || '');
   const [mcpTools,     setMcpTools]     = useState([]);
   const [webhookUrl,   setWebhookUrl]   = useState(() => LS.get('apex_webhook_url', ''));
+  const [appLogs,      setAppLogs]      = useState([]);
+  const appLogsRef = useRef([]);
+
+  useEffect(() => {
+    const push = (level, args) => {
+      const entry = { level, msg: args.map(a => (typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a))).join(' '), ts: new Date().toLocaleTimeString('pt-BR') };
+      appLogsRef.current = [...appLogsRef.current.slice(-499), entry];
+      setAppLogs([...appLogsRef.current]);
+    };
+    const oe = console.error.bind(console);
+    const ow = console.warn.bind(console);
+    const oi = console.info.bind(console);
+    console.error = (...a) => { oe(...a); push('error', a); };
+    console.warn  = (...a) => { ow(...a); push('warn',  a); };
+    console.info  = (...a) => { oi(...a); push('info',  a); };
+    window.onerror = (msg, src, line) => push('error', [`[${src}:${line}] ${msg}`]);
+    window.onunhandledrejection = (e) => push('error', [`Unhandled: ${e.reason}`]);
+    return () => { console.error = oe; console.warn = ow; console.info = oi; };
+  }, []);
   const [toolProgress, setToolProgress] = useState(null);
   const [updateInfo,      setUpdateInfo]      = useState(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
@@ -2411,7 +2460,11 @@ export default function App() {
   useEffect(() => {
     if (!mcpUrl || !window.electron) { setMcpTools([]); return; }
     window.electron.mcpGetTools(mcpUrl)
-      .then(d => setMcpTools(d?.tools || []))
+      .then(d => setMcpTools((d?.tools || []).map(t => ({
+        name: t.name,
+        description: t.description,
+        input_schema: t.inputSchema || t.input_schema || { type: 'object', properties: {} },
+      }))))
       .catch(() => setMcpTools([]));
   }, [mcpUrl]);
 
@@ -2885,6 +2938,8 @@ export default function App() {
         onActivityLog={onActivityLog}
         stopRef={pentestStopRef}
         onRunningChange={setPentestRunning}
+        appLogs={appLogs}
+        onClearAppLogs={() => { appLogsRef.current = []; setAppLogs([]); }}
       />
       {splitConv && (
         <>
