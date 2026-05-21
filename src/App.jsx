@@ -1375,7 +1375,7 @@ MANDATORY CHAINING RULES:
   const PRIMARY   = ['info_disclosure','subfinder','httpx','ghauri','ffuf','aquatone','burp_suite'];
   const SECONDARY = ['naabu_scan','katana_crawl','nuclei_fast','nuclei_exploit','sqli_scan','xss_check','cors_check','js_analyze','dir_fuzz','ssrf_check','lfi_test','testssl','ssti_check','jwt_check','admin_takeover','session_test','wpscan','evasion_scan','crawl_auth','idor_test','playwright_crawl','cve_rag','cve_rag_local','session_manage','session_chain','param_discover','403_bypass'];
   const EXPLOIT   = ['shell_upload','cred_dump','xss_inject','hydra','cookie_tamper','race_cond','hash_crack','cred_test','waf_bypass','msf_exploit','payload_mutate','dynamic_mutate','second_order','bizlogic_fuzz','c2_handler','post_exploit','lateral_move','adaptive_mutate','mitmproxy_scan','proxychains_wrap'];
-  const AUTO_TOOLS = ['info_disclosure','subfinder','httpx','naabu_scan','nuclei_fast','nuclei_exploit','ffuf','sqli_scan','xss_check','cors_check','ssrf_check','lfi_test','js_analyze','ghauri','testssl','ssti_check','jwt_check','admin_takeover','session_test','session_chain','param_discover','403_bypass','evasion_scan','playwright_crawl','idor_test','waf_bypass','cred_dump','hash_crack','cred_test','msf_exploit','post_exploit','lateral_move','cve_rag','cve_rag_local','adaptive_mutate','dynamic_mutate','session_manage'];
+  const AUTO_TOOLS = ['info_disclosure','subfinder','httpx','naabu_scan','nuclei_fast','ffuf','katana_crawl','sqli_scan','xss_check','cors_check','ssrf_check','lfi_test','js_analyze','ghauri','ssti_check','jwt_check','admin_takeover','session_test','param_discover','evasion_scan','playwright_crawl','idor_test','403_bypass'];
   const pentestConvRef = useRef(null);
   const logLenRef      = useRef(0);
   const actLenRef      = useRef(0);
@@ -1579,18 +1579,20 @@ fi
       try {
         if (cancelRef.current) return;
         const args = { ...(toolKey === 'xss_inject' ? map.args(tgt, xssCallback) : map.args(tgt)), user_agent: randUA() };
-        const _a = abortRef.current?.signal;
-        const _t = AbortSignal.timeout(360_000);
-        const _sig = (_a && typeof AbortSignal.any === 'function') ? AbortSignal.any([_a, _t]) : _t;
-        const r  = await fetch(`${mcpUrl}/call/${map.tool}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(args), signal: _sig });
-        const rd = await r.json();
-        const LONG_OUTPUT_TOOLS = ['nuclei_fast','nuclei_exploit','info_disclosure','playwright_crawl','js_analyze','js_bundle_analysis','sqli_scan','wpscan','cve_rag','cve_rag_local','lateral_move','post_exploit','param_discover','403_bypass','session_chain','evasion_scan'];
-        const maxOut = LONG_OUTPUT_TOOLS.includes(toolKey) ? 5000 : 2500;
+        const toolCtrl = new AbortController();
+        const toolTimer = setTimeout(() => toolCtrl.abort(), 120_000);
+        let r, rd;
+        try {
+          r  = await fetch(`${mcpUrl}/call/${map.tool}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(args), signal: toolCtrl.signal });
+          rd = await r.json();
+        } finally { clearTimeout(toolTimer); }
+        const LONG_OUTPUT_TOOLS = ['nuclei_fast','info_disclosure','playwright_crawl','js_analyze','sqli_scan','wpscan','param_discover','evasion_scan'];
+        const maxOut = LONG_OUTPUT_TOOLS.includes(toolKey) ? 1200 : 600;
         const out = (rd.output || rd.error || '(sem output)').slice(0, maxOut);
         results.push({ key: toolKey, out });
         setLog(prev => [...prev, { t: 'ok', m: `✓ ${toolKey}` }]);
       } catch (e) {
-        if (e.name === 'AbortError') return;
+        if (e.name === 'AbortError' || e.name === 'TimeoutError') return;
         setLog(prev => [...prev, { t: 'err', m: `✗ ${toolKey}: ${e.message}` }]);
       }
     }));
@@ -1750,7 +1752,7 @@ fi
       const summaryCtx = prevSummary ? `\nCONTEXTO ROUNDS ANTERIORES (comprimido):\n${prevSummary}\n` : '';
       const missionLine = mission.trim() ? `\nMISSÃO PRIMÁRIA (OBRIGATÓRIO CUMPRIR): ${mission.trim()}\n` : '';
       const credsLine = authUser ? `\nCREDENCIAIS ATIVAS: username=${authUser} password=${authPass}${loginPath ? ` login=${loginPath}` : ''} — JÁ USADAS em session_manage/crawl_auth. Testa: IDOR em endpoints autenticados, SQLi em formulários autenticados, broken access control entre utilizadores, privilege escalation.\n` : '';
-      return `TARGET: ${target}\nROUND: ${rnd}\n${brainCtx}${credsLine}${missionLine}${summaryCtx}${ techContext ? `\nTECH CONTEXT:\n${techContext}\n` : ''}\nRESULTADOS ROUND ${rnd}:\n${results.map(r => `## ${r.key}\n${r.out}`).join('\n\n')}\n\n⚠️ ANTI-HALLUCINATION RULE (MANDATORY): ONLY report findings EXPLICITLY present in the tool outputs above. NEVER invent, assume or guess data — especially usernames, passwords, database names, table names, column names, file contents or CVEs. If a tool returned empty output or errors, report it as such. Every finding must be directly quotable from the results above.\n\n`
+      return `TARGET: ${target}\nROUND: ${rnd}\n${brainCtx}${credsLine}${missionLine}${summaryCtx}${ techContext ? `\nTECH CONTEXT:\n${techContext}\n` : ''}\nRESULTADOS ROUND ${rnd}:\n${results.filter(r => r.out && r.out !== '(sem output)' && r.out.length > 30).map(r => `## ${r.key}\n${r.out}`).join('\n\n')}\n\n⚠️ ANTI-HALLUCINATION RULE (MANDATORY): ONLY report findings EXPLICITLY present in the tool outputs above. NEVER invent, assume or guess data — especially usernames, passwords, database names, table names, column names, file contents or CVEs. If a tool returned empty output or errors, report it as such. Every finding must be directly quotable from the results above.\n\n`
       + (autoMode
         ? `Analisa como APEX pentester elite. Cobre OWASP Top 10 2025. Verifica cookies, sessions, IDOR, business logic, injection, crypto.
 REGRAS DE CHAINING OBRIGATÓRIAS:
@@ -1885,6 +1887,49 @@ Responde em JSON: {"api_endpoints":[], "idor_candidates":[], "hardcoded_secrets"
               const peRd = await peR.json();
               allResults.push({ key: 'post_exploit', out: (peRd.output || '').slice(0, 2000) });
               setLog(prev => [...prev, { t: 'ok', m: '✓ post_exploit concluído' }]);
+            }
+            // Auto-chain: SQLi confirmed → cred_dump → hash_crack → cred_test
+            const sqliChainOut = allResults.find(r => r.key === 'sqli_scan' || r.key === 'ghauri')?.out || '';
+            if (sqliChainOut.match(/injectable|is vulnerable|injection|Type:.*injection/i) && !allResults.find(r => r.key === 'cred_dump')) {
+              setLog(prev => [...prev, { t: 'ok', m: 'SQLi confirmado → chain: cred_dump → hash_crack → cred_test' }]);
+              for (const ck of ['cred_dump', 'hash_crack', 'cred_test']) {
+                if (allResults.find(r => r.key === ck) || !TOOL_MAP[ck]) continue;
+                const cm = TOOL_MAP[ck];
+                setLog(prev => [...prev, { t: 'run', m: `⚡ ${ck} (sqli-chain)...` }]);
+                try {
+                  const cr = await fetch(`${mcpUrl}/call/${cm.tool}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cm.args(target)) });
+                  const crd = await cr.json();
+                  allResults.push({ key: ck, out: (crd.output || crd.error || '').slice(0, 1000) });
+                  setLog(prev => [...prev, { t: 'ok', m: `✓ ${ck}` }]);
+                } catch (e) { setLog(prev => [...prev, { t: 'err', m: `✗ ${ck}: ${e.message}` }]); }
+              }
+            }
+            // Auto-chain: XSS confirmed → xss_inject
+            const xssChainOut = allResults.find(r => r.key === 'xss_check')?.out || '';
+            if (xssChainOut.match(/\[xss\]|cross.site.script|xss-/i) && xssCallback && !allResults.find(r => r.key === 'xss_inject')) {
+              setLog(prev => [...prev, { t: 'ok', m: 'XSS confirmado → chain: xss_inject' }]);
+              try {
+                const xiA = TOOL_MAP['xss_inject'].args(target, xssCallback);
+                const xiR = await fetch(`${mcpUrl}/call/shell`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(xiA) });
+                const xiD = await xiR.json();
+                allResults.push({ key: 'xss_inject', out: (xiD.output || '').slice(0, 800) });
+                setLog(prev => [...prev, { t: 'ok', m: `✓ xss_inject` }]);
+              } catch (e) { setLog(prev => [...prev, { t: 'err', m: `✗ xss_inject: ${e.message}` }]); }
+            }
+            // Auto-chain: Login detected + creds → session_manage → crawl_auth → idor_test
+            if (authUser && allResults.some(r => r.out.match(/login|wp-admin|PANEL_FOUND/i)) && !allResults.find(r => r.key === 'session_manage')) {
+              setLog(prev => [...prev, { t: 'ok', m: 'Login + credenciais → chain: session_manage → crawl_auth → idor_test' }]);
+              for (const ck of ['session_manage', 'crawl_auth', 'idor_test']) {
+                if (allResults.find(r => r.key === ck) || !TOOL_MAP[ck]) continue;
+                const cm = TOOL_MAP[ck];
+                setLog(prev => [...prev, { t: 'run', m: `⚡ ${ck} (auth-chain)...` }]);
+                try {
+                  const cr = await fetch(`${mcpUrl}/call/${cm.tool}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cm.args(target)) });
+                  const crd = await cr.json();
+                  allResults.push({ key: ck, out: (crd.output || crd.error || '').slice(0, 1000) });
+                  setLog(prev => [...prev, { t: 'ok', m: `✓ ${ck}` }]);
+                } catch (e) { setLog(prev => [...prev, { t: 'err', m: `✗ ${ck}: ${e.message}` }]); }
+              }
             }
             // Context compression: save compact summary of this round
             if (parsed.findings?.length) {
