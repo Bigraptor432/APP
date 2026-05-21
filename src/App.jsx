@@ -106,7 +106,10 @@ const supaSave = async (url, key, rows) => {
     headers: { ...supaHeaders(key), 'Prefer': 'resolution=merge-duplicates' },
     body: JSON.stringify(rows),
   });
-  if (!r.ok) throw new Error(r.status);
+  if (!r.ok) {
+    const body = await r.text().catch(() => '');
+    throw new Error(`HTTP ${r.status} — ${body}`);
+  }
 };
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -2646,7 +2649,7 @@ export default function App() {
         if (map.manucas_groq_key && !localStorage.getItem('manucas_groq_key')) { setGroqKey(map.manucas_groq_key); localStorage.setItem('manucas_groq_key', map.manucas_groq_key); }
         if (map.manucas_mcp_url  && !localStorage.getItem('manucas_mcp_url'))  { setMcpUrl(map.manucas_mcp_url);   localStorage.setItem('manucas_mcp_url',  map.manucas_mcp_url); }
         setSyncStatus('synced');
-      } catch { setSyncStatus('error'); }
+      } catch (e) { setSyncStatus('error'); console.error('[supabase] load inicial:', e?.message || e); }
     }, 500);
     return () => clearTimeout(t);
   }, []);
@@ -2673,7 +2676,7 @@ export default function App() {
         ]);
         setSyncStatus('synced');
         pendingLocalChange.current = false;  // saved successfully — poll can run
-      } catch { setSyncStatus('error'); }  // pendingLocalChange stays true until next success
+      } catch (e) { setSyncStatus('error'); console.error('[supabase] save:', e?.message || e); }  // pendingLocalChange stays true until next success
     }, 800);
     return () => clearTimeout(timer);
   }, [convs, convMessages, targets, targetLogs, targetPlans, activeTarget, activeConv, apiKey, groqKey, mcpUrl]);
@@ -2704,7 +2707,7 @@ export default function App() {
         if (!lsGroq && map.manucas_groq_key != null) setGroqKey(map.manucas_groq_key);
         if (!lsMcp  && map.manucas_mcp_url  != null) setMcpUrl(map.manucas_mcp_url);
         setSyncStatus('synced');
-      } catch { setSyncStatus('error'); }
+      } catch (e) { setSyncStatus('error'); console.error('[supabase] poll:', e?.message || e); }
     };
     const interval = setInterval(poll, 10000);
     return () => clearInterval(interval);
