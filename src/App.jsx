@@ -3080,13 +3080,16 @@ export default function App() {
       setConvMessages(prev => ({ ...prev, [convId]: [{ role: 'user', text: `⚡ PENTEST: ${targetName}` }, { role: 'assistant', text: '', loading: true }] }));
     }
     setActiveConv(convId);
+    setActiveNav('chat');
     return convId;
   }, [convs]);
 
   const onPentestLog = useCallback((convId, entries) => {
     setConvMessages(prev => {
-      const msgs = [...(prev[convId] || [])];
-      if (msgs.length === 0) return prev;
+      const existing = prev[convId] || [];
+      const msgs = existing.length > 0
+        ? [...existing]
+        : [{ role: 'user', text: '⚡ PENTEST' }, { role: 'assistant', text: '', loading: true }];
       const last = msgs[msgs.length - 1];
       const append = entries.map(e => e.m).join('\n');
       const isDone = entries.some(e =>
