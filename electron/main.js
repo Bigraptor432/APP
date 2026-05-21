@@ -146,14 +146,8 @@ function downloadFile(url, dest, onProgress) {
 }
 
 ipcMain.handle('download-update', async (_, { url }) => {
-  const exeDir = process.env.PORTABLE_EXECUTABLE_DIR || app.getPath('downloads');
-  const version = url.match(/download\/v?([\d.]+)\//)?.[1] || 'new';
-  const dest = path.join(exeDir, `kgbtools-v${version}.exe`);
-  try {
-    fs.readdirSync(exeDir)
-      .filter(f => /^kgbtools-v[\d.]+\.exe$/i.test(f))
-      .forEach(f => { try { fs.unlinkSync(path.join(exeDir, f)); } catch (_) {} });
-  } catch (_) {}
+  const dest = path.join(os.tmpdir(), 'kgbtools-update.exe');
+  try { fs.unlinkSync(dest); } catch (_) {}
   try {
     await downloadFile(url, dest, (pct) => {
       win?.webContents.send('download-progress', { percent: pct });
@@ -167,11 +161,10 @@ ipcMain.handle('download-update', async (_, { url }) => {
 
 ipcMain.handle('launch-update', async (_, { dest }) => {
   const oldExe = process.env.PORTABLE_EXECUTABLE_PATH || process.execPath;
-  // launch new exe
-  exec(`"${dest}"`, () => {});
-  // delete old exe after delay (runs in background after app quits)
-  exec(`cmd /c "ping 127.0.0.1 -n 5 >nul & del /f /q "${oldExe}""`);
-  setTimeout(() => app.quit(), 2000);
+  const finalExe = path.join(path.dirname(oldExe), path.basename(oldExe));
+  // Wait for old process to quit, copy new exe over old name, then launch
+  exec(`cmd /c "ping 127.0.0.1 -n 4 >nul & copy /y "${dest}" "${finalExe}" >nul & "${finalExe}""`);
+  setTimeout(() => app.quit(), 1500);
   return { ok: true };
 });
 

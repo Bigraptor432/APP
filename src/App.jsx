@@ -163,7 +163,7 @@ function ConfirmModal({ open, message, onConfirm, onCancel }) {
 
 // ─── SETTINGS MODAL ────────────────────────────────────────────────────────────
 
-function SettingsModal({ open, onClose, anthropicKey, groqKey, supaUrl, supaKey, mcpUrl, webhookUrl, onSave, onReset }) {
+function SettingsModal({ open, onClose, anthropicKey, groqKey, supaUrl, supaKey, mcpUrl, webhookUrl, onSave, onReset, onShowUpdate }) {
   const [aVal,  setAVal]  = useState(anthropicKey);
   const [gVal,  setGVal]  = useState(groqKey);
   const [sUrl,  setSUrl]  = useState(supaUrl);
@@ -432,10 +432,7 @@ function SettingsModal({ open, onClose, anthropicKey, groqKey, supaUrl, supaKey,
               </div>
               {updStatus === 'available' && updInfo ? (
                 <button
-                  onClick={() => {
-                    if (updInfo.downloadUrl) window.electron?.downloadUpdate({ url: updInfo.downloadUrl });
-                    else window.electron?.openExternal(updInfo.url);
-                  }}
+                  onClick={() => { onShowUpdate?.(updInfo); onClose(); }}
                   className="font-mono text-[9px] px-3 py-1 rounded-lg font-bold uppercase tracking-widest"
                   style={{ background: C.redDim, border: `1px solid ${C.redBorder}`, color: C.red }}
                 >
@@ -3058,6 +3055,7 @@ export default function App() {
         webhookUrl={webhookUrl}
         onSave={saveKeys}
         onReset={resetAll}
+        onShowUpdate={(info) => { setUpdateInfo(info); setShowUpdateModal(true); setSettings(false); }}
       />
 
       <Sidebar
