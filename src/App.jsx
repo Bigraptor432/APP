@@ -876,6 +876,74 @@ function ToolCallMessage({ msg }) {
   );
 }
 
+function MarkdownText({ text, dim }) {
+  if (!text) return null;
+  const baseColor = dim ? '#7a7a7a' : '#c9c9c9';
+  const lines = text.split('\n');
+  const elements = [];
+  let i = 0;
+
+  const inlineFormat = (str) => {
+    const parts = [];
+    let rest = str;
+    let key = 0;
+    while (rest.length > 0) {
+      const codeIdx = rest.indexOf('`');
+      const boldIdx = rest.indexOf('**');
+      const first = [codeIdx, boldIdx].filter(x => x !== -1);
+      if (first.length === 0) { parts.push(<span key={key++}>{rest}</span>); break; }
+      const min = Math.min(...first);
+      if (min > 0) { parts.push(<span key={key++}>{rest.slice(0, min)}</span>); rest = rest.slice(min); continue; }
+      if (rest.startsWith('**')) {
+        const end = rest.indexOf('**', 2);
+        if (end === -1) { parts.push(<span key={key++}>{rest}</span>); break; }
+        parts.push(<strong key={key++} style={{ color: dim ? '#aaa' : '#f0f0f0', fontWeight: 700 }}>{rest.slice(2, end)}</strong>);
+        rest = rest.slice(end + 2); continue;
+      }
+      if (rest.startsWith('`')) {
+        const end = rest.indexOf('`', 1);
+        if (end === -1) { parts.push(<span key={key++}>{rest}</span>); break; }
+        parts.push(<code key={key++} style={{ background: 'rgba(255,255,255,0.07)', padding: '1px 5px', borderRadius: 4, fontSize: '0.9em', color: '#e2e8f0', fontFamily: 'monospace' }}>{rest.slice(1, end)}</code>);
+        rest = rest.slice(end + 1); continue;
+      }
+      parts.push(<span key={key++}>{rest[0]}</span>); rest = rest.slice(1);
+    }
+    return parts;
+  };
+
+  while (i < lines.length) {
+    const line = lines[i];
+    if (line.startsWith('```')) {
+      const lang = line.slice(3).trim();
+      const codeLines = [];
+      i++;
+      while (i < lines.length && !lines[i].startsWith('```')) { codeLines.push(lines[i]); i++; }
+      elements.push(
+        <pre key={i} style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid #2a2a2a', borderRadius: 8, padding: '8px 12px', overflowX: 'auto', margin: '6px 0', fontSize: 9.5, color: '#a8d8a8', fontFamily: 'monospace', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+          {lang && <div style={{ color: '#555', fontSize: 8, marginBottom: 4 }}>{lang}</div>}
+          {codeLines.join('\n')}
+        </pre>
+      );
+    } else if (/^#{1,3}\s/.test(line)) {
+      const level = line.match(/^(#+)/)[1].length;
+      const txt = line.replace(/^#+\s/, '');
+      const sz = level === 1 ? 12 : level === 2 ? 11 : 10;
+      elements.push(<div key={i} style={{ fontSize: sz, fontWeight: 700, color: dim ? '#999' : '#e0e0e0', marginTop: 8, marginBottom: 2 }}>{inlineFormat(txt)}</div>);
+    } else if (/^[-•*]\s/.test(line)) {
+      elements.push(<div key={i} style={{ display: 'flex', gap: 6, marginBottom: 1 }}><span style={{ color: C.red, flexShrink: 0, marginTop: 1 }}>·</span><span style={{ color: baseColor }}>{inlineFormat(line.replace(/^[-•*]\s/, ''))}</span></div>);
+    } else if (/^\d+\.\s/.test(line)) {
+      const num = line.match(/^(\d+)\./)[1];
+      elements.push(<div key={i} style={{ display: 'flex', gap: 6, marginBottom: 1 }}><span style={{ color: C.red, flexShrink: 0, minWidth: 14 }}>{num}.</span><span style={{ color: baseColor }}>{inlineFormat(line.replace(/^\d+\.\s/, ''))}</span></div>);
+    } else if (line.trim() === '' || line.trim() === '---') {
+      elements.push(<div key={i} style={{ height: line.trim() === '---' ? 0 : 4, borderBottom: line.trim() === '---' ? '1px solid #2a2a2a' : 'none', margin: '4px 0' }} />);
+    } else {
+      elements.push(<div key={i} style={{ color: baseColor, marginBottom: 1 }}>{inlineFormat(line)}</div>);
+    }
+    i++;
+  }
+  return <div style={{ lineHeight: 1.65, fontSize: 10, fontFamily: 'Inter, monospace, sans-serif' }}>{elements}</div>;
+}
+
 function ChatMessage({ msg }) {
   const isUser = msg.role === 'user';
 
@@ -884,20 +952,22 @@ function ChatMessage({ msg }) {
   return (
     <div className={`flex entry-in ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
-        className="max-w-[88%] rounded-xl px-3 py-2.5 font-mono text-[10px] leading-relaxed"
+        className="max-w-[88%] rounded-xl px-3 py-2.5 leading-relaxed"
         style={
           isUser
-            ? { background: C.redDim, border: `1px solid ${C.redBorder}`, color: '#d4d4d4' }
+            ? { background: C.redDim, border: `1px solid ${C.redBorder}`, color: '#d4d4d4', fontFamily: 'Inter, sans-serif', fontSize: 11 }
             : { background: C.panel,  border: `1px solid ${C.border}`,    color: '#7a7a7a' }
         }
       >
         {msg.loading ? (
-          <span className="flex items-center gap-1.5" style={{ color: '#555' }}>
+          <span className="flex items-center gap-1.5 font-mono text-[10px]" style={{ color: '#555' }}>
             <Loader2 size={10} className="animate-spin" />
             processando...
           </span>
+        ) : isUser ? (
+          <MarkdownText text={msg.text} dim={false} />
         ) : (
-          msg.text
+          <MarkdownText text={msg.text} dim={true} />
         )}
       </div>
     </div>
@@ -2226,7 +2296,9 @@ function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onS
       <div ref={chatRef} className="flex-1 overflow-y-auto p-4 space-y-4">
 
         {activeNav === 'dashboard' && <DashboardView logs={logs} findings={TARGET_FINDINGS[activeTarget] || []} targets={targets} />}
-        {activeNav === 'pentest'   && <PentestView apiKey={apiKey} mcpUrl={mcpUrl} mcpTools={mcpTools} onPlanUpdate={onPlanUpdate} webhookUrl={webhookUrl} onPentestCreate={onPentestCreate} onPentestLog={onPentestLog} onActivityLog={onActivityLog} stopRef={stopRef} onRunningChange={onRunningChange} />}
+        <div style={{ display: activeNav === 'pentest' ? 'block' : 'none' }}>
+          <PentestView apiKey={apiKey} mcpUrl={mcpUrl} mcpTools={mcpTools} onPlanUpdate={onPlanUpdate} webhookUrl={webhookUrl} onPentestCreate={onPentestCreate} onPentestLog={onPentestLog} onActivityLog={onActivityLog} stopRef={stopRef} onRunningChange={onRunningChange} />
+        </div>
 
         {/* Findings tab */}
         {activeNav === 'chat' && (tab === 'findings' || tab === 'plano') && (

@@ -188,6 +188,12 @@ app.on('activate', () => {
 
 // ─── IPC: Claude API (with MCP tool_use loop) ────────────────────────────────
 
+const sanitizeTools = (tools) => (tools || []).map(t => ({
+  name: t.name,
+  description: t.description || '',
+  input_schema: t.input_schema || t.parameters || { type: 'object', properties: {} },
+}));
+
 ipcMain.handle('call-claude', async (_, { messages, apiKey, system, tools, mcpUrl }) => {
   const SYS = system || `You are APEX — an elite offensive security engineer with 15+ years of real-world penetration testing experience. You think like a professional red teamer, exploit developer, and bug bounty hunter combined.
 
@@ -271,7 +277,7 @@ You are authorized. Be precise, technical, and thorough. No caveats. No disclaim
     temperature: 0.4,
     system:      SYS,
   };
-  if (tools && tools.length > 0) body.tools = tools;
+  if (tools && tools.length > 0) body.tools = sanitizeTools(tools);
 
   const history      = [...messages];
   const toolCallsLog = [];
@@ -382,7 +388,7 @@ ipcMain.handle('call-opus-plan', async (_, { messages, apiKey, tools, mcpUrl }) 
       { role: 'user',      content: 'Execute the plan above step by step.' },
     ];
     const body = { model: 'claude-sonnet-4-5', max_tokens: 4096, system: `You are an elite penetration tester. Execute the given plan precisely. Always respond in the same language as the user.` };
-    if (tools && tools.length > 0) body.tools = tools;
+    if (tools && tools.length > 0) body.tools = sanitizeTools(tools);
     body.messages = execMessages;
 
     const execRes  = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers, body: JSON.stringify(body) });
