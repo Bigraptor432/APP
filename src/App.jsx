@@ -701,85 +701,44 @@ function Sidebar({ onSettings, activeNav, onNavChange, targets, activeTarget, on
 
 // ─── ACTIVITY LOG ──────────────────────────────────────────────────────────────
 
-function ActivityLog({ logs, activeTarget }) {
+function ActivityLog({ logs, running, onStop }) {
   const ref = useRef(null);
-
   useEffect(() => {
     if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
   }, [logs]);
-
+  const tColor = (t) => ({ ok: '#22c55e', err: '#ff4444', brain: '#a78bfa', report: '#fbbf24', info: '#555' })[t] || '#555';
+  const tIcon  = (t) => ({ ok: '✓', err: '✗', brain: '⊛', report: '▸', info: '·' })[t] || '·';
   return (
-    <section
-      className="flex flex-col flex-shrink-0 h-full"
-      style={{ width: 215, background: C.bg, borderRight: `1px solid ${C.border}` }}
-    >
-      {/* Header */}
-      <div
-        className="flex items-center justify-between px-3 py-2.5"
-        style={{ borderBottom: `1px solid ${C.border}` }}
-      >
-        <span className="font-mono text-[9px] uppercase tracking-widest" style={{ color: C.textDim }}>
-          ACTIVITY
-        </span>
+    <section className="flex flex-col flex-shrink-0 h-full" style={{ width: 215, background: C.bg, borderRight: `1px solid ${C.border}` }}>
+      <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: `1px solid ${C.border}` }}>
+        <span className="font-mono text-[9px] uppercase tracking-widest" style={{ color: C.textDim }}>ACTIVITY</span>
         <div className="flex items-center gap-1.5">
-          <span
-            className="inline-block w-1.5 h-1.5 rounded-full"
-            style={{ background: C.red, animation: 'cursor-blink 1.2s step-end infinite' }}
-          />
+          {running && onStop && (
+            <button onClick={onStop} className="font-mono text-[9px] px-1.5 py-[2px] rounded" style={{ background: '#1a0000', border: `1px solid ${C.redBorder}`, color: C.red, cursor: 'pointer', letterSpacing: '0.05em' }}>
+              ■ cancelar
+            </button>
+          )}
+          <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: running ? C.red : '#333', animation: running ? 'cursor-blink 1.2s step-end infinite' : 'none' }} />
           <span className="font-mono text-[9px]" style={{ color: '#444' }}>live</span>
         </div>
       </div>
-
-      {/* Entries */}
-      <div ref={ref} className="flex-1 overflow-y-auto py-1">
+      <div ref={ref} className="flex-1 overflow-y-auto py-0.5">
         {logs.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full gap-2 px-3">
             <Activity size={16} style={{ color: '#2a2a2a' }} />
-            <p className="font-mono text-[9px] text-center" style={{ color: '#333' }}>
-              nenhuma atividade<br/>inicie um scan em Pentest
-            </p>
+            <p className="font-mono text-[9px] text-center" style={{ color: '#333' }}>nenhuma atividade<br/>inicie um scan em Pentest</p>
           </div>
         )}
         {logs.map((entry, i) => (
-          <div
-            key={entry.id}
-            className="flex items-center gap-1.5 px-3 py-[3px] hover:bg-[#141414] transition-colors entry-in"
-          >
-            <span
-              className="font-mono tabular-nums flex-shrink-0"
-              style={{ fontSize: 9, color: '#3a3a3a', width: 52 }}
-            >
-              {entry.time}
-            </span>
-            {entry.status === 'success' ? (
-              <CheckCircle size={9} style={{ color: '#22c55e', flexShrink: 0 }} />
-            ) : (
-              <XCircle size={9} style={{ color: C.red, flexShrink: 0 }} />
-            )}
-            <span
-              className="font-mono truncate"
-              style={{
-                fontSize: 10,
-                color: entry.status === 'error' ? 'rgba(255,51,51,0.75)' : '#5a5a5a',
-              }}
-            >
-              {entry.tool}
-            </span>
-            <span className="font-mono ml-auto flex-shrink-0" style={{ fontSize: 9, color: '#333' }}>
-              #2
-            </span>
+          <div key={i} className="flex items-start gap-1 px-2 py-[1px] hover:bg-[#0d0d0d]">
+            <span className="font-mono tabular-nums flex-shrink-0" style={{ fontSize: 8, color: '#383838', minWidth: 30, marginTop: 1 }}>{entry.hhmm || ''}</span>
+            <span className="flex-shrink-0 font-mono" style={{ fontSize: 9, color: tColor(entry.t), marginTop: 0.5, minWidth: 8 }}>{tIcon(entry.t)}</span>
+            <span className="font-mono break-all" style={{ fontSize: 9, color: tColor(entry.t), lineHeight: 1.45, opacity: entry.t === 'info' ? 0.65 : 1 }}>{entry.m}</span>
           </div>
         ))}
       </div>
-
-      {/* Footer */}
-      <div
-        className="px-3 py-2"
-        style={{ borderTop: `1px solid ${C.border}` }}
-      >
-        <p className="font-mono" style={{ fontSize: 9, color: '#3a3a3a' }}>
-          {logs.length > 0 ? `${logs.length} entradas · target-0${activeTarget}` : 'aguardando execução...'}
-        </p>
+      <div className="px-3 py-1.5" style={{ borderTop: `1px solid ${C.border}` }}>
+        <p className="font-mono" style={{ fontSize: 9, color: '#383838' }}>{logs.length > 0 ? `${logs.length} entradas` : 'aguardando execução...'}</p>
       </div>
     </section>
   );
@@ -1062,7 +1021,7 @@ const TOOL_BINS = {
   '403_bypass':    'curl',
 };
 
-function PentestView({ apiKey, mcpUrl, mcpTools, onPlanUpdate, webhookUrl, onPentestCreate, onPentestLog }) {
+function PentestView({ apiKey, mcpUrl, mcpTools, onPlanUpdate, webhookUrl, onPentestCreate, onPentestLog, onActivityLog, stopRef, onRunningChange }) {
   const [target,     setTarget]     = useState(() => LS.get('kgb_last_target', 'https://target-01.com'));
   const [targetQueue, setTargetQueue] = useState([]);
   const [queueRunning, setQueueRunning] = useState(false);
@@ -1188,7 +1147,16 @@ MANDATORY CHAINING RULES:
   const AUTO_TOOLS = ['info_disclosure','subfinder','httpx','naabu_scan','nuclei_fast','nuclei_exploit','ffuf','sqli_scan','xss_check','cors_check','ssrf_check','lfi_test','js_analyze','ghauri','testssl','ssti_check','jwt_check','admin_takeover','session_test','session_chain','param_discover','403_bypass','evasion_scan','playwright_crawl','idor_test','waf_bypass','cred_dump','hash_crack','cred_test','msf_exploit','post_exploit','lateral_move','cve_rag','cve_rag_local','adaptive_mutate','dynamic_mutate','session_manage'];
   const pentestConvRef = useRef(null);
   const logLenRef      = useRef(0);
+  const actLenRef      = useRef(0);
+  const cancelRef      = useRef(false);
   const logRef = useRef(null);
+
+  useEffect(() => { if (onRunningChange) onRunningChange(running); }, [running]);
+  useEffect(() => {
+    if (!stopRef) return;
+    stopRef.current = () => { cancelRef.current = true; setRunning(false); };
+    return () => { if (stopRef) stopRef.current = null; };
+  }, [stopRef]);
 
   useEffect(() => {
     if (!pentestConvRef.current || !onPentestLog) return;
@@ -1196,6 +1164,14 @@ MANDATORY CHAINING RULES:
     if (newEntries.length === 0) return;
     logLenRef.current = log.length;
     onPentestLog(pentestConvRef.current, newEntries);
+  }, [log]);
+
+  useEffect(() => {
+    if (!onActivityLog) return;
+    const newEntries = log.slice(actLenRef.current);
+    if (newEntries.length === 0) return;
+    actLenRef.current = log.length;
+    onActivityLog(newEntries);
   }, [log]);
 
   useEffect(() => {
@@ -1393,6 +1369,9 @@ fi
         pentestConvRef.current = onPentestCreate(target);
         logLenRef.current = 0;
       }
+      actLenRef.current = 0;
+      cancelRef.current = false;
+      if (onActivityLog) onActivityLog(null); // signal reset
     }
 
     // Modo autónomo: usa todas as tools sem input humano
@@ -1402,6 +1381,7 @@ fi
 
     setLog(prev => overrideTarget !== undefined ? [...prev, { t: 'info', m: `▶ ${target}` }] : [{ t: 'info', m: autoMode ? `MODO AUTÓNOMO — ${target}` : `PENTEST PARALELO — ${target}` }]);
     setPlan([]);
+    if (cancelRef.current) { if (overrideTarget === undefined) setRunning(false); return; }
 
     // BRAIN: load previous findings for this target
     const brainData = getBrain();
@@ -1643,6 +1623,7 @@ Responde em JSON: {"api_endpoints":[], "idor_candidates":[], "hardcoded_secrets"
               const summary = `Round ${round}: ${parsed.findings.map(f=>`[${f.severity?.toUpperCase()}] ${f.title}`).join(' | ')}`;
               roundSummaries.push(summary);
             }
+            if (cancelRef.current) { setLog(prev => [...prev, { t: 'err', m: '■ Pentest cancelado.' }]); break; }
             if (parsed.status === 'done' || !parsed.next_tools?.length) break;
             // Stealth inter-round delay
             await sleep(Math.floor(Math.random() * 1200) + 400);
@@ -1686,7 +1667,7 @@ Responde em JSON: {"api_endpoints":[], "idor_candidates":[], "hardcoded_secrets"
     if (overrideTarget === undefined) setRunning(false);
   };
 
-  const stop = () => setRunning(false);
+  const stop = () => { cancelRef.current = true; setRunning(false); };
 
   const PARALLEL_LIMIT = 3;
   const runQueue = async () => {
@@ -2055,7 +2036,7 @@ function TerminalsView({ mcpUrl }) {
 
 // ─── MAIN INTERACTION PANEL ────────────────────────────────────────────────────
 
-function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onSend, apiKey, groqKey, activeNav, activeTarget, activeConv, convs, targets, logs, activeModel, onModelChange, onSplit, isSplit, onCloseSplit, supaUrl, syncStatus, mcpTools, toolProgress, mcpUrl, webhookUrl, onPentestCreate, onPentestLog }) {
+function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onSend, apiKey, groqKey, activeNav, activeTarget, activeConv, convs, targets, logs, activeModel, onModelChange, onSplit, isSplit, onCloseSplit, supaUrl, syncStatus, mcpTools, toolProgress, mcpUrl, webhookUrl, onPentestCreate, onPentestLog, onActivityLog, stopRef, onRunningChange }) {
   const [input, setInput]         = useState('');
   const [tab, setTab]             = useState('findings');
   const [attachment, setAttachment] = useState(null);
@@ -2196,7 +2177,7 @@ function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onS
       <div ref={chatRef} className="flex-1 overflow-y-auto p-4 space-y-4">
 
         {activeNav === 'dashboard' && <DashboardView logs={logs} findings={TARGET_FINDINGS[activeTarget] || []} targets={targets} />}
-        {activeNav === 'pentest'   && <PentestView apiKey={apiKey} mcpUrl={mcpUrl} mcpTools={mcpTools} onPlanUpdate={onPlanUpdate} webhookUrl={webhookUrl} onPentestCreate={onPentestCreate} onPentestLog={onPentestLog} />}
+        {activeNav === 'pentest'   && <PentestView apiKey={apiKey} mcpUrl={mcpUrl} mcpTools={mcpTools} onPlanUpdate={onPlanUpdate} webhookUrl={webhookUrl} onPentestCreate={onPentestCreate} onPentestLog={onPentestLog} onActivityLog={onActivityLog} stopRef={stopRef} onRunningChange={onRunningChange} />}
 
         {/* Findings tab */}
         {activeNav === 'chat' && (tab === 'findings' || tab === 'plano') && (
@@ -2717,11 +2698,27 @@ export default function App() {
       if (msgs.length === 0) return prev;
       const last = msgs[msgs.length - 1];
       const append = entries.map(e => e.m).join('\n');
-      const isDone = entries.some(e => e.t === 'ok' && e.m.includes('concluído'));
+      const isDone = entries.some(e =>
+        (e.t === 'ok'   && e.m.includes('concluído')) ||
+        (e.t === 'ok'   && e.m.includes('FILA COMPLETA')) ||
+        (e.t === 'err')
+      );
       msgs[msgs.length - 1] = { ...last, text: (last.text ? last.text + '\n' : '') + append, loading: !isDone };
       return { ...prev, [convId]: msgs };
     });
   }, []);
+
+  const onActivityLog = useCallback((entries) => {
+    setTargetLogs(prev => {
+      if (entries === null) return { ...prev, [activeTarget]: [] }; // reset on pentest start
+      const hhmm = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const stamped = entries.map(e => ({ ...e, hhmm }));
+      return { ...prev, [activeTarget]: [...(prev[activeTarget] || []), ...stamped] };
+    });
+  }, [activeTarget]);
+
+  const [pentestRunning, setPentestRunning] = useState(false);
+  const pentestStopRef = useRef(null);
 
   const renameConv = useCallback((id, label) => {
     setConvs(prev => prev.map(c => c.id === id ? { ...c, label } : c));
@@ -2858,7 +2855,7 @@ export default function App() {
         updateInfo={updateInfo}
         onUpdateClick={() => setShowUpdateModal(true)}
       />
-      <ActivityLog logs={logs} activeTarget={activeTarget} />
+      <ActivityLog logs={logs} running={pentestRunning} onStop={() => pentestStopRef.current?.()} />
       <InteractionPanel
         planItems={plan}
         onPlanToggle={togglePlan}
@@ -2885,6 +2882,9 @@ export default function App() {
         webhookUrl={webhookUrl}
         onPentestCreate={onPentestCreate}
         onPentestLog={onPentestLog}
+        onActivityLog={onActivityLog}
+        stopRef={pentestStopRef}
+        onRunningChange={setPentestRunning}
       />
       {splitConv && (
         <>
