@@ -160,10 +160,19 @@ ipcMain.handle('download-update', async (_, { url }) => {
 });
 
 ipcMain.handle('launch-update', async (_, { dest }) => {
-  const oldExe = process.env.PORTABLE_EXECUTABLE_PATH || process.execPath;
+  const oldExe  = process.env.PORTABLE_EXECUTABLE_PATH || process.execPath;
   const finalExe = path.join(path.dirname(oldExe), path.basename(oldExe));
-  // Wait for old process to quit, copy new exe over old name, then launch
-  exec(`cmd /c "ping 127.0.0.1 -n 4 >nul & copy /y "${dest}" "${finalExe}" >nul & "${finalExe}""`);
+  const batPath  = path.join(os.tmpdir(), 'kgbtools-update.bat');
+  // Write a .bat to avoid cmd inner-quote conflicts with paths
+  const bat = [
+    '@echo off',
+    'ping 127.0.0.1 -n 5 >nul',
+    `copy /y "${dest}" "${finalExe}" >nul`,
+    `start "" "${finalExe}"`,
+    `del "${batPath}"`,
+  ].join('\r\n');
+  fs.writeFileSync(batPath, bat);
+  exec(`cmd /c "${batPath}"`);
   setTimeout(() => app.quit(), 1500);
   return { ok: true };
 });
