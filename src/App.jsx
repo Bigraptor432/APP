@@ -16,21 +16,21 @@ function TitleBar() {
   return (
     <div
       className="flex items-center justify-between h-8 flex-shrink-0"
-      style={{ background: '#0a0a0a', borderBottom: '1px solid #1a1a1a', WebkitAppRegion: 'drag', paddingLeft: isMac ? 72 : 0 }}
+      style={{ background: C.bg, borderBottom: `1px solid ${C.border}`, WebkitAppRegion: 'drag', paddingLeft: isMac ? 72 : 0 }}
     >
       <div className="flex items-center gap-2 px-3">
-        <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: '#ff3333' }} />
+        <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: C.red }} />
         <span className="font-mono text-[10px] tracking-widest" style={{ color: '#666' }}>KGBTOOLS · PENTEST PLATFORM</span>
       </div>
       {!isMac && (
       <div className="flex items-center h-full" style={{ WebkitAppRegion: 'no-drag' }}>
         <button className={btn} style={{ color: '#888' }} onClick={() => window.electron.winMinimize()}
-          onMouseEnter={e => e.currentTarget.style.background = '#1a1a1a'}
+          onMouseEnter={e => e.currentTarget.style.background = C.panel}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
           <Minus size={12} />
         </button>
         <button className={btn} style={{ color: '#888' }} onClick={() => window.electron.winMaximize()}
-          onMouseEnter={e => e.currentTarget.style.background = '#1a1a1a'}
+          onMouseEnter={e => e.currentTarget.style.background = C.panel}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
           <SquareIcon size={10} />
         </button>
@@ -2125,7 +2125,7 @@ function TerminalsView({ mcpUrl, appLogs, onClearAppLogs }) {
   return (
     <div
       className="flex flex-col flex-1 h-full overflow-hidden"
-      style={{ background: '#0a0a0a' }}
+      style={{ background: C.bg }}
       onClick={() => inputRef.current?.focus()}
     >
       <div
@@ -2208,7 +2208,7 @@ function ConsoleView({ logs, onClear }) {
     <div className="flex flex-col h-full w-full" style={{ fontFamily: 'monospace' }}>
       <div className="flex items-center justify-between mb-3">
         <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: '#444' }}>Console — {logs.length} entradas</span>
-        <button onClick={onClear} className="font-mono text-[9px] px-2 py-1 rounded" style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', color: '#555', cursor: 'pointer' }}>limpar</button>
+        <button onClick={onClear} className="font-mono text-[9px] px-2 py-1 rounded" style={{ background: C.panel, border: `1px solid ${C.border}`, color: '#555', cursor: 'pointer' }}>limpar</button>
       </div>
       <div ref={ref} className="flex-1 overflow-y-auto space-y-0.5">
         {logs.length === 0 && (
@@ -2298,10 +2298,10 @@ function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onS
             <button
               onClick={() => onModelChange(activeModel === 'claude' ? 'gemma' : activeModel === 'gemma' ? 'opusplan' : 'claude')}
               className="flex items-center gap-1.5 font-mono text-[10px] tracking-wider px-2 py-1 rounded transition-colors"
-              style={{ color: '#888', background: '#141414', border: '1px solid #222' }}
+              style={{ color: '#888', background: C.card, border: `1px solid ${C.border}` }}
               title="Alternar modelo"
-              onMouseEnter={e => e.currentTarget.style.borderColor = '#333'}
-              onMouseLeave={e => e.currentTarget.style.borderColor = '#222'}
+              onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = C.border}
             >
               <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: modelInfo.dot }} />
               {modelInfo.label}
@@ -2320,7 +2320,7 @@ function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onS
                 {target && (
                   <span
                     className="font-mono text-[9px] px-2 py-0.5 rounded flex items-center gap-1.5"
-                    style={{ background: '#1a1a1a', color: '#555', border: `1px solid #222` }}
+                    style={{ background: C.card, color: '#555', border: `1px solid ${C.border}` }}
                   >
                     <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: C.red }} />
                     {target.name}
@@ -2420,7 +2420,7 @@ function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onS
           <div className="flex items-center gap-1.5 mb-1.5 px-1">
             <div
               className="flex items-center gap-1.5 px-2 py-1 rounded-lg font-mono"
-              style={{ fontSize: 9, background: '#1a1a1a', border: '1px solid #252525', color: '#555' }}
+              style={{ fontSize: 9, background: C.card, border: `1px solid ${C.border}`, color: '#555' }}
             >
               <Paperclip size={8} style={{ color: C.red }} />
               <span style={{ color: '#777' }}>{attachment.name}</span>
@@ -2468,7 +2468,7 @@ function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onS
             onClick={send}
             disabled={!input.trim() && !attachment}
             className="flex items-center justify-center w-6 h-6 rounded-lg transition-all flex-shrink-0"
-            style={{ background: (input.trim() || attachment) ? C.red : '#1e1e1e', color: (input.trim() || attachment) ? '#fff' : '#333' }}
+            style={{ background: (input.trim() || attachment) ? C.red : C.panel, color: (input.trim() || attachment) ? '#fff' : '#333' }}
           >
             <ArrowUp size={11} />
           </button>
@@ -2482,7 +2482,7 @@ function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onS
             <span style={{ color: '#2a2a2a' }}>ready</span>
             {supaUrl && (
               <>
-                <span style={{ color: '#1e1e1e' }}>·</span>
+                <span style={{ color: C.border }}>·</span>
                 <span style={{
                   color: syncStatus === 'synced' ? '#3ecf8e' : syncStatus === 'error' ? C.red : '#555'
                 }}>
@@ -2492,7 +2492,7 @@ function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onS
             )}
             {mcpTools.length > 0 && (
               <>
-                <span style={{ color: '#1e1e1e' }}>·</span>
+                <span style={{ color: C.border }}>·</span>
                 <span style={{ color: C.orange }}>⚡ {mcpTools.length} tools</span>
               </>
             )}
@@ -2538,7 +2538,8 @@ export default function App() {
   const [mcpTools,     setMcpTools]     = useState([]);
   const [webhookUrl,   setWebhookUrl]   = useState(() => LS.get('apex_webhook_url', ''));
   const [appLogs,      setAppLogs]      = useState([]);
-  const appLogsRef = useRef([]);
+  const appLogsRef      = useRef([]);
+  const localMutatedRef  = useRef(0);
 
   useEffect(() => {
     const push = (level, args) => {
@@ -2623,9 +2624,13 @@ export default function App() {
       .catch(() => setMcpTools([]));
   }, [mcpUrl]);
 
-  // ── Supabase: load from cloud on mount ────────────────────────────────────
+  // ── Supabase: load from cloud on mount (only on fresh install) ───────────
   useEffect(() => {
     if (!supaUrl || !supaKey) return;
+    // Only restore from cloud if there's no local data (fresh device / first install).
+    // If local data exists (even empty arrays from deletions), local state wins.
+    const hasLocalData = localStorage.getItem('manucas_convs') !== null;
+    if (hasLocalData) { setSyncStatus('synced'); return; }
     const t = setTimeout(async () => {
       try {
         setSyncStatus('syncing');
@@ -2646,6 +2651,7 @@ export default function App() {
 
   // ── Supabase: debounced cloud sync on every state change ──────────────────
   useEffect(() => {
+    localMutatedRef.current = Date.now();
     if (!supaUrl || !supaKey) return;
     const timer = setTimeout(async () => {
       try {
@@ -2673,6 +2679,8 @@ export default function App() {
     if (!supaUrl || !supaKey) return;
     const apply = (set, remote) => set(prev => JSON.stringify(prev) !== JSON.stringify(remote) ? remote : prev);
     const poll = async () => {
+      // skip if local was mutated in the last 3s to prevent race with debounced save
+      if (Date.now() - localMutatedRef.current < 3000) return;
       try {
         const data = await supaLoad(supaUrl, supaKey);
         const map  = Object.fromEntries(data.map(r => [r.key, r.value]));
