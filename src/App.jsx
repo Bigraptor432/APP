@@ -112,6 +112,65 @@ const supaSave = async (url, key, rows) => {
   }
 };
 
+// ─── DEMO MODE — mock pentest responses ────────────────────────────────────────
+
+const DEMO_TARGET = (t = 'testsite.com') => t.replace(/^https?:\/\//, '').split('/')[0];
+
+const getMockResponse = (text, history = []) => {
+  const t = text.toLowerCase();
+  const target = (() => {
+    const m = text.match(/https?:\/\/[^\s]+|[\w-]+\.(com|net|org|io|pt|br|local|htb|thm)[^\s]*/i);
+    if (m) return DEMO_TARGET(m[0]);
+    for (let i = history.length - 1; i >= 0; i--) {
+      const hm = (history[i].content || '').match(/https?:\/\/[^\s]+|[\w-]+\.(com|net|org|io|pt|br|local|htb|thm)[^\s]*/i);
+      if (hm) return DEMO_TARGET(hm[0]);
+    }
+    return 'target.com';
+  })();
+
+  if (t.match(/nmap|porta|port|scan|reconhec|recon|analisa|começar|iniciar|start/)) {
+    return {
+      toolCalls: [{ tool: 'nmap', args: { target, flags: '-sV -sC -T4 --open' }, output: `Starting Nmap 7.94 ( https://nmap.org )\nScan report for ${target}\nHost is up (0.042s latency).\nPORT     STATE SERVICE    VERSION\n22/tcp   open  ssh        OpenSSH 8.9p1 Ubuntu\n80/tcp   open  http       nginx 1.18.0\n443/tcp  open  ssl/https  nginx 1.18.0\n8080/tcp open  http       Apache Tomcat 9.0.65\n3306/tcp open  mysql      MySQL 5.7.39\nService detection done.` }],
+      text: `**Reconhecimento inicial concluído em \`${target}\`**\n\nPortas abertas encontradas:\n- **22** — OpenSSH 8.9p1 (Ubuntu)\n- **80/443** — nginx 1.18.0 (HTTP/HTTPS)\n- **8080** — Apache Tomcat 9.0.65 ⚠️ versão desatualizada\n- **3306** — MySQL 5.7.39 ⚠️ exposta ao exterior\n\n**Próximos passos recomendados:**\n1. Enumerar directórios HTTP (\`/admin\`, \`/backup\`, \`/.git\`)\n2. Testar Tomcat manager com credenciais padrão\n3. Verificar MySQL acessível sem autenticação\n4. Correr \`nikto\` para vulnerabilidades web conhecidas`
+    };
+  }
+  if (t.match(/sql|inject|sqli|sqlmap/)) {
+    return {
+      toolCalls: [{ tool: 'sqlmap', args: { url: `http://${target}/api/users?id=1`, level: 5, risk: 3 }, output: `sqlmap/1.7.8\nTarget: http://${target}/api/users?id=1\n[INFO] testing 'AND boolean-based blind - WHERE or HAVING clause'\n[INFO] GET parameter 'id' is vulnerable!\nParameter: id (GET)\n  Type: boolean-based blind\n  Payload: id=1 AND 1=1--\n  Type: UNION query\n  Payload: id=1 UNION ALL SELECT NULL,NULL,@@version--\n[INFO] Fetched DB: app_db\n[INFO] Tables: users, sessions, payments, admin_tokens` }],
+      text: `**SQL Injection encontrada!** 🔴\n\nParâmetro vulnerável: \`GET ?id=\` em \`/api/users\`\n\n**Tipo:** Boolean-based blind + UNION query\n\n**Bases de dados extraídas:**\n- \`app_db\` → tabelas: \`users\`, \`sessions\`, \`payments\`, \`admin_tokens\`\n\n**Impacto crítico:**\n- Extracção de todos os utilizadores e passwords\n- Acesso à tabela \`admin_tokens\` → escalada de privilégios\n- Possível RCE via \`INTO OUTFILE\` se MySQL corre como root\n\nRecomendação: usar prepared statements / ORM parametrizado.`
+    };
+  }
+  if (t.match(/xss|cross.site|script/)) {
+    return {
+      toolCalls: [{ tool: 'xss_scan', args: { target: `http://${target}`, payloads: 47 }, output: `[FOUND] http://${target}/search?q=<script>alert(1)</script>\n  Context: HTML attribute unescaped\n  Severity: HIGH\n[FOUND] http://${target}/profile/bio\n  Context: DOM innerHTML sink\n  Severity: MEDIUM\n[FOUND] http://${target}/api/comments (stored)\n  Context: JSON reflected in page\n  Severity: CRITICAL — Stored XSS` }],
+      text: `**3 vulnerabilidades XSS encontradas:**\n\n🔴 **Stored XSS** em \`/api/comments\` — o payload persiste na DB e é servido a todos os utilizadores\n- Permite roubo de sessões, keylogging, redirecionamento\n\n🟠 **Reflected XSS** em \`/search?q=\` — parâmetro não sanitizado\n\n🟡 **DOM XSS** em \`/profile/bio\` — sink \`innerHTML\` sem escape\n\n**Fix:** usar \`textContent\` em vez de \`innerHTML\`, sanitizar input no servidor com DOMPurify.`
+    };
+  }
+  if (t.match(/dirb|dirsearch|director|pasta|backup|hidden|hidden|\.git|enumera/)) {
+    return {
+      toolCalls: [{ tool: 'dirsearch', args: { url: `http://${target}`, wordlist: 'common.txt', extensions: 'php,html,js,bak' }, output: `[200] /admin/\n[200] /admin/login.php\n[200] /backup/db_backup_2024.sql.gz\n[403] /.git/ (accessible with --no-follow)\n[200] /api/swagger.json\n[200] /phpinfo.php\n[301] /old/ → /legacy/\n[200] /legacy/upload.php\n[200] /.env` }],
+      text: `**Directórios e ficheiros sensíveis descobertos:**\n\n🔴 \`/.env\` — variáveis de ambiente expostas (credenciais DB, API keys)\n🔴 \`/backup/db_backup_2024.sql.gz\` — backup da base de dados acessível publicamente\n🔴 \`/admin/login.php\` — painel de administração exposto\n🟠 \`/.git/\` — repositório Git exposto (código fonte extraível)\n🟠 \`/legacy/upload.php\` — endpoint de upload sem autenticação aparente\n🟡 \`/api/swagger.json\` — documentação API exposta\n🟡 \`/phpinfo.php\` — informação do servidor PHP visível\n\n**Prioridade:** extrair \`.env\` e \`db_backup\` imediatamente.`
+    };
+  }
+  if (t.match(/brute|force|password|senha|credencial|hydra|ffuf|login/)) {
+    return {
+      toolCalls: [{ tool: 'hydra', args: { target, service: 'http-post-form', login: '/admin/login.php', wordlist: 'rockyou-top1000.txt' }, output: `Hydra v9.5\n[DATA] attacking http-post-form\n[80][http-post-form] host: ${target}   login: admin   password: admin123\n[80][http-post-form] host: ${target}   login: administrator   password: password1\n1 of 2 target successfully completed, 2 valid passwords found` }],
+      text: `**Credenciais fracas encontradas via brute-force:**\n\n✅ \`admin:admin123\` — acesso ao painel \`/admin/\`\n✅ \`administrator:password1\` — conta secundária\n\n**Nota:** 1000 tentativas foram suficientes — a aplicação não implementa:\n- Rate limiting\n- CAPTCHA\n- Bloqueio de conta após X tentativas\n- 2FA\n\nCom as credenciais de admin é possível escalar para RCE via upload de ficheiros ou edição de templates.`
+    };
+  }
+  if (t.match(/relatorio|report|resumo|sumario|resultado|fim|final|conclu/)) {
+    return {
+      toolCalls: [],
+      text: `# Relatório de Pentest — \`${target}\`\n\n## Resumo Executivo\nForam identificadas **6 vulnerabilidades críticas** que permitem comprometimento total da aplicação e dos seus dados.\n\n## Findings por Severidade\n\n🔴 **CRÍTICO (3)**\n- SQL Injection em \`/api/users?id=\` → extracção de DB completa\n- Credenciais padrão no painel admin (\`admin:admin123\`)\n- Backup da base de dados acessível publicamente (\`/backup/\`)\n\n🟠 **ALTO (2)**\n- Stored XSS em \`/api/comments\` → roubo de sessões\n- Ficheiro \`.env\` exposto com credenciais\n\n🟡 **MÉDIO (1)**\n- MySQL (3306) exposto ao exterior sem firewall\n\n## Recomendações Prioritárias\n1. Revogar e rodar todas as credenciais imediatamente\n2. Remover \`.env\` e \`/backup/\` do servidor web\n3. Aplicar prepared statements em todas as queries\n4. Implementar WAF + rate limiting\n5. Actualizar Tomcat 9.0.65 → versão actual`
+    };
+  }
+  // Default
+  return {
+    toolCalls: [],
+    text: `**[MODO DEMO]** Simulação de pentest em \`${target}\`.\n\nPodes pedir:\n- \`nmap\` / scan / reconhecimento\n- \`sqlmap\` / SQL injection\n- \`xss\` / cross-site scripting\n- \`dirsearch\` / directórios escondidos\n- \`hydra\` / brute force / credenciais\n- \`relatório\` / resumo final\n\nConfigura a tua Anthropic API Key em ⚙ para respostas reais com Claude.`
+  };
+};
+
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 const now = () => {
@@ -2774,10 +2833,13 @@ export default function App() {
     const useOpusPlan = activeModel === 'opusplan';
     const key         = useGemma ? groqKey : apiKey;
     if (!key) {
+      await new Promise(r => setTimeout(r, 600 + Math.random() * 800));
+      const mock = getMockResponse(text, history);
+      const toolMsgs = (mock.toolCalls || []).map(tc => ({ role: 'tool_call', name: tc.tool, args: tc.args, output: tc.output }));
       setConvMessages(prev => {
         const msgs = [...(prev[convId] || [])];
-        msgs[msgs.length - 1] = { role: 'assistant', text: `Configure a ${useGemma ? 'Groq' : 'Anthropic'} API Key (⚙).`, loading: false };
-        return { ...prev, [convId]: msgs };
+        const base = msgs.slice(0, -1);
+        return { ...prev, [convId]: [...base, ...toolMsgs, { role: 'assistant', text: mock.text, loading: false }] };
       });
       return;
     }
