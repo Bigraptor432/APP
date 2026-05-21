@@ -146,8 +146,14 @@ function downloadFile(url, dest, onProgress) {
 }
 
 ipcMain.handle('download-update', async (_, { url }) => {
-  const dest = path.join(os.tmpdir(), 'kgbtools-update.exe');
-  try { fs.unlinkSync(dest); } catch (_) {}
+  const exeDir = process.env.PORTABLE_EXECUTABLE_DIR || app.getPath('downloads');
+  const version = url.match(/download\/v?([\d.]+)\//)?.[1] || 'new';
+  const dest = path.join(exeDir, `kgbtools-v${version}.exe`);
+  try {
+    fs.readdirSync(exeDir)
+      .filter(f => /^kgbtools-v[\d.]+\.exe$/i.test(f))
+      .forEach(f => { try { fs.unlinkSync(path.join(exeDir, f)); } catch (_) {} });
+  } catch (_) {}
   try {
     await downloadFile(url, dest, (pct) => {
       win?.webContents.send('download-progress', { percent: pct });
@@ -160,20 +166,10 @@ ipcMain.handle('download-update', async (_, { url }) => {
 });
 
 ipcMain.handle('launch-update', async (_, { dest }) => {
-  const oldExe  = process.env.PORTABLE_EXECUTABLE_PATH || process.execPath;
-  const finalExe = path.join(path.dirname(oldExe), path.basename(oldExe));
-  const batPath  = path.join(os.tmpdir(), 'kgbtools-update.bat');
-  // Write a .bat to avoid cmd inner-quote conflicts with paths
-  const bat = [
-    '@echo off',
-    'ping 127.0.0.1 -n 5 >nul',
-    `copy /y "${dest}" "${finalExe}" >nul`,
-    `start "" "${finalExe}"`,
-    `del "${batPath}"`,
-  ].join('\r\n');
-  fs.writeFileSync(batPath, bat);
-  exec(`cmd /c "${batPath}"`);
-  setTimeout(() => app.quit(), 1500);
+  const oldExe = process.env.PORTABLE_EXECUTABLE_PATH || process.execPath;
+  exec(`"${dest}"`, () => {});
+  exec(`cmd /c "ping 127.0.0.1 -n 5 >nul & del /f /q \"${oldExe}\""`);
+  setTimeout(() => app.quit(), 2000);
   return { ok: true };
 });
 
