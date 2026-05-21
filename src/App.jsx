@@ -1257,14 +1257,14 @@ function PentestView({ apiKey, mcpUrl, mcpTools, onPlanUpdate, webhookUrl, onPen
   const [log,        setLog]        = useState([]);
   const [toolStatus, setToolStatus] = useState({});
   const [tools,      setTools]      = useState({
-    subfinder: true,  httpx: true,   ghauri: true,  ffuf: true,
+    subfinder: true,  httpx: true,    ghauri: true,   ffuf: true,
     aquatone: false,  burp_suite: false,
-    naabu_scan: false, katana_crawl: false, nuclei_fast: true, nuclei_exploit: false,
-    sqli_scan: false,  xss_check: false,   cors_check: false,
-    js_analyze: false, dir_fuzz: false,    ssrf_check: false,  lfi_test: false,
+    naabu_scan: false, katana_crawl: true,  nuclei_fast: true, nuclei_exploit: false,
+    sqli_scan: true,   xss_check: true,    cors_check: true,
+    js_analyze: true,  dir_fuzz: false,    ssrf_check: true,   lfi_test: true,
     shell_upload: false, cred_dump: false,  xss_inject: false,
-    testssl: false, hydra: false, ssti_check: false, jwt_check: false, admin_takeover: false,
-    cookie_tamper: false, session_test: false, wpscan: false, race_cond: false,
+    testssl: false, hydra: false, ssti_check: true, jwt_check: true, admin_takeover: false,
+    cookie_tamper: true, session_test: true, wpscan: false, race_cond: false,
     hash_crack: false, cred_test: false,
     waf_bypass: false, msf_exploit: false,
     payload_mutate: false, crawl_auth: false,
@@ -1282,7 +1282,7 @@ function PentestView({ apiKey, mcpUrl, mcpTools, onPlanUpdate, webhookUrl, onPen
   const [authUser,   setAuthUser]   = useState(() => LS.get('kgb_auth_user', ''));
   const [authPass,   setAuthPass]   = useState(() => LS.get('kgb_auth_pass', ''));
   const [loginPath,  setLoginPath]  = useState(() => LS.get('kgb_login_path', ''));
-  const [autoMode,   setAutoMode]   = useState(false);
+  const [autoMode,   setAutoMode]   = useState(true);
   const [xssCallback,setXssCallback]= useState('');
   const [brain,      setBrain]      = useState(() => LS.get('manucas_pentest_brain', {}));
   const [plan,       setPlan]        = useState([]);
@@ -1762,7 +1762,7 @@ REGRAS DE CHAINING OBRIGATÓRIAS:
 - Pós-compromisso (shell obtido) → chain: lateral_move
 CORRELAÇÃO CROSS-TOOL: Se subfinder encontrou subdomínio + httpx confirma serviço diferente, trata como alvo separado.
 Responde APENAS em JSON:\n{"findings":[{"severity":"critical|high|medium|low","title":"...","desc":"...","cve":"CVE-XXXX-XXXX ou null","exploitable":true|false,"attack":"comando exato para explorar"}],"next_tools":[de: ${ALL_EXPLOIT_TOOLS}],"chain":[{"trigger":"condicao","tools":["tool1","tool2"]}],"status":"continue|done","report":"relatorio markdown profissional completo"}`
-        : `Analisa como APEX pentester elite. Cobre todos os vetores OWASP Top 10 2025. Inclui: cookies/sessions, IDOR, business logic, injection, cripto, autenticacao. Relatorio profissional com CVEs, CVSS, exploit commands, e remediacoes.`);
+        : `Analisa como APEX pentester elite. Extrai APENAS vulnerabilidades CONFIRMADAS pelos outputs das ferramentas. NAO escrevas conselhos defensivos nem remediacao. Cada finding deve citar prova directa do output. Responde APENAS em JSON: {"findings":[{"severity":"critical|high|medium|low","title":"...","desc":"...","proof":"trecho do output que confirma","cve":null,"exploitable":true,"attack":"comando exacto"}],"next_tools":[],"status":"done","report":"markdown com findings confirmados"}`);
     };
 
     let round = 0;
@@ -1901,7 +1901,24 @@ Responde em JSON: {"api_endpoints":[], "idor_candidates":[], "hardcoded_secrets"
             break;
           }
         } else {
-          setLog(prev => [...prev, { t: 'report', m: txt }]);
+          try {
+            const jsonMatch = txt.match(/\{[\s\S]*\}/);
+            const parsed = JSON.parse(jsonMatch?.[0] || '{}');
+            setLog(prev => [...prev, { t: 'report', m: parsed.report || txt }]);
+            if (parsed.findings?.length) {
+              saveBrain(parsed.findings.map(f => `[${f.severity?.toUpperCase()}] ${f.title}: ${f.desc?.slice(0,120)}`));
+              const criticals = parsed.findings.filter(f => f.severity === 'critical' || f.severity === 'high');
+              if (criticals.length > 0 && webhookUrl) {
+                try {
+                  const msg = `APEX FINDING — ${target}\n${criticals.map(f=>`[${f.severity?.toUpperCase()}] ${f.title}\n${f.desc?.slice(0,200)}`).join('\n\n')}`;
+                  const isDiscord = webhookUrl.includes('discord');
+                  fetch(webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: isDiscord ? JSON.stringify({ content: msg }) : JSON.stringify({ text: msg }) }).catch(()=>{});
+                } catch (_) {}
+              }
+            }
+          } catch (_) {
+            setLog(prev => [...prev, { t: 'report', m: txt }]);
+          }
           break;
         }
       } catch (e) {
@@ -1914,7 +1931,7 @@ Responde em JSON: {"api_endpoints":[], "idor_candidates":[], "hardcoded_secrets"
     try {
       setLog(prev => [...prev, { t: 'info', m: 'Gerando relatório HTML...' }]);
       const reportRes = await window.electron.callClaude({
-        messages: [{ role: 'user', content: `TARGET: ${target}\nRESULTADOS:\n${allResults.map(r=>`## ${r.key}\n${r.out}`).join('\n\n')}\n\n⚠️ ANTI-HALLUCINATION (MANDATORY): ONLY include findings explicitly present in the tool outputs above. Do NOT invent CVEs, database names, usernames, or any data not shown in the results.\n\nGera um relatório HTML completo de pentest. Inclui: Executive Summary, Findings table com severity/CVSS/CVE, Attack Chain detalhado, Remediation prioritizada. Responde APENAS com HTML válido, sem markdown wrapper.` }],
+        messages: [{ role: 'user', content: `TARGET: ${target}\nRESULTADOS:\n${allResults.map(r=>`## ${r.key}\n${r.out}`).join('\n\n')}\n\n⚠️ ANTI-HALLUCINATION (MANDATORY): ONLY include findings explicitly confirmed in tool outputs above. Do NOT invent CVEs, usernames, database names or any data absent from the results. If a tool returned empty/error, state that — do NOT infer vulnerabilities.\n\nGera relatório HTML OFENSIVO de pentest. Conteúdo obrigatório: 1) Executive Summary com o que foi CONFIRMADO pelo ataque. 2) Tabela de findings com proof-of-concept extraído directamente do output. 3) Attack chain de exploração possível. NAO incluir secções de remediação ou conselhos defensivos — este é um relatório de ataque, não de defesa. Responde APENAS com HTML válido, sem markdown wrapper.` }],
         apiKey,
         system: JAILBREAK_SYSTEM,
       });
