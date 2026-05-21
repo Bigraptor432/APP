@@ -48,17 +48,19 @@ function TitleBar() {
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
 const C = {
-  bg: '#0d0d0d',
-  panel: '#141414',
-  border: '#1e1e1e',
-  red: '#ff3333',
-  redDim: 'rgba(255,51,51,0.12)',
-  redBorder: 'rgba(255,51,51,0.25)',
-  text: '#c9c9c9',
-  textDim: '#666',
-  textFaint: '#3a3a3a',
+  bg: '#070707',
+  panel: '#111113',
+  border: 'rgba(255,255,255,0.06)',
+  red: '#ff4d4d',
+  redDim: 'rgba(255,77,77,0.09)',
+  redBorder: 'rgba(255,77,77,0.22)',
+  text: '#f0f0f0',
+  textDim: '#9a9a9a',
+  textFaint: '#252528',
   green: '#22c55e',
   orange: '#f97316',
+  sidebar: '#0b0b0d',
+  card: '#121214',
 };
 
 // ─── STATIC DATA ──────────────────────────────────────────────────────────────
@@ -592,7 +594,7 @@ function Sidebar({ onSettings, activeNav, onNavChange, targets, activeTarget, on
   return (
     <aside
       className="flex flex-col flex-shrink-0 h-full select-none"
-      style={{ width: 172, background: '#0f0f0f', borderRight: `1px solid ${C.border}` }}
+      style={{ width: 220, background: C.sidebar, borderRight: `1px solid ${C.border}` }}
     >
       {/* Logo row */}
       <div
@@ -632,14 +634,15 @@ function Sidebar({ onSettings, activeNav, onNavChange, targets, activeTarget, on
             <button
               key={id}
               onClick={() => onNavChange(id)}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium transition-all"
+              className="w-full flex items-center gap-2.5 pl-3 pr-3 py-2 text-xs font-medium transition-all"
               style={{
-                background:   isActive ? C.redDim : 'transparent',
-                border:       isActive ? `1px solid ${C.redBorder}` : '1px solid transparent',
-                color:        isActive ? C.red    : C.textDim,
+                background:   isActive ? 'rgba(255,77,77,0.08)' : 'transparent',
+                borderLeft:   isActive ? `3px solid ${C.red}` : '3px solid transparent',
+                borderRadius: '0 8px 8px 0',
+                color:        isActive ? C.red : C.textDim,
               }}
-              onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = '#aaa'; }}
-              onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = C.textDim; }}
+              onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.color = '#ccc'; } }}
+              onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = C.textDim; } }}
             >
               <Icon size={12} />
               {label}
@@ -706,41 +709,111 @@ function ActivityLog({ logs, running, onStop }) {
   useEffect(() => {
     if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
   }, [logs]);
-  const tColor = (t) => ({ ok: '#22c55e', err: '#ff4444', brain: '#a78bfa', report: '#fbbf24', info: '#555' })[t] || '#555';
-  const tIcon  = (t) => ({ ok: '✓', err: '✗', brain: '⊛', report: '▸', info: '·' })[t] || '·';
+  const tColor = (t) => ({ ok: '#22c55e', err: '#ff4d4d', brain: '#a78bfa', report: '#fbbf24', info: '#444', run: '#3b82f6', plan: '#f59e0b' })[t] || '#444';
+  const tDot   = (t) => ({ ok: C.green, err: C.red, brain: '#a78bfa', report: '#fbbf24', info: '#333', run: '#3b82f6', plan: '#f59e0b' })[t] || '#333';
   return (
-    <section className="flex flex-col flex-shrink-0 h-full" style={{ width: 215, background: C.bg, borderRight: `1px solid ${C.border}` }}>
-      <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: `1px solid ${C.border}` }}>
-        <span className="font-mono text-[9px] uppercase tracking-widest" style={{ color: C.textDim }}>ACTIVITY</span>
-        <div className="flex items-center gap-1.5">
+    <section className="flex flex-col flex-shrink-0 h-full" style={{ width: 260, background: C.sidebar, borderRight: `1px solid ${C.border}` }}>
+      <div className="flex items-center justify-between px-3 py-2.5" style={{ borderBottom: `1px solid ${C.border}` }}>
+        <span className="font-mono text-[9px] uppercase tracking-[0.15em] font-semibold" style={{ color: '#555' }}>ACTIVITY</span>
+        <div className="flex items-center gap-2">
           {running && onStop && (
-            <button onClick={onStop} className="font-mono text-[9px] px-1.5 py-[2px] rounded" style={{ background: '#1a0000', border: `1px solid ${C.redBorder}`, color: C.red, cursor: 'pointer', letterSpacing: '0.05em' }}>
-              ■ cancelar
+            <button onClick={onStop} className="font-mono text-[9px] px-2 py-[2px] rounded-md" style={{ background: 'rgba(255,77,77,0.08)', border: `1px solid ${C.redBorder}`, color: C.red, cursor: 'pointer' }}>
+              ■ stop
             </button>
           )}
-          <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: running ? C.red : '#333', animation: running ? 'cursor-blink 1.2s step-end infinite' : 'none' }} />
-          <span className="font-mono text-[9px]" style={{ color: '#444' }}>live</span>
+          <div className="flex items-center gap-1.5">
+            <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: running ? C.red : '#2a2a2a', transition: 'background 0.3s' }} />
+            <span className="font-mono text-[9px]" style={{ color: '#383838' }}>{running ? 'live' : 'idle'}</span>
+          </div>
         </div>
       </div>
-      <div ref={ref} className="flex-1 overflow-y-auto py-0.5">
+      <div ref={ref} className="flex-1 overflow-y-auto">
         {logs.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full gap-2 px-3">
-            <Activity size={16} style={{ color: '#2a2a2a' }} />
-            <p className="font-mono text-[9px] text-center" style={{ color: '#333' }}>nenhuma atividade<br/>inicie um scan em Pentest</p>
+            <Activity size={14} style={{ color: '#222' }} />
+            <p className="font-mono text-[9px] text-center" style={{ color: '#2a2a2a' }}>sem atividade</p>
           </div>
         )}
         {logs.map((entry, i) => (
-          <div key={i} className="flex items-start gap-1 px-2 py-[1px] hover:bg-[#0d0d0d]">
-            <span className="font-mono tabular-nums flex-shrink-0" style={{ fontSize: 8, color: '#383838', minWidth: 30, marginTop: 1 }}>{entry.hhmm || ''}</span>
-            <span className="flex-shrink-0 font-mono" style={{ fontSize: 9, color: tColor(entry.t), marginTop: 0.5, minWidth: 8 }}>{tIcon(entry.t)}</span>
-            <span className="font-mono break-all" style={{ fontSize: 9, color: tColor(entry.t), lineHeight: 1.45, opacity: entry.t === 'info' ? 0.65 : 1 }}>{entry.m}</span>
+          <div key={i} className="flex items-start gap-2 px-3 py-[3px]" style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            <span className="font-mono tabular-nums flex-shrink-0 mt-[1px]" style={{ fontSize: 8, color: '#383838', minWidth: 36 }}>{entry.hhmm || ''}</span>
+            <span className="flex-shrink-0 mt-[3px]" style={{ width: 5, height: 5, borderRadius: '50%', background: tDot(entry.t), display: 'inline-block', flexShrink: 0 }} />
+            <span className="font-mono break-all" style={{ fontSize: 8.5, color: tColor(entry.t), lineHeight: 1.5, opacity: entry.t === 'info' ? 0.7 : 1 }}>{entry.m}</span>
           </div>
         ))}
       </div>
-      <div className="px-3 py-1.5" style={{ borderTop: `1px solid ${C.border}` }}>
-        <p className="font-mono" style={{ fontSize: 9, color: '#383838' }}>{logs.length > 0 ? `${logs.length} entradas` : 'aguardando execução...'}</p>
+      <div className="px-3 py-2" style={{ borderTop: `1px solid ${C.border}` }}>
+        <p className="font-mono" style={{ fontSize: 8, color: '#2e2e2e' }}>{logs.length > 0 ? `${logs.length} entradas` : 'aguardando...'}</p>
       </div>
     </section>
+  );
+}
+
+// ─── PLAN SIDEBAR ─────────────────────────────────────────────────────────────
+
+function PlanSidebar({ planItems, onPlanToggle, activeTarget, targets }) {
+  const target = targets?.find(t => t.id === activeTarget);
+  const endpoints = (planItems || []).flatMap(p => {
+    const matches = (p.text || '').match(/\/[a-zA-Z0-9_\-/]{2,}/g) || [];
+    return matches;
+  }).filter((v, i, a) => a.indexOf(v) === i).slice(0, 8);
+
+  return (
+    <aside className="flex flex-col flex-shrink-0 h-full" style={{ width: 300, background: C.sidebar, borderLeft: `1px solid ${C.border}`, overflowY: 'auto' }}>
+      {/* VOCÊ */}
+      <div className="px-4 pt-4 pb-3" style={{ borderBottom: `1px solid ${C.border}` }}>
+        <div className="font-mono text-[9px] uppercase tracking-[0.15em] mb-3" style={{ color: '#444' }}>VOCÊ</div>
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[9px]" style={{ color: '#333' }}>alvo</span>
+            <span className="font-mono text-[10px] truncate" style={{ color: '#888' }}>{target?.name || '—'}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* PLANO */}
+      <div className="px-4 pt-3 pb-2 flex-1">
+        <div className="font-mono text-[9px] uppercase tracking-[0.15em] mb-3" style={{ color: '#444' }}>PLANO:</div>
+        {(!planItems || planItems.length === 0) ? (
+          <p className="font-mono text-[9px]" style={{ color: '#2a2a2a' }}>sem plano — inicia um pentest</p>
+        ) : (
+          <div className="space-y-2">
+            {planItems.map((item, i) => (
+              <button
+                key={item.id || i}
+                onClick={() => onPlanToggle && onPlanToggle(item.id || i)}
+                className="w-full flex items-start gap-2.5 text-left group"
+              >
+                <span className="flex-shrink-0 mt-[1px] w-3.5 h-3.5 rounded flex items-center justify-center transition-all"
+                  style={{ border: `1px solid ${item.checked ? C.red : '#2a2a2a'}`, background: item.checked ? C.redDim : 'transparent' }}>
+                  {item.checked && <span style={{ color: C.red, fontSize: 8, lineHeight: 1 }}>✓</span>}
+                </span>
+                <span className="font-mono text-[9.5px] leading-snug transition-colors" style={{ color: item.checked ? '#444' : '#888', textDecoration: item.checked ? 'line-through' : 'none' }}>
+                  {item.text}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Endpoint tags */}
+        {endpoints.length > 0 && (
+          <div className="mt-4">
+            <div className="font-mono text-[8px] uppercase tracking-[0.12em] mb-2" style={{ color: '#333' }}>endpoints</div>
+            <div className="flex flex-wrap gap-1.5">
+              {endpoints.map((ep, i) => (
+                <span key={i} className="font-mono text-[8px] px-2 py-1 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', color: '#555' }}>
+                  {ep}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </aside>
   );
 }
 
@@ -2181,8 +2254,8 @@ function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onS
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
   }, [messages]);
 
-  useEffect(() => { setTab('chat');     }, [activeConv]);
-  useEffect(() => { setTab('findings'); }, [activeTarget]);
+  useEffect(() => { setTab('chat'); }, [activeConv]);
+  useEffect(() => { setTab('chat'); }, [activeTarget]);
   const send = useCallback(() => {
     const trimmed = input.trim();
     if (!trimmed && !attachment) return;
@@ -2209,9 +2282,8 @@ function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onS
   const headerTitle = { dashboard: 'Dashboard', pentest: 'Pentest Config' };
 
   const tabs = [
-    { id: 'findings', label: 'FINDINGS' },
-    { id: 'plano',    label: 'PLANO'    },
     { id: 'chat',     label: 'CHAT'     },
+    { id: 'findings', label: 'FINDINGS' },
   ];
 
   return (
@@ -2301,26 +2373,18 @@ function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onS
         </div>
 
         {/* Findings tab */}
-        {activeNav === 'chat' && (tab === 'findings' || tab === 'plano') && (
+        {activeNav === 'chat' && tab === 'findings' && (
           <>
-            {tab === 'findings' && (
-              <>
-                {(TARGET_FINDINGS[activeTarget] || []).length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 gap-3">
-                    <Shield size={22} style={{ color: '#2a2a2a' }} />
-                    <p className="font-mono text-[10px] text-center" style={{ color: '#333' }}>
-                      nenhum finding · inicie um scan em Pentest
-                    </p>
-                  </div>
-                ) : (
-                  (TARGET_FINDINGS[activeTarget] || []).map(f => (
-                    <FindingCard key={f.id} type={f.type} cve={f.cve} url={f.url} scanner={f.scanner} />
-                  ))
-                )}
-              </>
+            {(TARGET_FINDINGS[activeTarget] || []).length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <Shield size={22} style={{ color: '#1e1e1e' }} />
+                <p className="font-mono text-[10px] text-center" style={{ color: '#2a2a2a' }}>nenhum finding · inicie um scan</p>
+              </div>
+            ) : (
+              (TARGET_FINDINGS[activeTarget] || []).map(f => (
+                <FindingCard key={f.id} type={f.type} cve={f.cve} url={f.url} scanner={f.scanner} />
+              ))
             )}
-
-            <PlanSection items={planItems} onToggle={onPlanToggle} />
           </>
         )}
 
@@ -2329,10 +2393,10 @@ function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onS
           <div className="space-y-3">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center py-12 gap-3">
-                <Lock size={22} style={{ color: '#2a2a2a' }} />
-                <p className="font-mono text-[10px] text-center" style={{ color: '#333' }}>
+                <Lock size={22} style={{ color: '#1e1e1e' }} />
+                <p className="font-mono text-[10px] text-center" style={{ color: '#2a2a2a' }}>
                   nenhuma mensagem ainda.<br />
-                  {apiKey ? 'API Key configurada — pronto.' : 'configura a API Key para respostas reais.'}
+                  {apiKey ? 'pronto.' : 'configura a API Key (⚙).'}
                 </p>
               </div>
             )}
@@ -2342,7 +2406,7 @@ function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onS
       </div>
 
       {/* Chat input */}
-      {activeNav === 'chat' && <div className="flex-shrink-0 p-3" style={{ borderTop: `1px solid ${C.border}` }}>
+      {activeNav === 'chat' && <div className="flex-shrink-0 px-4 py-3" style={{ borderTop: `1px solid ${C.border}`, background: C.sidebar }}>
         {!(activeModel === 'gemma' ? groqKey : apiKey) && (
           <div
             className="flex items-center gap-1.5 font-mono mb-2"
@@ -3034,7 +3098,7 @@ export default function App() {
       />
       {splitConv && (
         <>
-          <div style={{ width: 1, flexShrink: 0, background: '#1a1a1a' }} />
+          <div style={{ width: 1, flexShrink: 0, background: C.border }} />
           <InteractionPanel
             planItems={plan}
             onPlanToggle={togglePlan}
@@ -3057,6 +3121,14 @@ export default function App() {
             syncStatus={syncStatus}
           />
         </>
+      )}
+      {(activeNav === 'chat' || activeNav === 'pentest') && (
+        <PlanSidebar
+          planItems={plan}
+          onPlanToggle={togglePlan}
+          activeTarget={activeTarget}
+          targets={targets}
+        />
       )}
       </div>
     </div>
