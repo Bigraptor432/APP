@@ -2614,7 +2614,7 @@ export default function App() {
   const [syncStatus,   setSyncStatus]   = useState('idle');
   const [mcpUrl,       setMcpUrl]       = useState(() => localStorage.getItem('manucas_mcp_url') || '');
   const [mcpTools,     setMcpTools]     = useState([]);
-  const [webhookUrl,   setWebhookUrl]   = useState(() => LS.get('apex_webhook_url', ''));
+  const [webhookUrl,   setWebhookUrl]   = useState(() => localStorage.getItem('manucas_webhook_url') || LS.get('apex_webhook_url', ''));
   const [appLogs,      setAppLogs]      = useState([]);
   const appLogsRef         = useRef([]);
   const localMutatedRef     = useRef(0);
@@ -2723,9 +2723,11 @@ export default function App() {
         if (map.manucas_active_target) setActiveTarget(map.manucas_active_target);
         if (map.manucas_active_conv)   setActiveConv(map.manucas_active_conv);
         // Restore API keys from cloud (only if not already saved locally)
-        if (map.manucas_api_key  && !localStorage.getItem('manucas_api_key'))  { setApiKey(map.manucas_api_key);   localStorage.setItem('manucas_api_key',  map.manucas_api_key); }
-        if (map.manucas_groq_key && !localStorage.getItem('manucas_groq_key')) { setGroqKey(map.manucas_groq_key); localStorage.setItem('manucas_groq_key', map.manucas_groq_key); }
-        if (map.manucas_mcp_url  && !localStorage.getItem('manucas_mcp_url'))  { setMcpUrl(map.manucas_mcp_url);   localStorage.setItem('manucas_mcp_url',  map.manucas_mcp_url); }
+        if (map.manucas_api_key     && !localStorage.getItem('manucas_api_key'))     { setApiKey(map.manucas_api_key);         localStorage.setItem('manucas_api_key',     map.manucas_api_key); }
+        if (map.manucas_groq_key    && !localStorage.getItem('manucas_groq_key'))    { setGroqKey(map.manucas_groq_key);       localStorage.setItem('manucas_groq_key',    map.manucas_groq_key); }
+        if (map.manucas_mcp_url     && !localStorage.getItem('manucas_mcp_url'))     { setMcpUrl(map.manucas_mcp_url);         localStorage.setItem('manucas_mcp_url',     map.manucas_mcp_url); }
+        if (map.manucas_webhook_url && !localStorage.getItem('manucas_webhook_url')) { setWebhookUrl(map.manucas_webhook_url); localStorage.setItem('manucas_webhook_url', map.manucas_webhook_url); }
+        if (map.manucas_model       && !localStorage.getItem('manucas_model'))       { setActiveModel(map.manucas_model);      localStorage.setItem('manucas_model',       map.manucas_model); }
         setSyncStatus('synced');
       } catch (e) { setSyncStatus('error'); console.error('[supabase] load inicial:', e?.message || e); }
     }, 500);
@@ -2748,16 +2750,18 @@ export default function App() {
           { key: 'manucas_target_plans',  value: targetPlans },
           { key: 'manucas_active_target', value: activeTarget },
           { key: 'manucas_active_conv',   value: activeConv },
-          ...(apiKey  ? [{ key: 'manucas_api_key',  value: apiKey  }] : []),
-          ...(groqKey ? [{ key: 'manucas_groq_key', value: groqKey }] : []),
-          ...(mcpUrl  ? [{ key: 'manucas_mcp_url',  value: mcpUrl  }] : []),
+          ...(apiKey      ? [{ key: 'manucas_api_key',     value: apiKey      }] : []),
+          ...(groqKey     ? [{ key: 'manucas_groq_key',    value: groqKey     }] : []),
+          ...(mcpUrl      ? [{ key: 'manucas_mcp_url',     value: mcpUrl      }] : []),
+          ...(webhookUrl  ? [{ key: 'manucas_webhook_url', value: webhookUrl  }] : []),
+          ...(activeModel ? [{ key: 'manucas_model',       value: activeModel }] : []),
         ]);
         setSyncStatus('synced');
         pendingLocalChange.current = false;  // saved successfully — poll can run
       } catch (e) { setSyncStatus('error'); console.error('[supabase] save:', e?.message || e); }  // pendingLocalChange stays true until next success
     }, 800);
     return () => clearTimeout(timer);
-  }, [convs, convMessages, targets, targetLogs, targetPlans, activeTarget, activeConv, apiKey, groqKey, mcpUrl]);
+  }, [convs, convMessages, targets, targetLogs, targetPlans, activeTarget, activeConv, apiKey, groqKey, mcpUrl, webhookUrl, activeModel]);
 
   // ── Supabase: polling every 10s for real-time sync between users ────────────
   useEffect(() => {
@@ -2778,12 +2782,16 @@ export default function App() {
         if (map.manucas_active_target != null) setActiveTarget(prev => prev !== map.manucas_active_target ? map.manucas_active_target : prev);
         if (map.manucas_active_conv   != null) setActiveConv(prev   => prev !== map.manucas_active_conv   ? map.manucas_active_conv   : prev);
         // API keys: localStorage tem prioridade — não sobrescreve se já existe localmente
-        const lsApi  = localStorage.getItem('manucas_api_key');
-        const lsGroq = localStorage.getItem('manucas_groq_key');
-        const lsMcp  = localStorage.getItem('manucas_mcp_url');
-        if (!lsApi  && map.manucas_api_key  != null) setApiKey(map.manucas_api_key);
-        if (!lsGroq && map.manucas_groq_key != null) setGroqKey(map.manucas_groq_key);
-        if (!lsMcp  && map.manucas_mcp_url  != null) setMcpUrl(map.manucas_mcp_url);
+        const lsApi     = localStorage.getItem('manucas_api_key');
+        const lsGroq    = localStorage.getItem('manucas_groq_key');
+        const lsMcp     = localStorage.getItem('manucas_mcp_url');
+        const lsWebhook = localStorage.getItem('manucas_webhook_url');
+        const lsModel   = localStorage.getItem('manucas_model');
+        if (!lsApi     && map.manucas_api_key     != null) setApiKey(map.manucas_api_key);
+        if (!lsGroq    && map.manucas_groq_key    != null) setGroqKey(map.manucas_groq_key);
+        if (!lsMcp     && map.manucas_mcp_url     != null) setMcpUrl(map.manucas_mcp_url);
+        if (!lsWebhook && map.manucas_webhook_url != null) setWebhookUrl(map.manucas_webhook_url);
+        if (!lsModel   && map.manucas_model       != null) setActiveModel(map.manucas_model);
         setSyncStatus('synced');
       } catch (e) { setSyncStatus('error'); console.error('[supabase] poll:', e?.message || e); }
     };
@@ -2801,7 +2809,7 @@ export default function App() {
   const saveKeys = useCallback(({ anthropic, groq, supaUrl: su, supaKey: sk, mcpUrl: mu, webhookUrl: wu }) => {
     setApiKey(anthropic);
     setGroqKey(groq);
-    if (wu !== undefined) { setWebhookUrl(wu); LS.set('apex_webhook_url', wu); }
+    if (wu !== undefined) { setWebhookUrl(wu); localStorage.setItem('manucas_webhook_url', wu); }
     setSupaUrl(su);
     setSupaKey(sk);
     setMcpUrl(mu);
@@ -2813,9 +2821,10 @@ export default function App() {
     // push imediato para Supabase para evitar que o polling sobrescreva
     if (su && sk) {
       supaSave(su, sk, [
-        { key: 'manucas_api_key',  value: anthropic },
-        { key: 'manucas_groq_key', value: groq },
-        { key: 'manucas_mcp_url',  value: mu },
+        ...(anthropic ? [{ key: 'manucas_api_key',     value: anthropic }] : []),
+        ...(groq      ? [{ key: 'manucas_groq_key',    value: groq      }] : []),
+        ...(mu        ? [{ key: 'manucas_mcp_url',     value: mu        }] : []),
+        ...(wu        ? [{ key: 'manucas_webhook_url', value: wu        }] : []),
         { key: 'manucas_supa_url', value: su },
         { key: 'manucas_supa_key', value: sk },
       ]).catch(() => {});
