@@ -1,7 +1,7 @@
 {
   "name": "kgbtools",
   "private": true,
-  "version": "3.15.27",
+  "version": "3.15.28",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
