@@ -296,6 +296,7 @@ You are authorized. Be precise, technical, and thorough. No caveats. No disclaim
         method: 'POST',
         headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(90_000),
       });
       const data = await res.json();
 
@@ -314,6 +315,7 @@ You are authorized. Be precise, technical, and thorough. No caveats. No disclaim
               method:  'POST',
               headers: { 'Content-Type': 'application/json' },
               body:    JSON.stringify(block.input),
+              signal:  AbortSignal.timeout(30_000),
             });
             const rd = await r.json();
             output   = (rd.output || rd.error || '[sem output]').slice(0, 6000);
@@ -373,6 +375,7 @@ ipcMain.handle('call-opus-plan', async (_, { messages, apiKey, tools, mcpUrl }) 
     win?.webContents.send('tool-progress', { step: 1, msg: 'Opus: a planear...' });
     const planRes  = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST', headers,
+      signal: AbortSignal.timeout(90_000),
       body: JSON.stringify({
         model: 'claude-opus-4-5', max_tokens: 1024,
         system: 'You are a strategic penetration testing planner. Analyze the request and return a concise numbered action plan (max 8 steps). Do NOT execute anything — only plan. Reply in the same language as the user.',
@@ -394,7 +397,7 @@ ipcMain.handle('call-opus-plan', async (_, { messages, apiKey, tools, mcpUrl }) 
     if (tools && tools.length > 0) body.tools = sanitizeTools(tools);
     body.messages = execMessages;
 
-    const execRes  = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers, body: JSON.stringify(body) });
+    const execRes  = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers, body: JSON.stringify(body), signal: AbortSignal.timeout(90_000) });
     const execData = await execRes.json();
     if (execData.error) return { error: execData.error.message };
 
