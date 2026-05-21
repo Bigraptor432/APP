@@ -1879,11 +1879,15 @@ class MCPHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": f"unknown tool: {tool}"}).encode())
                 return
 
-            # Strip URL fragments (#hash) from any URL-type arg so SPA routes
-            # like https://site.com/#/login don't corrupt appended paths.
+            # Normalise URL-type args: strip fragments, auto-add https:// if missing.
             for key in ("target", "url", "hosts", "login_url"):
-                if key in args and isinstance(args[key], str) and "#" in args[key]:
-                    args[key] = args[key].split("#")[0].rstrip("/")
+                if key in args and isinstance(args[key], str):
+                    v = args[key].strip()
+                    if "#" in v:
+                        v = v.split("#")[0].rstrip("/")
+                    if v and "://" not in v and not v.startswith("/"):
+                        v = "https://" + v
+                    args[key] = v
 
             if tool == "cve_search":
                 output = nvd_search(args.get("keyword",""), args.get("severity"), args.get("limit", 20))
