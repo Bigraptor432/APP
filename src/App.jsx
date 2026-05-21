@@ -1047,7 +1047,7 @@ function PentestView({ apiKey, mcpUrl, mcpTools, onPlanUpdate, webhookUrl, onPen
     cve_rag: false,          session_manage: false,
     mitmproxy_scan: false,   info_disclosure: true,   session_chain: false,
     param_discover: true,    '403_bypass': false,
-    nuclei_exploit: false,   cve_rag_local: false,    dynamic_mutate: false,
+    cve_rag_local: false,    dynamic_mutate: false,
     post_exploit: false,     proxychains_wrap: false,
   });
   const [mission,    setMission]    = useState(() => LS.get('kgb_mission', ''));
@@ -1149,12 +1149,13 @@ MANDATORY CHAINING RULES:
   const logLenRef      = useRef(0);
   const actLenRef      = useRef(0);
   const cancelRef      = useRef(false);
+  const abortRef       = useRef(null);
   const logRef = useRef(null);
 
   useEffect(() => { if (onRunningChange) onRunningChange(running); }, [running]);
   useEffect(() => {
     if (!stopRef) return;
-    stopRef.current = () => { cancelRef.current = true; setRunning(false); };
+    stopRef.current = () => { cancelRef.current = true; abortRef.current?.abort(); setRunning(false); };
     return () => { if (stopRef) stopRef.current = null; };
   }, [stopRef]);
 
@@ -1343,8 +1344,9 @@ fi
       await sleep(idx * 220 + Math.floor(Math.random() * 800));
       setLog(prev => [...prev, { t: 'run', m: `⚡ ${toolKey}...` }]);
       try {
+        if (cancelRef.current) return;
         const args = { ...(toolKey === 'xss_inject' ? map.args(tgt, xssCallback) : map.args(tgt)), user_agent: randUA() };
-        const r  = await fetch(`${mcpUrl}/call/${map.tool}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(args) });
+        const r  = await fetch(`${mcpUrl}/call/${map.tool}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(args), signal: abortRef.current?.signal });
         const rd = await r.json();
         const LONG_OUTPUT_TOOLS = ['nuclei_fast','nuclei_exploit','info_disclosure','playwright_crawl','js_analyze','js_bundle_analysis','sqli_scan','wpscan','cve_rag','cve_rag_local','lateral_move','post_exploit','param_discover','403_bypass','session_chain','evasion_scan'];
         const maxOut = LONG_OUTPUT_TOOLS.includes(toolKey) ? 5000 : 2500;
@@ -1352,6 +1354,7 @@ fi
         results.push({ key: toolKey, out });
         setLog(prev => [...prev, { t: 'ok', m: `✓ ${toolKey}` }]);
       } catch (e) {
+        if (e.name === 'AbortError') return;
         setLog(prev => [...prev, { t: 'err', m: `✗ ${toolKey}: ${e.message}` }]);
       }
     }));
@@ -1371,6 +1374,7 @@ fi
       }
       actLenRef.current = 0;
       cancelRef.current = false;
+      abortRef.current = new AbortController();
       if (onActivityLog) onActivityLog(null); // signal reset
     }
 
@@ -1384,6 +1388,7 @@ fi
     if (cancelRef.current) { if (overrideTarget === undefined) setRunning(false); return; }
 
     // BRAIN: load previous findings for this target
+
     const brainData = getBrain();
     const brainCtx = brainData.findings.length > 0
       ? `\nBRAIN (${brainData.findings.length} findings de sessões anteriores):\n${brainData.findings.slice(-15).join('\n')}\n`
@@ -1407,6 +1412,7 @@ fi
         if (onPlanUpdate) onPlanUpdate(planJson.plano.map((s, i) => ({ id: i + 1, text: s.objective, checked: false })));
       }
     } catch (_) {}
+    if (cancelRef.current) { if (overrideTarget === undefined) setRunning(false); return; }
 
     // Run info_disclosure first if selected (Phase 2 — low noise high yield)
     const reconFirst = ['info_disclosure','subfinder','httpx','naabu_scan'];
@@ -1415,6 +1421,7 @@ fi
 
     setLog(prev => [...prev, { t: 'info', m: `Fase 2 — recon (${reconTools.length} tools)...` }]);
     let allResults = reconTools.length > 0 ? await runToolParallel(reconTools, target) : [];
+    if (cancelRef.current) { if (overrideTarget === undefined) setRunning(false); return; }
 
     // STRATEGIC BRIEFING — Claude prioritizes vectors from recon data before exploit phase
     if (autoMode && allResults.length > 0) {
@@ -1446,6 +1453,7 @@ fi
       const exploitResults = await runToolParallel(exploitTools, target);
       allResults = [...allResults, ...exploitResults];
     }
+    if (cancelRef.current) { if (overrideTarget === undefined) setRunning(false); return; }
 
     // CVE lookup
     if (window.electron?.lookupCves) {
@@ -1667,7 +1675,7 @@ Responde em JSON: {"api_endpoints":[], "idor_candidates":[], "hardcoded_secrets"
     if (overrideTarget === undefined) setRunning(false);
   };
 
-  const stop = () => { cancelRef.current = true; setRunning(false); };
+  const stop = () => { cancelRef.current = true; abortRef.current?.abort(); setRunning(false); };
 
   const PARALLEL_LIMIT = 3;
   const runQueue = async () => {
@@ -1917,12 +1925,13 @@ const TERM_INIT = [
   { type: 'out', text: 'kgbtools terminal v1.0.0 — pentest automation shell\n─────────────────────────────────────────────────' },
 ];
 
-function TerminalsView({ mcpUrl }) {
+function TerminalsView({ mcpUrl, appLogs, onClearAppLogs }) {
   const [input,   setInput]   = useState('');
   const [history, setHistory] = useState(TERM_INIT);
   const [cmdHist, setCmdHist] = useState([]);
   const [histIdx, setHistIdx] = useState(-1);
   const [mode,    setMode]    = useState('windows');
+  const [termTab, setTermTab] = useState('shell');
   const scrollRef = useRef(null);
   const inputRef  = useRef(null);
 
@@ -1980,13 +1989,23 @@ function TerminalsView({ mcpUrl }) {
         className="px-3 py-2 flex-shrink-0 flex items-center justify-between"
         style={{ borderBottom: `1px solid ${C.border}` }}
       >
-        <span className="font-mono text-[9px] uppercase tracking-widest" style={{ color: C.textDim }}>TERMINAL</span>
         <div className="flex items-center gap-1" style={{ background: '#111', borderRadius: 6, padding: '2px 3px', border: `1px solid ${C.border}` }}>
-          <button onClick={() => { setMode('windows'); setHistory(TERM_INIT); }} className="font-mono text-[9px] px-2 py-0.5 rounded transition-all" style={{ background: mode === 'windows' ? C.panel : 'transparent', color: mode === 'windows' ? '#ccc' : '#444' }}>windows</button>
-          <button onClick={() => { setMode('kali'); setHistory([{ type: 'out', text: 'kali terminal — comandos executam no servidor Kali via MCP\n─────────────────────────────────────────────────' }]); }} className="font-mono text-[9px] px-2 py-0.5 rounded transition-all" style={{ background: mode === 'kali' ? C.red : 'transparent', color: mode === 'kali' ? '#fff' : '#444' }}>kali</button>
+          <button onClick={() => setTermTab('shell')} className="font-mono text-[9px] px-2 py-0.5 rounded transition-all" style={{ background: termTab === 'shell' ? C.panel : 'transparent', color: termTab === 'shell' ? '#ccc' : '#444' }}>shell</button>
+          <button onClick={() => setTermTab('console')} className="font-mono text-[9px] px-2 py-0.5 rounded transition-all" style={{ background: termTab === 'console' ? C.panel : 'transparent', color: termTab === 'console' ? '#ccc' : '#444' }}>console</button>
         </div>
+        {termTab === 'shell' && (
+          <div className="flex items-center gap-1" style={{ background: '#111', borderRadius: 6, padding: '2px 3px', border: `1px solid ${C.border}` }}>
+            <button onClick={() => { setMode('windows'); setHistory(TERM_INIT); }} className="font-mono text-[9px] px-2 py-0.5 rounded transition-all" style={{ background: mode === 'windows' ? C.panel : 'transparent', color: mode === 'windows' ? '#ccc' : '#444' }}>windows</button>
+            <button onClick={() => { setMode('kali'); setHistory([{ type: 'out', text: 'kali terminal — comandos executam no servidor Kali via MCP\n─────────────────────────────────────────────────' }]); }} className="font-mono text-[9px] px-2 py-0.5 rounded transition-all" style={{ background: mode === 'kali' ? C.red : 'transparent', color: mode === 'kali' ? '#fff' : '#444' }}>kali</button>
+          </div>
+        )}
       </div>
 
+      {termTab === 'console' ? (
+        <div className="flex-1 overflow-y-auto p-4">
+          <ConsoleView logs={appLogs || []} onClear={onClearAppLogs || (() => {})} />
+        </div>
+      ) : (<>
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto p-4 font-mono leading-relaxed"
@@ -2030,6 +2049,7 @@ function TerminalsView({ mcpUrl }) {
           style={{ color: '#d4d4d4', caretColor: C.red }}
         />
       </div>
+      </>)}
     </div>
   );
 }
@@ -2109,7 +2129,7 @@ function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onS
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
   };
 
-  if (activeNav === 'terminals') return <TerminalsView mcpUrl={mcpUrl} />;
+  if (activeNav === 'terminals') return <TerminalsView mcpUrl={mcpUrl} appLogs={appLogs} onClearAppLogs={onClearAppLogs} />;
 
   const modelInfo = activeModel === 'gemma'
     ? { label: 'LLaMA · Groq',          dot: '#22c55e' }
@@ -2207,7 +2227,6 @@ function InteractionPanel({ planItems, onPlanToggle, onPlanUpdate, messages, onS
 
         {activeNav === 'dashboard' && <DashboardView logs={logs} findings={TARGET_FINDINGS[activeTarget] || []} targets={targets} />}
         {activeNav === 'pentest'   && <PentestView apiKey={apiKey} mcpUrl={mcpUrl} mcpTools={mcpTools} onPlanUpdate={onPlanUpdate} webhookUrl={webhookUrl} onPentestCreate={onPentestCreate} onPentestLog={onPentestLog} onActivityLog={onActivityLog} stopRef={stopRef} onRunningChange={onRunningChange} />}
-        {activeNav === 'terminals' && <ConsoleView logs={appLogs} onClear={onClearAppLogs} />}
 
         {/* Findings tab */}
         {activeNav === 'chat' && (tab === 'findings' || tab === 'plano') && (
